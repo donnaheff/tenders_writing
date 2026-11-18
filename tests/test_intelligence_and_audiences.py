@@ -130,3 +130,10 @@ def test_public_sector_draft_validates_weights_and_ambiguity(client):
     assert good["status"] == "validated"
     assert good["clarity_score"] == 100.0
     assert good["validation_issues"] == []
+
+    scorecard_res = client.post(f"/api/v1/public-sector/drafts/{good['id']}/validate")
+    assert scorecard_res.status_code == 200
+    scorecard = scorecard_res.json()["scorecard"]
+    assert len(scorecard) == 3
+    assert sum(c["weight_pct"] for c in scorecard) == 100
+

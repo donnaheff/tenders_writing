@@ -61,3 +61,27 @@ def test_white_label_and_access_review_and_isolation(client):
 
     consultancies = client.get("/api/v1/white-label/consultancies").json()
     assert any(c["brand_name"] == "Apex Enterprise Bids" for c in consultancies)
+
+
+def test_private_workspace_notices_are_isolated(client):
+    private_notice = client.post(
+        "/api/v1/notices",
+        json={
+            "workspace_id": 2,
+            "notice_type": "tender",
+            "source_portal": "Private Client Portal",
+            "funder_or_buyer": "NorthStar Private Buyer",
+            "title": "NorthStar Confidential Tender",
+            "sector": "Digital & Cloud",
+            "contract_value": 150000,
+        },
+    )
+    assert private_notice.status_code == 201
+    notice_id = private_notice.json()["id"]
+
+    ws1_notices = client.get("/api/v1/notices?workspace_id=1").json()
+    assert all(n["id"] != notice_id for n in ws1_notices)
+
+    ws2_notices = client.get("/api/v1/notices?workspace_id=2").json()
+    assert any(n["id"] == notice_id for n in ws2_notices)
+

@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from bid_studio.database import get_db
@@ -8,9 +9,11 @@ from bid_studio.models import (
     AnswerLibraryItem,
     EmailDeliveryLog,
     EvidenceItem,
+    GrantProposal,
     OpportunityNotice,
     Order,
     QualityQueueItem,
+    TechDocProject,
     Workspace,
     WorkspaceMember,
 )
@@ -129,6 +132,7 @@ def run_access_review(workspace_id: int, db: Session = Depends(get_db)):
 # --- Opportunity Feed ---
 @router.get("/notices", response_model=list[NoticeRead])
 def list_notices(
+    workspace_id: int | None = Query(default=None),
     notice_type: str | None = Query(default=None),
     sector: str | None = Query(default=None),
     status: str | None = Query(default=None),
@@ -136,6 +140,13 @@ def list_notices(
     db: Session = Depends(get_db),
 ):
     query = db.query(OpportunityNotice)
+    if workspace_id is not None:
+        query = query.filter(
+            or_(
+                OpportunityNotice.workspace_id.is_(None),
+                OpportunityNotice.workspace_id == workspace_id,
+            )
+        )
     if notice_type:
         query = query.filter(OpportunityNotice.notice_type == notice_type)
     if sector:
@@ -236,6 +247,26 @@ def review_quality_queue_item(
     item.review_score = payload.review_score
     item.review_notes = payload.review_notes
     item.updated_at = datetime.now(UTC)
+
+    if item.item_type == "grant_proposal" and item.reference_id:
+        proposal = db.get(GrantProposal, item.reference_id)
+        if proposal:
+            if payload.status == "approved":
+                proposal.status = "approved"
+            elif payload.status == "changes_requested":
+                proposal.status = "draft"
+    elif item.item_type == "tech_doc" and item.reference_id:
+        doc = db.get(TechDocProject, item.reference_id)
+        if doc:
+            if payload.status == "approved":
+                doc.quality_approved = True
+                doc.pipeline_stage = "approved"
+                doc.reviewer_notes = payload.review_notes
+            elif payload.status == "changes_requested":
+                doc.quality_approved = False
+                doc.pipeline_stage = "drafting"
+                doc.reviewer_notes = payload.review_notes
+
     db.commit()
     db.refresh(item)
     return item
