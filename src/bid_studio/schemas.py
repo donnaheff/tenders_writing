@@ -225,9 +225,9 @@ class PriceMatrixCreate(BaseModel):
     bid_title: str
     template_id: int | None = None
     currency: str = "GBP"
-    margin_pct: float = Field(default=18.0, ge=0, le=100)
+    margin_pct: float | None = Field(default=None, ge=0, le=100)
     contingency_pct: float = Field(default=5.0, ge=0, le=100)
-    lines: list[PriceMatrixLineInput]
+    lines: list[PriceMatrixLineInput] = Field(default_factory=list)
 
 
 class SocialValueCreate(BaseModel):
@@ -279,6 +279,10 @@ class TrainingEnrolmentCreate(BaseModel):
     workspace_id: int = 1
     learner_name: str
     learner_email: str
+
+
+class TrainingModuleComplete(BaseModel):
+    module_name: str
 
 
 class BuyerTenderDraftCreate(BaseModel):

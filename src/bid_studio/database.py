@@ -6,9 +6,16 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from bid_studio.config import settings
 
 
+def normalize_database_url(database_url: str) -> str:
+    if database_url.startswith("postgres://"):
+        return database_url.replace("postgres://", "postgresql://", 1)
+    return database_url
+
+
 def build_engine(database_url: str):
-    connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-    return create_engine(database_url, connect_args=connect_args, future=True)
+    url = normalize_database_url(database_url)
+    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+    return create_engine(url, connect_args=connect_args, future=True)
 
 
 engine = build_engine(settings.database_url)

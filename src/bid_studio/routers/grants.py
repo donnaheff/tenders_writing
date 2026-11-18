@@ -168,3 +168,35 @@ def submit_proposal_for_review(proposal_id: int, db: Session = Depends(get_db)):
         "quality_queue_id": queue_item.id,
         "total_weighted_score": proposal.total_weighted_score,
     }
+
+
+@router.get("/proposals/{proposal_id}/export")
+def export_grant_proposal_markdown(proposal_id: int, db: Session = Depends(get_db)):
+    proposal = db.get(GrantProposal, proposal_id)
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Grant proposal not found")
+
+    lines = [
+        f"# {proposal.title}",
+        f"- **Funder Type:** {proposal.funder_type}",
+        f"- **Applicant Organisation:** {proposal.applicant_org}",
+        f"- **Requested Amount:** {proposal.currency} {proposal.requested_amount:,.2f}",
+        f"- **Status:** {proposal.status}",
+        f"- **Total Weighted Self-Score:** {proposal.total_weighted_score:.2f}%",
+        "",
+    ]
+    for sec in proposal.sections:
+        lines.extend(
+            [
+                f"## {sec.get('criterion_id')} — {sec.get('title')} (Weight {sec.get('weight')}%)",
+                f"**Score:** {sec.get('self_score')} / {sec.get('max_score')}",
+                "",
+                str(sec.get("draft_text", "")),
+                "",
+            ]
+        )
+    return {
+        "proposal_id": proposal.id,
+        "title": proposal.title,
+        "markdown": "\n".join(lines),
+    }

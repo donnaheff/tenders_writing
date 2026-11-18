@@ -79,6 +79,20 @@ def test_pricing_matrix_calculation_and_narrative(client):
     assert matrix["total_price"] == 24000.0
     assert "GBP 24,000.00" in matrix["cost_narrative"]
 
+    # Creating a matrix from a template ID without custom lines loads template defaults
+    tpl_res = client.post(
+        "/api/v1/pricing/matrices",
+        json={
+            "workspace_id": 1,
+            "bid_title": "Template-Seeded Bid",
+            "template_id": templates[0]["id"],
+            "currency": "GBP",
+        },
+    )
+    assert tpl_res.status_code == 201
+    assert tpl_res.json()["subtotal"] > 0
+    assert tpl_res.json()["margin_pct"] == templates[0]["default_margin_pct"]
+
 
 def test_social_value_net_zero_and_living_wage_statement(client):
     res = client.post(
@@ -99,3 +113,7 @@ def test_social_value_net_zero_and_living_wage_statement(client):
     assert "Net Zero by 2032" in sv["generated_statement"]
     assert "Real Living Wage" in sv["generated_statement"]
     assert len(sv["kpis"]) >= 3
+
+    export_res = client.get(f"/api/v1/social-value/{sv['id']}/export")
+    assert export_res.status_code == 200
+    assert "| KPI | Target |" in export_res.json()["markdown"]
