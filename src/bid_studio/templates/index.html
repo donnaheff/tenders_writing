@@ -52,6 +52,10 @@
       background: #e2e8f0;
       color: var(--text);
     }
+    button.small {
+      padding: 4px 8px;
+      font-size: 0.78rem;
+    }
     .layout {
       display: grid;
       grid-template-columns: 260px 1fr;
@@ -88,7 +92,7 @@
       color: var(--accent);
       font-weight: 700;
     }
-    main { padding: 22px; max-width: 1120px; }
+    main { padding: 22px; max-width: 1140px; }
     .panel { display: none; }
     .panel.active { display: block; }
     .card {
@@ -98,7 +102,7 @@
       padding: 16px;
       margin-bottom: 16px;
     }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
     .stat { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
     .badge {
       display: inline-block;
@@ -109,7 +113,20 @@
       color: var(--text);
       font-weight: 600;
     }
+    .row-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .row-item:last-child { border-bottom: none; }
+    .inline-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+      align-items: center;
+    }
     .form-grid { display: grid; gap: 10px; margin-bottom: 12px; }
+    .muted { font-size: 0.85rem; color: var(--muted); }
     pre {
       background: #0f172a;
       color: #e2e8f0;
@@ -140,7 +157,7 @@
   <div class="layout">
     <nav id="sidebar">
       <div class="nav-group">Core &amp; Primary</div>
-      <button class="active" onclick="showTab('overview', this)">Overview &amp; Feed</button>
+      <button class="active" onclick="showTab('overview', this)">Overview, Feed &amp; QA</button>
       <button onclick="showTab('grants', this)">0. Grant &amp; Funding Calls</button>
 
       <div class="nav-group">New Service Lines</div>
@@ -176,7 +193,22 @@
         </div>
         <div class="card">
           <h3>Live Opportunity Feed (Tenders, Grants &amp; Awarded Notices)</h3>
+          <div class="inline-actions" style="margin-bottom:10px;">
+            <input id="feedSearch" placeholder="Search title, buyer, or keyword..." oninput="refreshAll()" />
+            <select id="feedType" onchange="refreshAll()">
+              <option value="">All notice types</option>
+              <option value="grant_call">Grant Calls</option>
+              <option value="tender">Open Tenders</option>
+              <option value="awarded_tender">Awarded Tenders</option>
+            </select>
+          </div>
           <div id="feedList">Loading...</div>
+        </div>
+        <div class="card">
+          <h3>Quality Review Queue &amp; Outbound Email Deliveries</h3>
+          <div id="queueList"></div>
+          <h4 style="margin-top:14px;">Recent Email Deliveries</h4>
+          <div id="deliveriesList"></div>
         </div>
       </section>
 
@@ -258,6 +290,11 @@ What is your incident response SLA?</textarea>
         <div class="card">
           <h3>4. Bid Review Marketplace</h3>
           <div id="reviewersList"></div>
+          <div class="form-grid" style="margin-top:12px;">
+            <input id="mrTitle" value="Riverbend Fleet Bid Draft v1" placeholder="Target Draft Title" />
+            <textarea id="mrExcerpt" rows="2">We will deploy 18 electric refuse trucks with 99.5% route SLA and verified Scope 1-3 reductions.</textarea>
+            <button onclick="requestMarketplaceReview()">Request Independent Marketplace Review</button>
+          </div>
           <div id="reviewsList" style="margin-top:12px;"></div>
         </div>
       </section>
@@ -363,7 +400,14 @@ What is your incident response SLA?</textarea>
       <section id="whitelabel" class="panel">
         <div class="card">
           <h3>13. White-Label Bid Consultancies &amp; Access Review</h3>
-          <button onclick="runAccessReview()">Run Access Review on Current Workspace</button>
+          <div class="form-grid">
+            <input id="wlBrand" placeholder="Brand Name" value="Consultancy Bid Portal" />
+            <input id="wlDomain" placeholder="Custom Domain" value="bids.consultancy.example" />
+            <div class="inline-actions">
+              <button onclick="saveWhiteLabel()">Update Current Workspace Branding</button>
+              <button class="secondary" onclick="runAccessReview()">Run Access Review</button>
+            </div>
+          </div>
           <pre id="accessReviewOutput" style="margin-top:12px;">Select a workspace and click Run Access Review.</pre>
         </div>
       </section>
@@ -425,11 +469,18 @@ What is your incident response SLA?</textarea>
     }
 
     async function refreshAll() {
-      const [notices, grants, answers, queue, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, frameworks, cohorts, enrolments, buyerDrafts] = await Promise.all([
-        api("/api/v1/notices"),
+      const q = encodeURIComponent(document.getElementById("feedSearch")?.value || "");
+      const nType = encodeURIComponent(document.getElementById("feedType")?.value || "");
+      const noticeParams = new URLSearchParams({ workspace_id: String(currentWsId) });
+      if (q) noticeParams.set("q", document.getElementById("feedSearch").value);
+      if (nType) noticeParams.set("notice_type", document.getElementById("feedType").value);
+
+      const [notices, grants, answers, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, frameworks, cohorts, enrolments, buyerDrafts] = await Promise.all([
+        api(`/api/v1/notices?${noticeParams.toString()}`),
         api("/api/v1/grants/calls"),
         api(`/api/v1/answer-library?workspace_id=${currentWsId}`),
         api(`/api/v1/quality-queue?workspace_id=${currentWsId}`),
+        api(`/api/v1/deliveries?workspace_id=${currentWsId}`),
         api(`/api/v1/grants/proposals?workspace_id=${currentWsId}`),
         api(`/api/v1/tech-docs?workspace_id=${currentWsId}`),
         api(`/api/v1/compliance/packs?workspace_id=${currentWsId}`),
@@ -451,72 +502,125 @@ What is your incident response SLA?</textarea>
       document.getElementById("statAnswers").textContent = answers.length;
       document.getElementById("statQueue").textContent = queue.length;
 
-      document.getElementById("feedList").innerHTML = notices.map(n => `<div style="padding:8px 0; border-bottom:1px solid #e2e8f0;">
+      document.getElementById("feedList").innerHTML = notices.map(n => `<div class="row-item">
         <span class="badge">${n.notice_type}</span> <strong>#${n.id} ${n.title}</strong> — ${n.funder_or_buyer} (${n.currency} ${n.contract_value.toLocaleString()})
-        <div style="font-size:0.85rem; color:#475569;">${n.ai_summary}</div>
-      </div>`).join("");
+        <div class="muted">${n.ai_summary}</div>
+      </div>`).join("") || `<div class="muted">No matching notices.</div>`;
 
-      document.getElementById("grantCallsList").innerHTML = grants.map(g => `<div style="padding:6px 0;">
+      document.getElementById("queueList").innerHTML = queue.map(qItem => `<div class="row-item">
+        <strong>#${qItem.id} ${qItem.title}</strong> (${qItem.item_type}) — <span class="badge">${qItem.status}</span> Score: ${qItem.review_score ?? "-"}
+        <div class="inline-actions">
+          <button class="small" onclick="reviewQueueItem(${qItem.id}, 'approved')">Approve QA</button>
+          <button class="small secondary" onclick="reviewQueueItem(${qItem.id}, 'changes_requested')">Request Changes</button>
+        </div>
+      </div>`).join("") || `<div class="muted">Quality queue is empty.</div>`;
+
+      document.getElementById("deliveriesList").innerHTML = deliveries.slice(0, 5).map(d => `<div class="row-item">
+        <span class="badge">${d.delivery_type}</span> To: <strong>${d.recipient_email}</strong> — ${d.subject}
+      </div>`).join("") || `<div class="muted">No deliveries sent yet.</div>`;
+
+      document.getElementById("grantCallsList").innerHTML = grants.map(g => `<div class="row-item">
         <span class="badge">${g.source_portal}</span> <strong>#${g.id} ${g.title}</strong> (${g.currency} ${g.contract_value.toLocaleString()})
+        <div class="inline-actions">
+          <button class="small" onclick="extractGrantCriteria(${g.id})">Extract Criteria (${g.structured_criteria.length})</button>
+        </div>
       </div>`).join("");
 
-      document.getElementById("grantProposalsList").innerHTML = proposals.map(p => `<div style="padding:6px 0;">
+      document.getElementById("grantProposalsList").innerHTML = proposals.map(p => `<div class="row-item">
         <strong>${p.title}</strong> — ${p.funder_type} | Weighted Score: <strong>${p.total_weighted_score}%</strong> | Status: <span class="badge">${p.status}</span>
+        <div class="inline-actions">
+          <button class="small" onclick="submitGrantReview(${p.id})">Submit to Quality Queue</button>
+        </div>
       </div>`).join("");
 
-      document.getElementById("techDocsList").innerHTML = techdocs.map(d => `<div style="padding:6px 0;">
+      document.getElementById("techDocsList").innerHTML = techdocs.map(d => `<div class="row-item">
         <strong>${d.title}</strong> (${d.doc_type}, ${d.currency} ${d.fixed_fee}) — Stage: <span class="badge">${d.pipeline_stage}</span>
+        <div class="inline-actions">
+          <button class="small secondary" onclick="submitTechDocQA(${d.id})">1. Submit to QA</button>
+          <button class="small secondary" onclick="approveTechDocQA(${d.id})">2. Approve QA</button>
+          <button class="small" onclick="deliverTechDoc(${d.id})">3. Deliver Email</button>
+        </div>
       </div>`).join("");
 
-      document.getElementById("complianceList").innerHTML = compliance.map(c => `<div style="padding:6px 0;">
+      document.getElementById("complianceList").innerHTML = compliance.map(c => `<div class="row-item">
         <strong>${c.title}</strong> (${c.pack_type}) — Status: <span class="badge">${c.status}</span> (${c.questionnaire_items.filter(q => q.status === 'matched').length}/${c.questionnaire_items.length} auto-matched)
+        ${c.questionnaire_items.map(q => `<div class="muted" style="margin-top:4px;">&bull; <strong>${q.id}</strong>: ${q.question} &rarr; <span class="badge">${q.status} (${Math.round((q.confidence || 0)*100)}%)</span> ${q.matched_answer_text || ""}</div>`).join("")}
       </div>`).join("");
 
-      document.getElementById("assetsList").innerHTML = assets.map(a => `<div style="padding:6px 0;">
+      document.getElementById("assetsList").innerHTML = assets.map(a => `<div class="row-item">
         <strong>${a.title}</strong> (${a.asset_type}) — <span class="badge">${a.status}</span> (Evidence ID: ${a.promoted_evidence_id || "-"})
       </div>`).join("");
 
-      document.getElementById("reviewersList").innerHTML = reviewers.map(r => `<div style="padding:6px 0;">
+      document.getElementById("reviewersList").innerHTML = reviewers.map(r => `<div class="row-item">
         <strong>${r.full_name}</strong> (${r.specialisms.join(", ")}) — ${r.currency} ${r.flat_fee} ★ ${r.rating}
       </div>`).join("");
 
-      document.getElementById("reviewsList").innerHTML = reviews.map(rv => `<div style="padding:6px 0;">
+      document.getElementById("reviewsList").innerHTML = reviews.map(rv => `<div class="row-item">
         Review: <strong>${rv.target_title}</strong> — <span class="badge">${rv.status}</span> Score: ${rv.overall_score ?? "Pending"}
+        ${rv.status !== 'completed' ? `<div class="inline-actions"><button class="small" onclick="scoreMarketplaceReview(${rv.id})">Submit Reviewer Score (84%)</button></div>` : `<div class="muted">${rv.feedback_summary}</div>`}
       </div>`).join("");
 
-      document.getElementById("debriefsList").innerHTML = debriefs.map(d => `<div style="padding:6px 0;">
+      document.getElementById("debriefsList").innerHTML = debriefs.map(d => `<div class="row-item">
         <strong>${d.bid_title}</strong> (${d.buyer_name}) — <span class="badge">${d.outcome}</span> | Internal ${d.internal_score} vs Buyer ${d.buyer_score} | Fixes: ${d.next_bid_fixes.length}
       </div>`).join("");
 
-      document.getElementById("clarificationsList").innerHTML = clarifs.map(c => `<div style="padding:6px 0;">
-        <strong>${c.tender_title}</strong> (Deadline: ${c.clarification_deadline}) — ${c.questions.length} clarification question(s) drafted
+      document.getElementById("clarificationsList").innerHTML = clarifs.map(c => `<div class="row-item">
+        <strong>${c.tender_title}</strong> (Deadline: ${c.clarification_deadline}) — ${c.questions.length} clarification question(s)
+        ${c.questions.map(q => `<div class="muted" style="margin-top:4px;">
+          <span class="badge">${q.priority}</span> <span class="badge">${q.status}</span> <strong>${q.id}</strong>: ${q.drafted_question}
+          ${q.status !== 'answered' ? `<button class="small secondary" onclick="markClarificationAnswered(${c.id}, '${q.id}')">Mark Answered</button>` : `<div><em>Buyer response:</em> ${q.buyer_response}</div>`}
+        </div>`).join("")}
       </div>`).join("");
 
-      document.getElementById("pricingList").innerHTML = matrices.map(m => `<div style="padding:6px 0;">
+      document.getElementById("pricingList").innerHTML = matrices.map(m => `<div class="row-item">
         <strong>${m.bid_title}</strong> — Subtotal ${m.currency} ${m.subtotal.toLocaleString()} &rarr; Total <strong>${m.currency} ${m.total_price.toLocaleString()}</strong>
-        <div style="font-size:0.85rem; color:#475569;">${m.cost_narrative}</div>
+        <div class="muted">${m.cost_narrative}</div>
       </div>`).join("");
 
-      document.getElementById("socialValueList").innerHTML = svs.map(s => `<div style="padding:6px 0;">
+      document.getElementById("socialValueList").innerHTML = svs.map(s => `<div class="row-item">
         <strong>${s.bid_title}</strong> (Net Zero ${s.net_zero_target_year})
-        <div style="font-size:0.85rem; color:#475569;">${s.generated_statement}</div>
+        <div class="muted">${s.generated_statement}</div>
       </div>`).join("");
 
-      document.getElementById("frameworksList").innerHTML = frameworks.map(f => `<div style="padding:6px 0;">
+      document.getElementById("frameworksList").innerHTML = frameworks.map(f => `<div class="row-item">
         <strong>${f.vehicle_name}</strong> (${f.vehicle_type}) — ${f.completion_pct}% complete (<span class="badge">${f.readiness_status}</span>)
+        ${f.checklist.map(ch => `<div class="muted">
+          <label><input type="checkbox" ${ch.completed ? "checked" : ""} onchange="toggleFrameworkItem(${f.id}, '${ch.item_id}', this.checked)" /> ${ch.item_id}: ${ch.title}</label>
+        </div>`).join("")}
       </div>`).join("");
 
       document.getElementById("cohortsList").innerHTML = cohorts.map(c => `<div>
         <strong>${c.title}</strong> — Pack: <em>${c.pack_name}</em> (${c.enrolled_count}/${c.max_seats} enrolled, ${c.currency} ${c.price})
       </div>`).join("");
 
-      document.getElementById("enrolmentsList").innerHTML = enrolments.map(e => `<div style="padding:4px 0;">
+      document.getElementById("enrolmentsList").innerHTML = enrolments.map(e => `<div class="row-item">
         ${e.learner_name} (${e.learner_email}) — Order #${e.order_id}
       </div>`).join("");
 
-      document.getElementById("buyerDraftsList").innerHTML = buyerDrafts.map(b => `<div style="padding:6px 0;">
+      document.getElementById("buyerDraftsList").innerHTML = buyerDrafts.map(b => `<div class="row-item">
         <strong>${b.title}</strong> (${b.authority_name}) — Clarity: <strong>${b.clarity_score}%</strong> | Status: <span class="badge">${b.status}</span>
+        ${b.validation_issues.length ? `<div class="muted">Issues: ${b.validation_issues.join(" | ")}</div>` : `<div class="muted">All criteria weights sum to 100% and specification passed clarity checks.</div>`}
       </div>`).join("");
+    }
+
+    async function reviewQueueItem(itemId, status) {
+      await api(`/api/v1/quality-queue/${itemId}/review`, "POST", {
+        assigned_reviewer: "QA Lead",
+        status,
+        review_score: status === "approved" ? 88 : 62,
+        review_notes: status === "approved" ? "Approved by QA Lead." : "Add quantified evidence."
+      });
+      refreshAll();
+    }
+
+    async function extractGrantCriteria(noticeId) {
+      await api(`/api/v1/grants/calls/${noticeId}/extract-criteria`, "POST");
+      refreshAll();
+    }
+
+    async function submitGrantReview(proposalId) {
+      await api(`/api/v1/grants/proposals/${proposalId}/submit-review`, "POST");
+      refreshAll();
     }
 
     async function createGrantProposal() {
@@ -537,6 +641,24 @@ What is your incident response SLA?</textarea>
         client_email: document.getElementById("tdEmail").value,
         fixed_fee: Number(document.getElementById("tdFee").value)
       });
+      refreshAll();
+    }
+
+    async function submitTechDocQA(docId) {
+      await api(`/api/v1/tech-docs/${docId}/submit-quality`, "POST");
+      refreshAll();
+    }
+
+    async function approveTechDocQA(docId) {
+      await api(`/api/v1/tech-docs/${docId}/review`, "POST", {
+        approved: true,
+        reviewer_notes: "Technical accuracy and formatting verified."
+      });
+      refreshAll();
+    }
+
+    async function deliverTechDoc(docId) {
+      await api(`/api/v1/tech-docs/${docId}/deliver`, "POST");
       refreshAll();
     }
 
@@ -564,6 +686,33 @@ What is your incident response SLA?</textarea>
       refreshAll();
     }
 
+    async function requestMarketplaceReview() {
+      const reviewers = await api("/api/v1/marketplace/reviewers");
+      if (!reviewers.length) return;
+      await api("/api/v1/marketplace/reviews", "POST", {
+        workspace_id: currentWsId,
+        reviewer_id: reviewers[0].id,
+        target_title: document.getElementById("mrTitle").value,
+        buyer_criteria: [
+          { name: "Technical Delivery", weight: 60 },
+          { name: "Social Value", weight: 40 }
+        ],
+        draft_excerpt: document.getElementById("mrExcerpt").value
+      });
+      refreshAll();
+    }
+
+    async function scoreMarketplaceReview(reviewId) {
+      await api(`/api/v1/marketplace/reviews/${reviewId}/score`, "POST", {
+        criterion_scores: [
+          { name: "Technical Delivery", weight: 60, score: 86, max_score: 100 },
+          { name: "Social Value", weight: 40, score: 81, max_score: 100 }
+        ],
+        feedback_summary: "Strong SLA evidence; add named depot commissioning milestones."
+      });
+      refreshAll();
+    }
+
     async function runDebriefCompare() {
       await api("/api/v1/debriefs/compare", "POST", {
         workspace_id: currentWsId,
@@ -583,6 +732,15 @@ What is your incident response SLA?</textarea>
         workspace_id: currentWsId,
         tender_title: document.getElementById("cqTitle").value,
         source_text: document.getElementById("cqText").value
+      });
+      refreshAll();
+    }
+
+    async function markClarificationAnswered(packId, questionId) {
+      await api(`/api/v1/clarifications/${packId}/questions`, "PATCH", {
+        question_id: questionId,
+        status: "answered",
+        buyer_response: "Authority confirmed exact SLA and boundary in Clarification Bulletin #1."
       });
       refreshAll();
     }
@@ -637,6 +795,15 @@ What is your incident response SLA?</textarea>
       refreshAll();
     }
 
+    async function toggleFrameworkItem(onboardingId, itemId, completed) {
+      await api(`/api/v1/frameworks/${onboardingId}/checklist`, "PATCH", {
+        item_id: itemId,
+        completed,
+        notes: completed ? "Verified in Bid Studio" : ""
+      });
+      refreshAll();
+    }
+
     async function enrolCohort() {
       const cohorts = await api("/api/v1/training/cohorts");
       if (!cohorts.length) return;
@@ -646,6 +813,20 @@ What is your incident response SLA?</textarea>
         learner_email: document.getElementById("trEmail").value
       });
       refreshAll();
+    }
+
+    async function saveWhiteLabel() {
+      await api(`/api/v1/workspaces/${currentWsId}/white-label`, "PUT", {
+        is_white_label: true,
+        brand_name: document.getElementById("wlBrand").value,
+        custom_domain: document.getElementById("wlDomain").value,
+        primary_color: "#0f172a",
+        accent_color: "#2563eb",
+        support_email: "support@bidstudio.example",
+        client_isolation_enforced: true
+      });
+      await loadWorkspaces();
+      await switchWorkspace();
     }
 
     async function runAccessReview() {

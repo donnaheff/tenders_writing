@@ -66,3 +66,54 @@ def test_grant_calls_criteria_extraction_and_weighted_proposal(client):
 
     queue = client.get("/api/v1/quality-queue?workspace_id=1").json()
     assert any(q["id"] == queue_id and q["item_type"] == "grant_proposal" for q in queue)
+
+    # Update sections and recalculate weighted score
+    upd_res = client.put(
+        f"/api/v1/grants/proposals/{proposal['id']}/sections",
+        json={
+            "sections": [
+                {
+                    "criterion_id": "EU-1",
+                    "title": "Excellence & Novelty",
+                    "weight": 40,
+                    "max_score": 5,
+                    "draft_text": "Expanded state-of-the-art benchmark.",
+                    "self_score": 5.0,
+                },
+                {
+                    "criterion_id": "EU-2",
+                    "title": "Impact & Exploitation",
+                    "weight": 35,
+                    "max_score": 5,
+                    "draft_text": "Adopted across 12 EU municipalities.",
+                    "self_score": 5.0,
+                },
+                {
+                    "criterion_id": "EU-3",
+                    "title": "Implementation",
+                    "weight": 25,
+                    "max_score": 5,
+                    "draft_text": "6 work packages with quarterly milestones.",
+                    "self_score": 4.0,
+                },
+            ]
+        },
+    )
+    assert upd_res.status_code == 200
+    assert upd_res.json()["total_weighted_score"] == 95.0
+
+    # Approving the quality queue item syncs approval back to the grant proposal
+    qa_res = client.post(
+        f"/api/v1/quality-queue/{queue_id}/review",
+        json={
+            "assigned_reviewer": "Dr. Shaw",
+            "status": "approved",
+            "review_score": 94.0,
+            "review_notes": "Ready for EU portal submission.",
+        },
+    )
+    assert qa_res.status_code == 200
+    proposals = client.get("/api/v1/grants/proposals?workspace_id=1").json()
+    synced = next(p for p in proposals if p["id"] == proposal["id"])
+    assert synced["status"] == "approved"
+
