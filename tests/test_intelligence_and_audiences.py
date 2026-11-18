@@ -83,6 +83,15 @@ def test_training_cohort_riverbend_enrolment_creates_training_order(client):
     orders = client.get("/api/v1/orders?workspace_id=1&source=training_enrolment").json()
     assert any(o["id"] == body["order_id"] and o["source"] == "training_enrolment" for o in orders)
 
+    # Complete first two Riverbend modules and verify progress_pct
+    for idx in range(2):
+        prog = client.post(
+            f"/api/v1/training/enrolments/{body['enrolment_id']}/complete-module",
+            json={"module_name": riverbend["modules"][idx]},
+        )
+        assert prog.status_code == 200
+    assert prog.json()["progress_pct"] == 50.0
+
 
 def test_public_sector_draft_validates_weights_and_ambiguity(client):
     # Invalid draft: weights sum to 80% and text has TBD
@@ -136,4 +145,12 @@ def test_public_sector_draft_validates_weights_and_ambiguity(client):
     scorecard = scorecard_res.json()["scorecard"]
     assert len(scorecard) == 3
     assert sum(c["weight_pct"] for c in scorecard) == 100
+
+    pack_res = client.get(f"/api/v1/public-sector/drafts/{good['id']}/export-pack")
+    assert pack_res.status_code == 200
+    assert "Evaluation Scorecard" in pack_res.json()["markdown"]
+
+    from bid_studio.database import normalize_database_url
+
+    assert normalize_database_url("postgres://user:pass@host/db") == "postgresql://user:pass@host/db"
 

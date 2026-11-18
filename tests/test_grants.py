@@ -117,3 +117,8 @@ def test_grant_calls_criteria_extraction_and_weighted_proposal(client):
     synced = next(p for p in proposals if p["id"] == proposal["id"])
     assert synced["status"] == "approved"
 
+    export_res = client.get(f"/api/v1/grants/proposals/{proposal['id']}/export")
+    assert export_res.status_code == 200
+    assert "OpenCivic Labs" in export_res.json()["markdown"]
+    assert "95.00%" in export_res.json()["markdown"]
+

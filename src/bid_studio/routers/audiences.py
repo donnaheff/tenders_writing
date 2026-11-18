@@ -9,7 +9,11 @@ from bid_studio.models import (
     TrainingEnrolment,
     Workspace,
 )
-from bid_studio.schemas import BuyerTenderDraftCreate, TrainingEnrolmentCreate
+from bid_studio.schemas import (
+    BuyerTenderDraftCreate,
+    TrainingEnrolmentCreate,
+    TrainingModuleComplete,
+)
 from bid_studio.services.domain_logic import validate_public_sector_draft
 
 router = APIRouter(prefix="/api/v1", tags=["new-audiences"])
@@ -76,6 +80,35 @@ def enrol_in_training_cohort(
         "cohort_title": cohort.title,
         "pack_name": cohort.pack_name,
         "learner_email": enrolment.learner_email,
+    }
+
+
+@router.post("/training/enrolments/{enrolment_id}/complete-module")
+def complete_training_module(
+    enrolment_id: int,
+    payload: TrainingModuleComplete,
+    db: Session = Depends(get_db),
+):
+    enrolment = db.get(TrainingEnrolment, enrolment_id)
+    if not enrolment:
+        raise HTTPException(status_code=404, detail="Training enrolment not found")
+    cohort = db.get(TrainingCohort, enrolment.cohort_id)
+    if not cohort:
+        raise HTTPException(status_code=404, detail="Training cohort not found")
+    if payload.module_name not in cohort.modules:
+        raise HTTPException(status_code=400, detail="Module does not belong to this cohort")
+
+    completed = list(enrolment.completed_modules or [])
+    if payload.module_name not in completed:
+        completed.append(payload.module_name)
+    enrolment.completed_modules = completed
+    enrolment.progress_pct = round((len(completed) / max(1, len(cohort.modules))) * 100.0, 1)
+    db.commit()
+    db.refresh(enrolment)
+    return {
+        "enrolment_id": enrolment.id,
+        "completed_modules": enrolment.completed_modules,
+        "progress_pct": enrolment.progress_pct,
     }
 
 
@@ -163,3 +196,25 @@ def validate_existing_buyer_draft(draft_id: int, db: Session = Depends(get_db)):
             for c in draft.evaluation_criteria
         ],
     }
+
+
+@router.get("/public-sector/drafts/{draft_id}/export-pack")
+def export_buyer_tender_pack(draft_id: int, db: Session = Depends(get_db)):
+    draft = db.get(BuyerTenderDraft, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="Buyer tender draft not found")
+    rows = "\n".join(
+        f"| {c.get('name')} | {c.get('weight_pct')}% | {c.get('max_score')} | {c.get('scoring_guidance')} |"
+        for c in draft.evaluation_criteria
+    )
+    md = (
+        f"# {draft.title}\n"
+        f"- **Contracting Authority:** {draft.authority_name}\n"
+        f"- **Estimated Budget:** {draft.currency} {draft.budget_value:,.2f}\n"
+        f"- **Clarity Score:** {draft.clarity_score}%\n"
+        f"- **Status:** {draft.status}\n\n"
+        f"## Specification\n{draft.specification_text}\n\n"
+        f"## Evaluation Scorecard\n"
+        f"| Criterion | Weight | Max Score | Scoring Guidance |\n| --- | --- | --- | --- |\n{rows}\n"
+    )
+    return {"draft_id": draft.id, "markdown": md}

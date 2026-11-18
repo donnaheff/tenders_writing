@@ -530,6 +530,7 @@ What is your incident response SLA?</textarea>
         <strong>${p.title}</strong> — ${p.funder_type} | Weighted Score: <strong>${p.total_weighted_score}%</strong> | Status: <span class="badge">${p.status}</span>
         <div class="inline-actions">
           <button class="small" onclick="submitGrantReview(${p.id})">Submit to Quality Queue</button>
+          <button class="small secondary" onclick="exportGrantProposal(${p.id})">Export Markdown</button>
         </div>
       </div>`).join("");
 
@@ -593,9 +594,14 @@ What is your incident response SLA?</textarea>
         <strong>${c.title}</strong> — Pack: <em>${c.pack_name}</em> (${c.enrolled_count}/${c.max_seats} enrolled, ${c.currency} ${c.price})
       </div>`).join("");
 
-      document.getElementById("enrolmentsList").innerHTML = enrolments.map(e => `<div class="row-item">
-        ${e.learner_name} (${e.learner_email}) — Order #${e.order_id}
-      </div>`).join("");
+      document.getElementById("enrolmentsList").innerHTML = enrolments.map(e => {
+        const cohort = cohorts.find(c => c.id === e.cohort_id);
+        const nextMod = cohort ? cohort.modules.find(m => !(e.completed_modules || []).includes(m)) : null;
+        return `<div class="row-item">
+          ${e.learner_name} (${e.learner_email}) — Order #${e.order_id} | Progress: <strong>${e.progress_pct}%</strong>
+          ${nextMod ? `<div class="inline-actions"><button class="small secondary" onclick="completeNextModule(${e.id}, ${JSON.stringify(nextMod).replace(/"/g, '&quot;')})">Complete: ${nextMod}</button></div>` : `<span class="badge">Completed</span>`}
+        </div>`;
+      }).join("");
 
       document.getElementById("buyerDraftsList").innerHTML = buyerDrafts.map(b => `<div class="row-item">
         <strong>${b.title}</strong> (${b.authority_name}) — Clarity: <strong>${b.clarity_score}%</strong> | Status: <span class="badge">${b.status}</span>
@@ -621,6 +627,17 @@ What is your incident response SLA?</textarea>
     async function submitGrantReview(proposalId) {
       await api(`/api/v1/grants/proposals/${proposalId}/submit-review`, "POST");
       refreshAll();
+    }
+
+    async function exportGrantProposal(proposalId) {
+      const data = await api(`/api/v1/grants/proposals/${proposalId}/export`);
+      let pre = document.getElementById("grantExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "grantExportPreview";
+        document.getElementById("grantProposalsList").after(pre);
+      }
+      pre.textContent = data.markdown;
     }
 
     async function createGrantProposal() {
@@ -811,6 +828,13 @@ What is your incident response SLA?</textarea>
         workspace_id: currentWsId,
         learner_name: document.getElementById("trName").value,
         learner_email: document.getElementById("trEmail").value
+      });
+      refreshAll();
+    }
+
+    async function completeNextModule(enrolmentId, moduleName) {
+      await api(`/api/v1/training/enrolments/${enrolmentId}/complete-module`, "POST", {
+        module_name: moduleName
       });
       refreshAll();
     }

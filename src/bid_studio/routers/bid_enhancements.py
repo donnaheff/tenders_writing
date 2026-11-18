@@ -164,15 +164,29 @@ def list_price_matrices(workspace_id: int = 1, db: Session = Depends(get_db)):
 
 @router.post("/pricing/matrices", status_code=201)
 def create_price_matrix(payload: PriceMatrixCreate, db: Session = Depends(get_db)):
+    template = db.get(PricingTemplate, payload.template_id) if payload.template_id else None
+    if payload.template_id and not template:
+        raise HTTPException(status_code=404, detail="Pricing template not found")
+
     raw_lines = [line.model_dump() for line in payload.lines]
+    if not raw_lines and template:
+        raw_lines = [dict(row) for row in template.default_lines]
+    if not raw_lines:
+        raise HTTPException(status_code=400, detail="Provide at least one pricing line or a valid template_id")
+
+    margin_pct = (
+        payload.margin_pct
+        if payload.margin_pct is not None
+        else (template.default_margin_pct if template else 18.0)
+    )
     norm_lines, subtotal, total_price = calculate_price_matrix(
-        raw_lines, payload.margin_pct, payload.contingency_pct
+        raw_lines, margin_pct, payload.contingency_pct
     )
     narrative = build_cost_narrative(
         payload.bid_title,
         payload.currency,
         subtotal,
-        payload.margin_pct,
+        margin_pct,
         payload.contingency_pct,
         total_price,
         norm_lines,
@@ -182,7 +196,7 @@ def create_price_matrix(payload: PriceMatrixCreate, db: Session = Depends(get_db
         bid_title=payload.bid_title,
         template_id=payload.template_id,
         currency=payload.currency,
-        margin_pct=payload.margin_pct,
+        margin_pct=margin_pct,
         contingency_pct=payload.contingency_pct,
         lines=norm_lines,
         subtotal=subtotal,
@@ -241,3 +255,23 @@ def create_social_value_statement(payload: SocialValueCreate, db: Session = Depe
     db.commit()
     db.refresh(stmt)
     return stmt
+
+
+@router.get("/social-value/{statement_id}/export")
+def export_social_value_markdown(statement_id: int, db: Session = Depends(get_db)):
+    stmt = db.get(SocialValueStatement, statement_id)
+    if not stmt:
+        raise HTTPException(status_code=404, detail="Social value statement not found")
+
+    kpi_rows = "\n".join(
+        f"| {k.get('metric', '')} | {k.get('target', '')} |" for k in stmt.kpis
+    )
+    md = (
+        f"# Social Value & Sustainability Statement — {stmt.bid_title}\n"
+        f"- **Framework:** {stmt.buyer_framework}\n"
+        f"- **Net Zero Target:** {stmt.net_zero_target_year}\n"
+        f"- **Real Living Wage Accredited:** {'Yes' if stmt.real_living_wage_accredited else 'In Progress'}\n\n"
+        f"{stmt.generated_statement}\n\n"
+        f"| KPI | Target |\n| --- | --- |\n{kpi_rows}\n"
+    )
+    return {"statement_id": stmt.id, "markdown": md}
