@@ -1,0 +1,63 @@
+def test_health_and_dashboard(client):
+    health = client.get("/api/v1/health")
+    assert health.status_code == 200
+    assert health.json()["status"] == "ok"
+
+    home = client.get("/")
+    assert home.status_code == 200
+    assert "Bid Studio" in home.text
+
+
+def test_white_label_and_access_review_and_isolation(client):
+    # Create a new white-label consultancy workspace
+    create_res = client.post(
+        "/api/v1/workspaces",
+        json={
+            "slug": "apex-consult",
+            "name": "Apex Bid Consultancy",
+            "is_white_label": True,
+            "brand_name": "Apex Bid Portal",
+            "primary_color": "#1e293b",
+            "accent_color": "#0ea5e9",
+            "custom_domain": "portal.apexbids.example",
+        },
+    )
+    assert create_res.status_code == 201
+    ws_id = create_res.json()["id"]
+
+    # Add member and run access review
+    member_res = client.post(
+        f"/api/v1/workspaces/{ws_id}/members",
+        json={"email": "writer@apex.example", "full_name": "Sam Writer", "role": "writer"},
+    )
+    assert member_res.status_code == 201
+
+    review_res = client.get(f"/api/v1/workspaces/{ws_id}/access-review")
+    assert review_res.status_code == 200
+    data = review_res.json()
+    assert data["brand_name"] == "Apex Bid Portal"
+    assert data["client_isolation_enforced"] is True
+    assert data["member_count"] == 1
+
+    # Verify strict isolation: answer library items in workspace 1 do not leak into ws_id
+    ws_answers = client.get(f"/api/v1/answer-library?workspace_id={ws_id}").json()
+    assert ws_answers == []
+
+    # Update white-label settings
+    wl_res = client.put(
+        f"/api/v1/workspaces/{ws_id}/white-label",
+        json={
+            "is_white_label": True,
+            "brand_name": "Apex Enterprise Bids",
+            "primary_color": "#000000",
+            "accent_color": "#10b981",
+            "custom_domain": "bids.apex.example",
+            "support_email": "help@apex.example",
+            "client_isolation_enforced": True,
+        },
+    )
+    assert wl_res.status_code == 200
+    assert wl_res.json()["brand_name"] == "Apex Enterprise Bids"
+
+    consultancies = client.get("/api/v1/white-label/consultancies").json()
+    assert any(c["brand_name"] == "Apex Enterprise Bids" for c in consultancies)
