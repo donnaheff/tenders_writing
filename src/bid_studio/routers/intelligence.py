@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from bid_studio.database import get_db
@@ -69,7 +70,17 @@ def generate_subscription_digest(subscription_id: int, db: Session = Depends(get
     if not sub:
         raise HTTPException(status_code=404, detail="Alert subscription not found")
 
-    notices = db.query(OpportunityNotice).order_by(OpportunityNotice.id.desc()).all()
+    notices = (
+        db.query(OpportunityNotice)
+        .filter(
+            or_(
+                OpportunityNotice.workspace_id.is_(None),
+                OpportunityNotice.workspace_id == sub.workspace_id,
+            )
+        )
+        .order_by(OpportunityNotice.id.desc())
+        .all()
+    )
     matched = match_notices_for_subscription(sub, notices)
     now = datetime.now(UTC)
 
@@ -116,7 +127,13 @@ def list_intelligence_reports(workspace_id: int = 1, db: Session = Depends(get_d
 def generate_buyer_intelligence_report(payload: BuyerIntelRequest, db: Session = Depends(get_db)):
     awarded = (
         db.query(OpportunityNotice)
-        .filter(OpportunityNotice.notice_type == "awarded_tender")
+        .filter(
+            OpportunityNotice.notice_type == "awarded_tender",
+            or_(
+                OpportunityNotice.workspace_id.is_(None),
+                OpportunityNotice.workspace_id == payload.workspace_id,
+            ),
+        )
         .all()
     )
     computed = build_buyer_intelligence_report(payload.buyer_name, payload.sector, awarded)
