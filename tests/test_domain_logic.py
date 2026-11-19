@@ -1,5 +1,8 @@
+import importlib.util
+from pathlib import Path
 from types import SimpleNamespace
 
+from bid_studio.database import normalize_database_url
 from bid_studio.services.domain_logic import (
     analyze_pack_for_clarifications,
     build_buyer_intelligence_report,
@@ -78,3 +81,21 @@ def test_clarifications_fallback_and_public_sector_validation_edges():
     intel = build_buyer_intelligence_report("Riverbend", "IT", [notice])
     assert intel["awards_analyzed"] == 1
     assert intel["top_winners"][0]["share_pct"] == 100.0
+
+
+def test_normalize_database_url_and_vercel_entrypoint(monkeypatch):
+    api_path = Path(__file__).resolve().parent.parent / "api" / "index.py"
+    spec = importlib.util.spec_from_file_location("vercel_api_index", api_path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.app.title == "Bid Studio"
+
+    assert (
+        normalize_database_url("postgres://user:pass@db.example:5432/app")
+        == "postgresql://user:pass@db.example:5432/app"
+    )
+    monkeypatch.setenv("VERCEL", "1")
+    assert normalize_database_url("sqlite:///./bid_studio.db") == "sqlite:////tmp/bid_studio.db"
+    monkeypatch.delenv("VERCEL", raising=False)
+    assert normalize_database_url("sqlite:///./bid_studio.db") == "sqlite:///./bid_studio.db"

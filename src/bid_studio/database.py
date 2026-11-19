@@ -1,3 +1,4 @@
+import os
 from collections.abc import Generator
 
 from sqlalchemy import create_engine, event
@@ -7,6 +8,8 @@ from bid_studio.config import settings
 
 
 def normalize_database_url(database_url: str) -> str:
+    if database_url == "sqlite:///./bid_studio.db" and os.environ.get("VERCEL"):
+        return "sqlite:////tmp/bid_studio.db"
     if database_url.startswith("postgres://"):
         return database_url.replace("postgres://", "postgresql://", 1)
     return database_url
