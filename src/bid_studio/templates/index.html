@@ -402,6 +402,7 @@ What is your incident response SLA?</textarea>
             <input id="alSector" value="CleanTech &amp; Transport" />
             <button onclick="subscribeAndGenerateDigest()">Subscribe &amp; Generate Weekly Digest</button>
           </div>
+          <div id="alertSubsList"></div>
           <pre id="digestOutput">No digest generated yet.</pre>
         </div>
       </section>
@@ -413,6 +414,7 @@ What is your incident response SLA?</textarea>
             <input id="inBuyer" value="Riverbend Borough Council" />
             <button onclick="generateBuyerIntel()">Generate Buyer &amp; Competitor Report</button>
           </div>
+          <div id="intelReportsList"></div>
           <pre id="intelOutput">Click above to analyze awarded notices for Riverbend Borough Council.</pre>
         </div>
       </section>
@@ -557,7 +559,7 @@ What is your incident response SLA?</textarea>
       if (q) noticeParams.set("q", q);
       if (nType) noticeParams.set("notice_type", nType);
 
-      const [summary, notices, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, frameworks, cohorts, enrolments, buyerDrafts] = await Promise.all([
+      const [summary, notices, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, alertSubs, intelReports, frameworks, cohorts, enrolments, buyerDrafts] = await Promise.all([
         api(`/api/v1/workspaces/${currentWsId}/summary`),
         api(`/api/v1/notices?${noticeParams.toString()}`),
         api(`/api/v1/grants/calls?workspace_id=${currentWsId}`),
@@ -576,6 +578,8 @@ What is your incident response SLA?</textarea>
         api(`/api/v1/clarifications?workspace_id=${currentWsId}`),
         api(`/api/v1/pricing/matrices?workspace_id=${currentWsId}`),
         api(`/api/v1/social-value?workspace_id=${currentWsId}`),
+        api(`/api/v1/alerts/subscriptions?workspace_id=${currentWsId}`),
+        api(`/api/v1/intelligence/reports?workspace_id=${currentWsId}`),
         api(`/api/v1/frameworks?workspace_id=${currentWsId}`),
         api("/api/v1/training/cohorts"),
         api(`/api/v1/training/enrolments?workspace_id=${currentWsId}`),
@@ -654,6 +658,7 @@ What is your incident response SLA?</textarea>
 
       document.getElementById("assetsList").innerHTML = assets.map(a => `<div class="row-item">
         <strong>${a.title}</strong> (${a.asset_type}) — <span class="badge">${a.status}</span> (Evidence ID: ${a.promoted_evidence_id || "-"})
+        <div class="inline-actions"><button class="small secondary" onclick="exportBidderAsset(${a.id})">Export Markdown</button></div>
       </div>`).join("");
 
       document.getElementById("reviewersList").innerHTML = reviewers.map(r => `<div class="row-item">
@@ -662,7 +667,11 @@ What is your incident response SLA?</textarea>
 
       document.getElementById("reviewsList").innerHTML = reviews.map(rv => `<div class="row-item">
         Review: <strong>${rv.target_title}</strong> — <span class="badge">${rv.status}</span> Score: ${rv.overall_score ?? "Pending"}
-        ${rv.status !== 'completed' ? `<div class="inline-actions"><button class="small" onclick="scoreMarketplaceReview(${rv.id})">Submit Reviewer Score (84%)</button></div>` : `<div class="muted">${rv.feedback_summary}</div>`}
+        <div class="inline-actions">
+          ${rv.status !== 'completed' ? `<button class="small" onclick="scoreMarketplaceReview(${rv.id})">Submit Reviewer Score (84%)</button>` : ""}
+          <button class="small secondary" onclick="exportMarketplaceReview(${rv.id})">Export Markdown</button>
+        </div>
+        ${rv.status === 'completed' ? `<div class="muted">${rv.feedback_summary}</div>` : ""}
       </div>`).join("");
 
       document.getElementById("debriefsList").innerHTML = debriefs.map(d => `<div class="row-item">
@@ -691,8 +700,18 @@ What is your incident response SLA?</textarea>
         <div class="inline-actions"><button class="small secondary" onclick="exportSocialValue(${s.id})">Export Markdown</button></div>
       </div>`).join("");
 
+      document.getElementById("alertSubsList").innerHTML = alertSubs.map(sub => `<div class="row-item">
+        <strong>${sub.subscriber_email}</strong> (${sub.cadence}) — Sectors: ${(sub.sectors || []).join(", ") || "All"}
+      </div>`).join("") || `<div class="muted">No subscriptions yet.</div>`;
+
+      document.getElementById("intelReportsList").innerHTML = intelReports.map(rep => `<div class="row-item">
+        <strong>${rep.buyer_name}</strong> — ${rep.awards_analyzed} awards, Total ${rep.total_spend.toLocaleString()}
+        <div class="inline-actions"><button class="small secondary" onclick="exportIntelReport(${rep.id})">Export Markdown</button></div>
+      </div>`).join("") || `<div class="muted">No intelligence reports saved yet.</div>`;
+
       document.getElementById("frameworksList").innerHTML = frameworks.map(f => `<div class="row-item">
         <strong>${f.vehicle_name}</strong> (${f.vehicle_type}) — ${f.completion_pct}% complete (<span class="badge">${f.readiness_status}</span>)
+        <div class="inline-actions"><button class="small secondary" onclick="exportFramework(${f.id})">Export Markdown</button></div>
         ${f.checklist.map(ch => `<div class="muted">
           <label><input type="checkbox" ${ch.completed ? "checked" : ""} onchange="toggleFrameworkItem(${f.id}, '${ch.item_id}', this.checked)" /> ${ch.item_id}: ${ch.title}</label>
         </div>`).join("")}
@@ -828,6 +847,44 @@ What is your incident response SLA?</textarea>
         summary: document.getElementById("evSummary").value
       });
       refreshAll();
+    }
+
+    async function exportBidderAsset(assetId) {
+      const data = await api(`/api/v1/bidder-assets/${assetId}/export`);
+      let pre = document.getElementById("baExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "baExportPreview";
+        document.getElementById("assetsList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function exportMarketplaceReview(reviewId) {
+      const data = await api(`/api/v1/marketplace/reviews/${reviewId}/export`);
+      let pre = document.getElementById("mrExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "mrExportPreview";
+        document.getElementById("reviewsList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function exportIntelReport(reportId) {
+      const data = await api(`/api/v1/intelligence/reports/${reportId}/export`);
+      document.getElementById("intelOutput").textContent = data.markdown;
+    }
+
+    async function exportFramework(onboardingId) {
+      const data = await api(`/api/v1/frameworks/${onboardingId}/export`);
+      let pre = document.getElementById("fwExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "fwExportPreview";
+        document.getElementById("frameworksList").after(pre);
+      }
+      pre.textContent = data.markdown;
     }
 
     async function createWhiteLabelWorkspace() {
@@ -1034,6 +1091,7 @@ What is your incident response SLA?</textarea>
       });
       const digest = await api(`/api/v1/alerts/subscriptions/${sub.id}/generate-digest`, "POST");
       document.getElementById("digestOutput").textContent = JSON.stringify(digest, null, 2);
+      refreshAll();
     }
 
     async function generateBuyerIntel() {
@@ -1042,6 +1100,7 @@ What is your incident response SLA?</textarea>
         buyer_name: document.getElementById("inBuyer").value
       });
       document.getElementById("intelOutput").textContent = JSON.stringify(report, null, 2);
+      refreshAll();
     }
 
     async function createFrameworkOnboarding() {

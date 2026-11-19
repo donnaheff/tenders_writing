@@ -149,6 +149,28 @@ def generate_buyer_intelligence_report(payload: BuyerIntelRequest, db: Session =
     return report
 
 
+@router.get("/intelligence/reports/{report_id}/export")
+def export_intelligence_report_markdown(report_id: int, db: Session = Depends(get_db)):
+    report = db.get(IntelligenceReport, report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Intelligence report not found")
+    winners = "\n".join(
+        f"| {w.get('supplier')} | {w.get('wins')} | {w.get('share_pct')}% | {w.get('total_value', 0):,.2f} |"
+        for w in (report.top_winners or [])
+    )
+    insights = "\n".join(f"- {i}" for i in (report.insights or []))
+    md = (
+        f"# Buyer & Competitor Intelligence: {report.buyer_name}\n"
+        f"- **Awards Analyzed:** {report.awards_analyzed}\n"
+        f"- **Total Spend:** {report.total_spend:,.2f}\n"
+        f"- **Average Award Value:** {report.average_award_value:,.2f}\n\n"
+        f"## Top Winning Suppliers\n"
+        f"| Supplier | Wins | Share | Total Value |\n| --- | --- | --- | --- |\n{winners or '| - | 0 | 0% | 0.00 |'}\n\n"
+        f"## Strategic Insights\n{insights}\n"
+    )
+    return {"report_id": report.id, "markdown": md}
+
+
 # --- 11. Framework & DPS Onboarding ---
 @router.get("/frameworks")
 def list_framework_onboardings(workspace_id: int = 1, db: Session = Depends(get_db)):
@@ -210,3 +232,23 @@ def toggle_framework_checklist(
     db.commit()
     db.refresh(onboarding)
     return onboarding
+
+
+@router.get("/frameworks/{onboarding_id}/export")
+def export_framework_onboarding_markdown(onboarding_id: int, db: Session = Depends(get_db)):
+    onboarding = db.get(FrameworkOnboarding, onboarding_id)
+    if not onboarding:
+        raise HTTPException(status_code=404, detail="Framework onboarding record not found")
+    rows = "\n".join(
+        f"| {c.get('item_id')} | {c.get('title')} | {'Done' if c.get('completed') else 'Pending'} | {c.get('notes') or '-'} |"
+        for c in (onboarding.checklist or [])
+    )
+    md = (
+        f"# {onboarding.vehicle_name} ({onboarding.vehicle_type.upper()})\n"
+        f"- **Contracting Authority:** {onboarding.authority_name}\n"
+        f"- **Completion:** {onboarding.completion_pct}% ({onboarding.readiness_status})\n"
+        f"- **Target Lots:** {', '.join(onboarding.lots or [])}\n\n"
+        f"## Onboarding Readiness Checklist\n"
+        f"| ID | Requirement | Status | Notes |\n| --- | --- | --- | --- |\n{rows}\n"
+    )
+    return {"onboarding_id": onboarding.id, "markdown": md}

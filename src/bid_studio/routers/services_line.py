@@ -296,6 +296,25 @@ def promote_asset_to_evidence(asset_id: int, db: Session = Depends(get_db)):
     return {"asset_id": asset.id, "evidence_id": evidence.id, "status": asset.status}
 
 
+@router.get("/bidder-assets/{asset_id}/export")
+def export_bidder_asset_markdown(asset_id: int, db: Session = Depends(get_db)):
+    asset = db.get(BidderAsset, asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Bidder asset not found")
+    metrics_md = "\n".join(f"- **{k}:** {v}" for k, v in (asset.metrics or {}).items())
+    md = (
+        f"# {asset.title}\n"
+        f"- **Asset Type:** {asset.asset_type}\n"
+        f"- **Subject / Client:** {asset.subject_name}\n"
+        f"- **Buyer Format:** {asset.buyer_format}\n"
+        f"- **Status:** {asset.status}\n\n"
+        f"## Content\n{asset.content}\n"
+    )
+    if metrics_md:
+        md += f"\n## Verified Metrics\n{metrics_md}\n"
+    return {"asset_id": asset.id, "markdown": md}
+
+
 # --- 4. Bid Review Marketplace ---
 @router.get("/marketplace/reviewers")
 def list_reviewers(db: Session = Depends(get_db)):
@@ -384,3 +403,24 @@ def submit_marketplace_score(
     db.commit()
     db.refresh(review)
     return review
+
+
+@router.get("/marketplace/reviews/{review_id}/export")
+def export_marketplace_review_markdown(review_id: int, db: Session = Depends(get_db)):
+    review = db.get(MarketplaceReview, review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Marketplace review not found")
+    rows = "\n".join(
+        f"| {c.get('name')} | {c.get('weight')}% | {c.get('score')} / {c.get('max_score', 100)} |"
+        for c in (review.criterion_scores or [])
+    )
+    md = (
+        f"# Independent Bid Review: {review.target_title}\n"
+        f"- **Status:** {review.status}\n"
+        f"- **Overall Weighted Score:** {review.overall_score if review.overall_score is not None else 'Pending'}%\n"
+        f"- **Review Fee:** {review.fee:,.2f}\n\n"
+        f"## Criterion Scorecard\n"
+        f"| Criterion | Weight | Score |\n| --- | --- | --- |\n{rows or '| - | - | Pending |'}\n\n"
+        f"## Evaluator Feedback\n{review.feedback_summary or 'Awaiting reviewer feedback.'}\n"
+    )
+    return {"review_id": review.id, "markdown": md}

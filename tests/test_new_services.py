@@ -97,6 +97,10 @@ def test_bidder_asset_promotes_to_evidence_library(client):
     evidence = client.get("/api/v1/evidence-library?workspace_id=1").json()
     assert any(e["id"] == evidence_id and e["source_asset_id"] == asset_id for e in evidence)
 
+    export_res = client.get(f"/api/v1/bidder-assets/{asset_id}/export")
+    assert export_res.status_code == 200
+    assert "Zero-Downtime Core Banking Cutover" in export_res.json()["markdown"]
+
 
 def test_marketplace_reviewer_scoring_updates_quality_queue(client):
     reviewers = client.get("/api/v1/marketplace/reviewers").json()
@@ -134,3 +138,7 @@ def test_marketplace_reviewer_scoring_updates_quality_queue(client):
     linked = next(q for q in queue if q["id"] == scored["quality_queue_id"])
     assert linked["status"] == "approved"
     assert linked["review_score"] == 81.0
+
+    export_res = client.get(f"/api/v1/marketplace/reviews/{review['id']}/export")
+    assert export_res.status_code == 200
+    assert "Riverbend Fleet Draft v1" in export_res.json()["markdown"]

@@ -72,6 +72,10 @@ def test_buyer_and_competitor_intelligence_report(client):
     ).json()
     assert report2["awards_analyzed"] == 3
 
+    export_res = client.get(f"/api/v1/intelligence/reports/{report2['id']}/export")
+    assert export_res.status_code == 200
+    assert "GreenGrid Systems Ltd" in export_res.json()["markdown"]
+
 
 def test_framework_and_dps_onboarding_checklist(client):
     res = client.post(
@@ -98,6 +102,10 @@ def test_framework_and_dps_onboarding_checklist(client):
     final = client.get("/api/v1/frameworks?workspace_id=1").json()[0]
     assert final["completion_pct"] == 100.0
     assert final["readiness_status"] == "ready_to_submit"
+
+    export_res = client.get(f"/api/v1/frameworks/{fw['id']}/export")
+    assert export_res.status_code == 200
+    assert "CCS Automation DPS" in export_res.json()["markdown"]
 
 
 def test_training_cohort_riverbend_enrolment_creates_training_order(client):
