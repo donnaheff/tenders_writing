@@ -81,6 +81,23 @@ def create_and_compare_debrief(payload: DebriefCompareInput, db: Session = Depen
     return record
 
 
+@router.get("/debriefs/outcomes/{outcome_id}/export")
+def export_debrief_markdown(outcome_id: int, db: Session = Depends(get_db)):
+    record = db.get(BidOutcome, outcome_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bid outcome not found")
+    fixes = "\n".join(f"- {fix}" for fix in (record.next_bid_fixes or []))
+    md = (
+        f"# Win/Loss Debrief: {record.bid_title}\n"
+        f"- **Buyer:** {record.buyer_name}\n"
+        f"- **Outcome:** {record.outcome}\n"
+        f"- **Internal Score:** {record.internal_score}% | **Buyer Score:** {record.buyer_score}%\n\n"
+        f"## Next-Bid Fixes\n{fixes or '- None recorded'}\n\n"
+        f"## Feedback Request Letter\n{record.feedback_request_letter}\n"
+    )
+    return {"outcome_id": record.id, "markdown": md}
+
+
 # --- 6. Clarification Question Service ---
 @router.get("/clarifications")
 def list_clarification_packs(workspace_id: int = 1, db: Session = Depends(get_db)):

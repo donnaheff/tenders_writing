@@ -535,7 +535,7 @@ What is your incident response SLA?</textarea>
       const [summary, notices, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, frameworks, cohorts, enrolments, buyerDrafts] = await Promise.all([
         api(`/api/v1/workspaces/${currentWsId}/summary`),
         api(`/api/v1/notices?${noticeParams.toString()}`),
-        api("/api/v1/grants/calls"),
+        api(`/api/v1/grants/calls?workspace_id=${currentWsId}`),
         api(`/api/v1/answer-library?workspace_id=${currentWsId}`),
         api(`/api/v1/evidence-library?workspace_id=${currentWsId}`),
         api(`/api/v1/orders?workspace_id=${currentWsId}`),
@@ -617,6 +617,7 @@ What is your incident response SLA?</textarea>
           <button class="small secondary" onclick="submitTechDocQA(${d.id})">1. Submit to QA</button>
           <button class="small secondary" onclick="approveTechDocQA(${d.id})">2. Approve QA</button>
           <button class="small" onclick="deliverTechDoc(${d.id})">3. Deliver Email</button>
+          <button class="small secondary" onclick="exportTechDoc(${d.id})">Export Markdown</button>
         </div>
       </div>`).join("");
 
@@ -640,6 +641,7 @@ What is your incident response SLA?</textarea>
 
       document.getElementById("debriefsList").innerHTML = debriefs.map(d => `<div class="row-item">
         <strong>${d.bid_title}</strong> (${d.buyer_name}) — <span class="badge">${d.outcome}</span> | Internal ${d.internal_score} vs Buyer ${d.buyer_score} | Fixes: ${d.next_bid_fixes.length}
+        <div class="inline-actions"><button class="small secondary" onclick="exportDebrief(${d.id})">Export Markdown</button></div>
       </div>`).join("");
 
       document.getElementById("clarificationsList").innerHTML = clarifs.map(c => `<div class="row-item">
@@ -717,6 +719,28 @@ What is your incident response SLA?</textarea>
         pre = document.createElement("pre");
         pre.id = "psExportPreview";
         document.getElementById("buyerDraftsList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function exportTechDoc(docId) {
+      const data = await api(`/api/v1/tech-docs/${docId}/export`);
+      let pre = document.getElementById("tdExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "tdExportPreview";
+        document.getElementById("techDocsList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function exportDebrief(outcomeId) {
+      const data = await api(`/api/v1/debriefs/outcomes/${outcomeId}/export`);
+      let pre = document.getElementById("dbExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "dbExportPreview";
+        document.getElementById("debriefsList").after(pre);
       }
       pre.textContent = data.markdown;
     }

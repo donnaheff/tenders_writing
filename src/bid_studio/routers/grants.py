@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from bid_studio.database import get_db
@@ -24,13 +25,20 @@ def infer_funder_type(funder_name: str) -> str:
 
 
 @router.get("/calls")
-def list_funding_calls(funder: str | None = None, db: Session = Depends(get_db)):
-    calls = (
-        db.query(OpportunityNotice)
-        .filter(OpportunityNotice.notice_type == "grant_call")
-        .order_by(OpportunityNotice.id.desc())
-        .all()
-    )
+def list_funding_calls(
+    funder: str | None = None,
+    workspace_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(OpportunityNotice).filter(OpportunityNotice.notice_type == "grant_call")
+    if workspace_id is not None:
+        query = query.filter(
+            or_(
+                OpportunityNotice.workspace_id.is_(None),
+                OpportunityNotice.workspace_id == workspace_id,
+            )
+        )
+    calls = query.order_by(OpportunityNotice.id.desc()).all()
     if funder:
         f_low = funder.lower()
         calls = [
@@ -78,6 +86,8 @@ def create_grant_proposal(payload: GrantProposalCreate, db: Session = Depends(ge
     notice = db.get(OpportunityNotice, payload.notice_id)
     if not notice or notice.notice_type != "grant_call":
         raise HTTPException(status_code=404, detail="Funding call notice not found")
+    if notice.workspace_id is not None and notice.workspace_id != payload.workspace_id:
+        raise HTTPException(status_code=404, detail="Funding call notice not found in workspace")
 
     funder_type = infer_funder_type(notice.funder_or_buyer)
     criteria = extract_grant_criteria(
@@ -146,6 +156,8 @@ def submit_proposal_for_review(proposal_id: int, db: Session = Depends(get_db)):
     proposal = db.get(GrantProposal, proposal_id)
     if not proposal:
         raise HTTPException(status_code=404, detail="Grant proposal not found")
+    if proposal.status == "in_review":
+        raise HTTPException(status_code=409, detail="Grant proposal is already in quality review")
 
     queue_item = QualityQueueItem(
         workspace_id=proposal.workspace_id,

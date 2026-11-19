@@ -22,6 +22,10 @@ def test_win_loss_debrief_generates_letter_and_fixes(client):
     assert len(body["next_bid_fixes"]) == 1
     assert body["next_bid_fixes"][0]["criterion"] == "Security Architecture"
 
+    export_res = client.get(f"/api/v1/debriefs/outcomes/{body['id']}/export")
+    assert export_res.status_code == 200
+    assert "Regional Cloud Migration" in export_res.json()["markdown"]
+
 
 def test_clarification_pack_reader_surfaces_ambiguities_and_tracks_answers(client):
     res = client.post(
