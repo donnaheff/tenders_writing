@@ -57,6 +57,10 @@ def test_clarification_pack_reader_surfaces_ambiguities_and_tracks_answers(clien
     assert upd.status_code == 200
     assert upd.json()["questions"][0]["status"] == "answered"
 
+    export_res = client.get(f"/api/v1/clarifications/{pack['id']}/export")
+    assert export_res.status_code == 200
+    assert "Clarification Register" in export_res.json()["markdown"]
+
 
 def test_pricing_matrix_calculation_and_narrative(client):
     templates = client.get("/api/v1/pricing/templates").json()
@@ -96,6 +100,10 @@ def test_pricing_matrix_calculation_and_narrative(client):
     assert tpl_res.status_code == 201
     assert tpl_res.json()["subtotal"] > 0
     assert tpl_res.json()["margin_pct"] == templates[0]["default_margin_pct"]
+
+    export_res = client.get(f"/api/v1/pricing/matrices/{matrix['id']}/export")
+    assert export_res.status_code == 200
+    assert "Evaluator Cost Narrative" in export_res.json()["markdown"]
 
 
 def test_social_value_net_zero_and_living_wage_statement(client):

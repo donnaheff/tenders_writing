@@ -236,6 +236,16 @@
           </div>
           <div id="answerLibraryList"></div>
           <h4 style="margin-top:14px;">Evidence Library</h4>
+          <details style="margin-bottom:10px;">
+            <summary style="cursor:pointer; font-weight:600; font-size:0.86rem;">+ Add Evidence Item</summary>
+            <div class="form-grid" style="margin-top:8px;">
+              <input id="evTitle" placeholder="Evidence Title" value="Borough EV Charging Rollout" />
+              <input id="evType" placeholder="Evidence Type (e.g. case_study, metric)" value="case_study" />
+              <input id="evFormat" placeholder="Buyer Format" value="UK Cabinet Office Format" />
+              <textarea id="evSummary" rows="2">Installed 64 rapid chargers across 8 council depots ahead of schedule with 99.8% uptime.</textarea>
+              <button onclick="addEvidenceItem()">Add to Evidence Library</button>
+            </div>
+          </details>
           <div id="evidenceLibraryList"></div>
         </div>
         <div class="card">
@@ -638,6 +648,7 @@ What is your incident response SLA?</textarea>
 
       document.getElementById("complianceList").innerHTML = compliance.map(c => `<div class="row-item">
         <strong>${c.title}</strong> (${c.pack_type}) — Status: <span class="badge">${c.status}</span> (${c.questionnaire_items.filter(q => q.status === 'matched').length}/${c.questionnaire_items.length} auto-matched)
+        <div class="inline-actions"><button class="small secondary" onclick="exportCompliancePack(${c.id})">Export Markdown</button></div>
         ${c.questionnaire_items.map(q => `<div class="muted" style="margin-top:4px;">&bull; <strong>${q.id}</strong>: ${q.question} &rarr; <span class="badge">${q.status} (${Math.round((q.confidence || 0)*100)}%)</span> ${q.matched_answer_text || ""}</div>`).join("")}
       </div>`).join("");
 
@@ -661,6 +672,7 @@ What is your incident response SLA?</textarea>
 
       document.getElementById("clarificationsList").innerHTML = clarifs.map(c => `<div class="row-item">
         <strong>${c.tender_title}</strong> (Deadline: ${c.clarification_deadline}) — ${c.questions.length} clarification question(s)
+        <div class="inline-actions"><button class="small secondary" onclick="exportClarificationPack(${c.id})">Export Markdown</button></div>
         ${c.questions.map(q => `<div class="muted" style="margin-top:4px;">
           <span class="badge">${q.priority}</span> <span class="badge">${q.status}</span> <strong>${q.id}</strong>: ${q.drafted_question}
           ${q.status !== 'answered' ? `<button class="small secondary" onclick="markClarificationAnswered(${c.id}, '${q.id}')">Mark Answered</button>` : `<div><em>Buyer response:</em> ${q.buyer_response}</div>`}
@@ -670,6 +682,7 @@ What is your incident response SLA?</textarea>
       document.getElementById("pricingList").innerHTML = matrices.map(m => `<div class="row-item">
         <strong>${m.bid_title}</strong> — Subtotal ${m.currency} ${m.subtotal.toLocaleString()} &rarr; Total <strong>${m.currency} ${m.total_price.toLocaleString()}</strong>
         <div class="muted">${m.cost_narrative}</div>
+        <div class="inline-actions"><button class="small secondary" onclick="exportPriceMatrix(${m.id})">Export Markdown</button></div>
       </div>`).join("");
 
       document.getElementById("socialValueList").innerHTML = svs.map(s => `<div class="row-item">
@@ -771,6 +784,50 @@ What is your incident response SLA?</textarea>
         document.getElementById("debriefsList").after(pre);
       }
       pre.textContent = data.markdown;
+    }
+
+    async function exportCompliancePack(packId) {
+      const data = await api(`/api/v1/compliance/packs/${packId}/export`);
+      let pre = document.getElementById("cpExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "cpExportPreview";
+        document.getElementById("complianceList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function exportClarificationPack(packId) {
+      const data = await api(`/api/v1/clarifications/${packId}/export`);
+      let pre = document.getElementById("cqExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "cqExportPreview";
+        document.getElementById("clarificationsList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function exportPriceMatrix(matrixId) {
+      const data = await api(`/api/v1/pricing/matrices/${matrixId}/export`);
+      let pre = document.getElementById("pmExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "pmExportPreview";
+        document.getElementById("pricingList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function addEvidenceItem() {
+      await api("/api/v1/evidence-library", "POST", {
+        workspace_id: currentWsId,
+        evidence_type: document.getElementById("evType").value,
+        title: document.getElementById("evTitle").value,
+        buyer_format: document.getElementById("evFormat").value,
+        summary: document.getElementById("evSummary").value
+      });
+      refreshAll();
     }
 
     async function createWhiteLabelWorkspace() {

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -105,6 +105,31 @@ def add_workspace_member(
     }
 
 
+@router.get("/workspaces/{workspace_id}/members")
+def list_workspace_members(workspace_id: int, db: Session = Depends(get_db)):
+    ws = db.get(Workspace, workspace_id)
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    members = (
+        db.query(WorkspaceMember)
+        .filter(WorkspaceMember.workspace_id == workspace_id)
+        .order_by(WorkspaceMember.id)
+        .all()
+    )
+    return [
+        {
+            "id": m.id,
+            "workspace_id": m.workspace_id,
+            "email": m.email,
+            "full_name": m.full_name,
+            "role": m.role,
+            "status": m.status,
+            "last_access_review_at": m.last_access_review_at,
+        }
+        for m in members
+    ]
+
+
 @router.get("/workspaces/{workspace_id}/summary")
 def get_workspace_summary(workspace_id: int, db: Session = Depends(get_db)):
     ws = db.get(Workspace, workspace_id)
@@ -177,6 +202,7 @@ def run_access_review(workspace_id: int, db: Session = Depends(get_db)):
 # --- Opportunity Feed ---
 @router.get("/notices", response_model=list[NoticeRead])
 def list_notices(
+    response: Response,
     workspace_id: int | None = Query(default=None),
     notice_type: str | None = Query(default=None),
     sector: str | None = Query(default=None),
@@ -209,6 +235,7 @@ def list_notices(
                 OpportunityNotice.raw_pack_text.ilike(pattern),
             )
         )
+    response.headers["X-Total-Count"] = str(query.count())
     return (
         query.order_by(OpportunityNotice.id.desc())
         .offset(offset)
