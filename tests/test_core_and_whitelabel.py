@@ -14,6 +14,10 @@ def test_health_and_dashboard(client):
     assert "apiNotices" in home.text
     assert "draftProposalForCall" in home.text
     assert "promoteBidderAsset" in home.text
+    assert "renderMarkdownExport" in home.text
+    assert "saveProposalSections" in home.text
+    assert "revalidateBuyerDraft" in home.text
+    assert "pmTemplate" in home.text
 
 
 def test_white_label_and_access_review_and_isolation(client):
