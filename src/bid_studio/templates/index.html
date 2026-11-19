@@ -207,6 +207,21 @@
             <span class="muted" id="noticePageLabel">Page 1</span>
             <button class="small secondary" onclick="nextNoticePage()">Next &rarr;</button>
           </div>
+          <details style="margin-bottom:12px;">
+            <summary style="cursor:pointer; font-weight:600; font-size:0.88rem;">+ Post Notice to Workspace Feed</summary>
+            <div class="form-grid" style="margin-top:8px;">
+              <select id="newNoticeType">
+                <option value="tender">Open Tender</option>
+                <option value="grant_call">Grant Call</option>
+                <option value="awarded_tender">Awarded Tender</option>
+              </select>
+              <input id="newNoticeTitle" placeholder="Notice Title" value="Municipal Zero-Emission Bus Charging Network" />
+              <input id="newNoticeBuyer" placeholder="Buyer or Funder" value="Riverbend Borough Council" />
+              <input id="newNoticeSector" placeholder="Sector" value="CleanTech & Transport" />
+              <input id="newNoticeValue" type="number" placeholder="Contract / Grant Value" value="420000" />
+              <button onclick="createFeedNotice()">Publish Notice</button>
+            </div>
+          </details>
           <div id="feedList">Loading...</div>
         </div>
         <div class="card">
@@ -571,12 +586,12 @@ What is your incident response SLA?</textarea>
       </div>`).join("") || `<div class="muted">No matching notices on this page.</div>`;
 
       document.getElementById("answerLibraryList").innerHTML = answers.slice(0, 5).map(a => `<div class="row-item">
-        <span class="badge">${a.category}</span> <strong>${a.title}</strong>
-        <div class="muted">${a.content}</div>
+        <span class="badge">${a.category}</span> <strong>${a.question_pattern}</strong>
+        <div class="muted">${a.answer_text}</div>
       </div>`).join("") || `<div class="muted">No answer library items in this workspace.</div>`;
 
       document.getElementById("evidenceLibraryList").innerHTML = evidence.slice(0, 5).map(e => `<div class="row-item">
-        <span class="badge">${e.metric_highlight || "evidence"}</span> <strong>${e.title}</strong> (${e.client_name})
+        <span class="badge">${e.evidence_type}</span> <strong>${e.title}</strong> (${e.buyer_format})
         <div class="muted">${e.summary}</div>
       </div>`).join("") || `<div class="muted">No evidence items in this workspace.</div>`;
 
@@ -693,11 +708,24 @@ What is your incident response SLA?</textarea>
     async function addAnswerItem() {
       await api("/api/v1/answer-library", "POST", {
         workspace_id: currentWsId,
-        title: document.getElementById("alTitle").value,
+        question_pattern: document.getElementById("alTitle").value,
         category: document.getElementById("alCategory").value,
-        content: document.getElementById("alContent").value,
+        answer_text: document.getElementById("alContent").value,
         tags: [document.getElementById("alCategory").value]
       });
+      refreshAll();
+    }
+
+    async function createFeedNotice() {
+      await api("/api/v1/notices", "POST", {
+        workspace_id: currentWsId,
+        notice_type: document.getElementById("newNoticeType").value,
+        title: document.getElementById("newNoticeTitle").value,
+        funder_or_buyer: document.getElementById("newNoticeBuyer").value,
+        sector: document.getElementById("newNoticeSector").value,
+        contract_value: Number(document.getElementById("newNoticeValue").value || 0)
+      });
+      noticeOffset = 0;
       refreshAll();
     }
 

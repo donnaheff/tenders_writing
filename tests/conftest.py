@@ -1,9 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from bid_studio.database import Base, get_db
+from bid_studio.database import Base, build_engine, get_db
 from bid_studio.main import create_app
 from bid_studio.seed import seed_database
 
@@ -12,7 +11,7 @@ from bid_studio.seed import seed_database
 def client(tmp_path, monkeypatch):
     db_path = tmp_path / "test_bid_studio.db"
     test_url = f"sqlite:///{db_path}"
-    test_engine = create_engine(test_url, connect_args={"check_same_thread": False}, future=True)
+    test_engine = build_engine(test_url)
     TestingSessionLocal = sessionmaker(
         autocommit=False, autoflush=False, bind=test_engine, future=True
     )
