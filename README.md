@@ -7,10 +7,11 @@ Bid Studio is a Python + FastAPI platform for tender writing, grant and funding 
 ## Core Platform & Implemented Modules
 
 ### Core Infrastructure
-- **Multi-Tenant Workspaces & Access Review:** Client-isolated workspaces, member role management (`owner`, `admin`, `writer`, `reviewer`, `client`), white-label branding, and timestamped access reviews.
-- **Unified Opportunity Feed:** Stores open tenders, awarded notices, and structured funding calls with AI-style summaries and search filters.
+- **Multi-Tenant Workspaces & Access Review:** Client-isolated workspaces, member role management (`owner`, `admin`, `writer`, `reviewer`, `client`), white-label branding, workspace KPI summaries (`/api/v1/workspaces/{id}/summary`), and timestamped access reviews.
+- **Unified Opportunity Feed:** Stores open tenders, awarded notices, and structured funding calls with AI-style summaries, SQL keyword search (`q`), and `limit`/`offset` pagination.
 - **Answer & Evidence Libraries:** Reusable verified answers and buyer-formatted evidence items.
 - **Quality Review Queue, Orders & Email Delivery Log:** Shared QA pipeline, order tracking (including `training_enrolment`), and outbound delivery audit logs.
+- **Markdown Export Endpoints:** Export deliverables directly as Markdown across Grant Proposals (`/api/v1/grants/proposals/{id}/export`), Technical Docs (`/api/v1/tech-docs/{id}/export`), Win/Loss Debriefs (`/api/v1/debriefs/outcomes/{id}/export`), Social Value Statements (`/api/v1/social-value/{id}/export`), and Public Sector Packs (`/api/v1/public-sector/drafts/{id}/export-pack`).
 
 ### Primary Product
 0. **Grant and Funding Proposal Writing (`/api/v1/grants`)**
@@ -45,14 +46,17 @@ Bid Studio is a Python + FastAPI platform for tender writing, grant and funding 
 
 ```text
 .
+├── api/index.py                  # Vercel Python serverless ASGI entrypoint
 ├── docs/ci.yml.example           # GitHub Actions CI template (copy to .github/workflows/ci.yml)
 ├── .env.example                  # Sample environment variables
 ├── .gitignore
 ├── LICENSE                       # MIT License
 ├── pyproject.toml                # Package metadata, pytest & ruff config
+├── requirements.txt              # Serverless / pip dependency manifest (incl. psycopg[binary])
+├── vercel.json                   # Vercel serverless routing configuration
 ├── src/bid_studio/
 │   ├── config.py                 # Pydantic settings
-│   ├── database.py               # SQLAlchemy engine & session dependency
+│   ├── database.py               # SQLAlchemy engine (SQLite FK + Postgres pool_pre_ping) & session
 │   ├── main.py                   # FastAPI app & dashboard route
 │   ├── models.py                 # Relational models for core + 15 capabilities
 │   ├── schemas.py                # Pydantic v2 request/response contracts

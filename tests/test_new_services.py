@@ -16,10 +16,13 @@ def test_tech_docs_pipeline_qa_and_email_delivery(client):
     early_deliver = client.post(f"/api/v1/tech-docs/{doc_id}/deliver")
     assert early_deliver.status_code == 400
 
-    # Submit to quality stage, approve, then deliver
+    # Submit to quality stage (duplicate submit returns 409), approve, then deliver
     qa_sub = client.post(f"/api/v1/tech-docs/{doc_id}/submit-quality")
     assert qa_sub.status_code == 200
     assert qa_sub.json()["pipeline_stage"] == "quality_review"
+
+    dup_qa = client.post(f"/api/v1/tech-docs/{doc_id}/submit-quality")
+    assert dup_qa.status_code == 409
 
     review_res = client.post(
         f"/api/v1/tech-docs/{doc_id}/review",
@@ -31,6 +34,10 @@ def test_tech_docs_pipeline_qa_and_email_delivery(client):
     deliver_res = client.post(f"/api/v1/tech-docs/{doc_id}/deliver")
     assert deliver_res.status_code == 200
     assert deliver_res.json()["pipeline_stage"] == "delivered"
+
+    export_res = client.get(f"/api/v1/tech-docs/{doc_id}/export")
+    assert export_res.status_code == 200
+    assert "Payments OpenAPI v3 Guide" in export_res.json()["markdown"]
 
     logs = client.get("/api/v1/deliveries?workspace_id=1").json()
     assert any(

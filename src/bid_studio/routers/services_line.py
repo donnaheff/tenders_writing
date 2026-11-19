@@ -77,6 +77,8 @@ def submit_tech_doc_quality(doc_id: int, db: Session = Depends(get_db)):
     doc = db.get(TechDocProject, doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Technical doc project not found")
+    if doc.pipeline_stage == "quality_review":
+        raise HTTPException(status_code=409, detail="Technical doc is already in quality review")
     doc.pipeline_stage = "quality_review"
     queue_item = QualityQueueItem(
         workspace_id=doc.workspace_id,
@@ -134,6 +136,22 @@ def deliver_tech_doc(doc_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(doc)
     return {"doc_id": doc.id, "pipeline_stage": doc.pipeline_stage, "delivery_log_id": log.id}
+
+
+@router.get("/tech-docs/{doc_id}/export")
+def export_tech_doc_markdown(doc_id: int, db: Session = Depends(get_db)):
+    doc = db.get(TechDocProject, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Technical doc project not found")
+    md = (
+        f"# {doc.title}\n"
+        f"- **Document Type:** {doc.doc_type}\n"
+        f"- **Fixed Fee:** {doc.currency} {doc.fixed_fee:,.2f}\n"
+        f"- **Pipeline Stage:** {doc.pipeline_stage}\n"
+        f"- **Quality Approved:** {'Yes' if doc.quality_approved else 'No'}\n\n"
+        f"{doc.draft_content}\n"
+    )
+    return {"doc_id": doc.id, "markdown": md}
 
 
 # --- 2. Compliance & Policy Writing ---

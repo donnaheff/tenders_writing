@@ -58,11 +58,30 @@ def test_grant_calls_criteria_extraction_and_weighted_proposal(client):
     # Weighted: (0.9*40 + 0.8*35 + 0.8*25) = 36 + 28 + 20 = 84.0%
     assert proposal["total_weighted_score"] == 84.0
 
-    # Submit to quality review queue
+    # Submit to quality review queue (and duplicate submit returns 409)
     sub_res = client.post(f"/api/v1/grants/proposals/{proposal['id']}/submit-review")
     assert sub_res.status_code == 200
     assert sub_res.json()["status"] == "in_review"
     queue_id = sub_res.json()["quality_queue_id"]
+
+    dup_sub = client.post(f"/api/v1/grants/proposals/{proposal['id']}/submit-review")
+    assert dup_sub.status_code == 409
+
+    # Private grant call in workspace 2 is isolated from workspace 1 calls
+    priv_call = client.post(
+        "/api/v1/notices",
+        json={
+            "workspace_id": 2,
+            "notice_type": "grant_call",
+            "funder_or_buyer": "Private Foundation",
+            "title": "Workspace 2 Private Grant Call",
+            "sector": "Digital & Cloud",
+            "contract_value": 100000.0,
+        },
+    )
+    assert priv_call.status_code == 201
+    ws1_calls = client.get("/api/v1/grants/calls?workspace_id=1").json()
+    assert all(c["id"] != priv_call.json()["id"] for c in ws1_calls)
 
     queue = client.get("/api/v1/quality-queue?workspace_id=1").json()
     assert any(q["id"] == queue_id and q["item_type"] == "grant_proposal" for q in queue)
