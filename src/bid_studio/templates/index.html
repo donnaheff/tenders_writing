@@ -374,6 +374,7 @@ What is your incident response SLA?</textarea>
         <div class="card">
           <h3>7. Pricing Matrix &amp; Cost-Narrative Writing</h3>
           <div class="form-grid">
+            <select id="pmTemplate"><option value="">Custom Lines (Riverbend Default)</option></select>
             <input id="pmTitle" value="Riverbend Fleet Mobilisation &amp; Support" />
             <input id="pmMargin" type="number" value="18" placeholder="Margin %" />
             <button onclick="createPriceMatrix()">Calculate Matrix &amp; Generate Cost Narrative</button>
@@ -576,7 +577,7 @@ What is your incident response SLA?</textarea>
       if (q) noticeParams.set("q", q);
       if (nType) noticeParams.set("notice_type", nType);
 
-      const [summary, noticePage, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, alertSubs, intelReports, frameworks, cohorts, enrolments, buyerDrafts, members] = await Promise.all([
+      const [summary, noticePage, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, pricingTemplates, matrices, svs, alertSubs, intelReports, frameworks, cohorts, enrolments, buyerDrafts, members] = await Promise.all([
         api(`/api/v1/workspaces/${currentWsId}/summary`),
         apiNotices(`/api/v1/notices?${noticeParams.toString()}`),
         api(`/api/v1/grants/calls?workspace_id=${currentWsId}`),
@@ -593,6 +594,7 @@ What is your incident response SLA?</textarea>
         api(`/api/v1/marketplace/reviews?workspace_id=${currentWsId}`),
         api(`/api/v1/debriefs/outcomes?workspace_id=${currentWsId}`),
         api(`/api/v1/clarifications?workspace_id=${currentWsId}`),
+        api("/api/v1/pricing/templates"),
         api(`/api/v1/pricing/matrices?workspace_id=${currentWsId}`),
         api(`/api/v1/social-value?workspace_id=${currentWsId}`),
         api(`/api/v1/alerts/subscriptions?workspace_id=${currentWsId}`),
@@ -603,6 +605,11 @@ What is your incident response SLA?</textarea>
         api(`/api/v1/public-sector/drafts?workspace_id=${currentWsId}`),
         api(`/api/v1/workspaces/${currentWsId}/members`)
       ]);
+
+      const pmSel = document.getElementById("pmTemplate");
+      const prevTmpl = pmSel.value;
+      pmSel.innerHTML = `<option value="">Custom Lines (Riverbend Default)</option>` + pricingTemplates.map(t => `<option value="${t.id}">${t.name} (${t.default_margin_pct}% margin)</option>`).join("");
+      if (prevTmpl) pmSel.value = prevTmpl;
 
       const notices = noticePage.items;
       totalNotices = noticePage.total;
@@ -658,11 +665,21 @@ What is your incident response SLA?</textarea>
         </div>
       </div>`).join("");
 
+      window.__grantProposals = proposals;
       document.getElementById("grantProposalsList").innerHTML = proposals.map(p => `<div class="row-item">
         <strong>${p.title}</strong> — ${p.funder_type} | Weighted Score: <strong>${p.total_weighted_score}%</strong> | Status: <span class="badge">${p.status}</span>
         <div class="inline-actions">
           <button class="small" onclick="submitGrantReview(${p.id})">Submit to Quality Queue</button>
+          <button class="small secondary" onclick="toggleEditProposal(${p.id})">Edit Sections</button>
           <button class="small secondary" onclick="exportGrantProposal(${p.id})">Export Markdown</button>
+        </div>
+        <div id="gpEdit-${p.id}" style="display:none; margin-top:8px;">
+          ${(p.sections || []).map((s, idx) => `<div style="margin-bottom:8px;">
+            <div class="muted"><strong>${s.criterion_id} — ${s.title}</strong> (Weight ${s.weight}%, Max ${s.max_score})</div>
+            <textarea id="gpSecText-${p.id}-${idx}" rows="2">${s.draft_text || ""}</textarea>
+            <input id="gpSecScore-${p.id}-${idx}" type="number" step="0.5" value="${s.self_score}" style="width:120px; margin-top:4px;" />
+          </div>`).join("")}
+          <button class="small" onclick="saveProposalSections(${p.id})">Save Sections &amp; Recalculate Score</button>
         </div>
       </div>`).join("");
 
@@ -762,7 +779,10 @@ What is your incident response SLA?</textarea>
       document.getElementById("buyerDraftsList").innerHTML = buyerDrafts.map(b => `<div class="row-item">
         <strong>${b.title}</strong> (${b.authority_name}) — Clarity: <strong>${b.clarity_score}%</strong> | Status: <span class="badge">${b.status}</span>
         ${b.validation_issues.length ? `<div class="muted">Issues: ${b.validation_issues.join(" | ")}</div>` : `<div class="muted">All criteria weights sum to 100% and specification passed clarity checks.</div>`}
-        <div class="inline-actions"><button class="small secondary" onclick="exportBuyerDraft(${b.id})">Export Tender Pack Markdown</button></div>
+        <div class="inline-actions">
+          <button class="small" onclick="revalidateBuyerDraft(${b.id})">Re-Validate</button>
+          <button class="small secondary" onclick="exportBuyerDraft(${b.id})">Export Tender Pack Markdown</button>
+        </div>
       </div>`).join("");
 
       document.getElementById("membersList").innerHTML = members.map(m => `<div class="row-item">
@@ -794,81 +814,71 @@ What is your incident response SLA?</textarea>
       refreshAll();
     }
 
+    function renderMarkdownExport(anchorId, previewId, filename, markdown) {
+      let wrap = document.getElementById(previewId);
+      if (!wrap) {
+        wrap = document.createElement("div");
+        wrap.id = previewId;
+        wrap.style.marginTop = "10px";
+        document.getElementById(anchorId).after(wrap);
+      }
+      wrap.innerHTML = `<div class="inline-actions" style="margin-bottom:6px;">
+        <button class="small secondary" id="${previewId}-copy">Copy Markdown</button>
+        <button class="small secondary" id="${previewId}-dl">Download ${filename}</button>
+      </div><pre></pre>`;
+      wrap.querySelector("pre").textContent = markdown;
+      wrap.querySelector(`#${previewId}-copy`).onclick = async () => {
+        if (navigator.clipboard) await navigator.clipboard.writeText(markdown);
+      };
+      wrap.querySelector(`#${previewId}-dl`).onclick = () => {
+        const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+    }
+
     async function exportSocialValue(statementId) {
       const data = await api(`/api/v1/social-value/${statementId}/export`);
-      let pre = document.getElementById("svExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "svExportPreview";
-        document.getElementById("socialValueList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("socialValueList", "svExportPreview", `social-value-${statementId}.md`, data.markdown);
     }
 
     async function exportBuyerDraft(draftId) {
       const data = await api(`/api/v1/public-sector/drafts/${draftId}/export-pack`);
-      let pre = document.getElementById("psExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "psExportPreview";
-        document.getElementById("buyerDraftsList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("buyerDraftsList", "psExportPreview", `tender-pack-${draftId}.md`, data.markdown);
+    }
+
+    async function revalidateBuyerDraft(draftId) {
+      await api(`/api/v1/public-sector/drafts/${draftId}/validate`, "POST");
+      refreshAll();
     }
 
     async function exportTechDoc(docId) {
       const data = await api(`/api/v1/tech-docs/${docId}/export`);
-      let pre = document.getElementById("tdExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "tdExportPreview";
-        document.getElementById("techDocsList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("techDocsList", "tdExportPreview", `tech-doc-${docId}.md`, data.markdown);
     }
 
     async function exportDebrief(outcomeId) {
       const data = await api(`/api/v1/debriefs/outcomes/${outcomeId}/export`);
-      let pre = document.getElementById("dbExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "dbExportPreview";
-        document.getElementById("debriefsList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("debriefsList", "dbExportPreview", `debrief-${outcomeId}.md`, data.markdown);
     }
 
     async function exportCompliancePack(packId) {
       const data = await api(`/api/v1/compliance/packs/${packId}/export`);
-      let pre = document.getElementById("cpExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "cpExportPreview";
-        document.getElementById("complianceList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("complianceList", "cpExportPreview", `compliance-pack-${packId}.md`, data.markdown);
     }
 
     async function exportClarificationPack(packId) {
       const data = await api(`/api/v1/clarifications/${packId}/export`);
-      let pre = document.getElementById("cqExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "cqExportPreview";
-        document.getElementById("clarificationsList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("clarificationsList", "cqExportPreview", `clarifications-${packId}.md`, data.markdown);
     }
 
     async function exportPriceMatrix(matrixId) {
       const data = await api(`/api/v1/pricing/matrices/${matrixId}/export`);
-      let pre = document.getElementById("pmExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "pmExportPreview";
-        document.getElementById("pricingList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("pricingList", "pmExportPreview", `pricing-matrix-${matrixId}.md`, data.markdown);
     }
 
     async function addEvidenceItem() {
@@ -884,40 +894,22 @@ What is your incident response SLA?</textarea>
 
     async function exportBidderAsset(assetId) {
       const data = await api(`/api/v1/bidder-assets/${assetId}/export`);
-      let pre = document.getElementById("baExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "baExportPreview";
-        document.getElementById("assetsList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("assetsList", "baExportPreview", `bidder-asset-${assetId}.md`, data.markdown);
     }
 
     async function exportMarketplaceReview(reviewId) {
       const data = await api(`/api/v1/marketplace/reviews/${reviewId}/export`);
-      let pre = document.getElementById("mrExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "mrExportPreview";
-        document.getElementById("reviewsList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("reviewsList", "mrExportPreview", `marketplace-review-${reviewId}.md`, data.markdown);
     }
 
     async function exportIntelReport(reportId) {
       const data = await api(`/api/v1/intelligence/reports/${reportId}/export`);
-      document.getElementById("intelOutput").textContent = data.markdown;
+      renderMarkdownExport("intelReportsList", "inExportPreview", `intelligence-report-${reportId}.md`, data.markdown);
     }
 
     async function exportFramework(onboardingId) {
       const data = await api(`/api/v1/frameworks/${onboardingId}/export`);
-      let pre = document.getElementById("fwExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "fwExportPreview";
-        document.getElementById("frameworksList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("frameworksList", "fwExportPreview", `framework-checklist-${onboardingId}.md`, data.markdown);
     }
 
     async function createWhiteLabelWorkspace() {
@@ -975,13 +967,24 @@ What is your incident response SLA?</textarea>
 
     async function exportGrantProposal(proposalId) {
       const data = await api(`/api/v1/grants/proposals/${proposalId}/export`);
-      let pre = document.getElementById("grantExportPreview");
-      if (!pre) {
-        pre = document.createElement("pre");
-        pre.id = "grantExportPreview";
-        document.getElementById("grantProposalsList").after(pre);
-      }
-      pre.textContent = data.markdown;
+      renderMarkdownExport("grantProposalsList", "grantExportPreview", `grant-proposal-${proposalId}.md`, data.markdown);
+    }
+
+    function toggleEditProposal(proposalId) {
+      const el = document.getElementById(`gpEdit-${proposalId}`);
+      if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+    }
+
+    async function saveProposalSections(proposalId) {
+      const prop = (window.__grantProposals || []).find(p => p.id === proposalId);
+      if (!prop) return;
+      const updated = (prop.sections || []).map((s, idx) => ({
+        ...s,
+        draft_text: document.getElementById(`gpSecText-${proposalId}-${idx}`).value,
+        self_score: Number(document.getElementById(`gpSecScore-${proposalId}-${idx}`).value)
+      }));
+      await api(`/api/v1/grants/proposals/${proposalId}/sections`, "PUT", { sections: updated });
+      refreshAll();
     }
 
     async function createGrantProposal() {
@@ -1107,15 +1110,21 @@ What is your incident response SLA?</textarea>
     }
 
     async function createPriceMatrix() {
-      await api("/api/v1/pricing/matrices", "POST", {
+      const tmplId = document.getElementById("pmTemplate").value;
+      const payload = {
         workspace_id: currentWsId,
         bid_title: document.getElementById("pmTitle").value,
-        margin_pct: Number(document.getElementById("pmMargin").value),
-        lines: [
+        margin_pct: Number(document.getElementById("pmMargin").value)
+      };
+      if (tmplId) {
+        payload.template_id = Number(tmplId);
+      } else {
+        payload.lines = [
           { category: "Mobilisation", description: "Depot Telemetry Setup", unit: "day", quantity: 10, unit_rate: 800 },
           { category: "Delivery", description: "Route Optimisation Engineering", unit: "day", quantity: 20, unit_rate: 950 }
-        ]
-      });
+        ];
+      }
+      await api("/api/v1/pricing/matrices", "POST", payload);
       refreshAll();
     }
 
