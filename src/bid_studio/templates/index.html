@@ -203,9 +203,9 @@
               <option value="tender">Open Tenders</option>
               <option value="awarded_tender">Awarded Tenders</option>
             </select>
-            <button class="small secondary" onclick="prevNoticePage()">&larr; Prev</button>
+            <button id="btnPrevNotices" class="small secondary" onclick="prevNoticePage()">&larr; Prev</button>
             <span class="muted" id="noticePageLabel">Page 1</span>
-            <button class="small secondary" onclick="nextNoticePage()">Next &rarr;</button>
+            <button id="btnNextNotices" class="small secondary" onclick="nextNoticePage()">Next &rarr;</button>
           </div>
           <details style="margin-bottom:12px;">
             <summary style="cursor:pointer; font-weight:600; font-size:0.88rem;">+ Post Notice to Workspace Feed</summary>
@@ -475,6 +475,8 @@ What is your incident response SLA?</textarea>
             </select>
             <button class="secondary" onclick="addWorkspaceMember()">Add Workspace Member</button>
           </div>
+          <h4 style="margin-top:14px;">Current Workspace Members</h4>
+          <div id="membersList" style="margin-bottom:10px;"></div>
           <pre id="accessReviewOutput" style="margin-top:12px;">Select a workspace and click Run Access Review.</pre>
         </div>
       </section>
@@ -498,6 +500,7 @@ What is your incident response SLA?</textarea>
     let currentWsId = {{ workspace_id }};
     let noticeOffset = 0;
     const noticeLimit = 6;
+    let totalNotices = 0;
 
     async function api(path, method = "GET", body = null) {
       const opts = { method, headers: { "Content-Type": "application/json" } };
@@ -509,6 +512,18 @@ What is your incident response SLA?</textarea>
         throw new Error(txt);
       }
       return res.json();
+    }
+
+    async function apiNotices(path) {
+      const res = await fetch(path);
+      if (!res.ok) {
+        const txt = await res.text();
+        alert(`Error ${res.status}: ${txt}`);
+        throw new Error(txt);
+      }
+      const totalHeader = res.headers.get("X-Total-Count");
+      const items = await res.json();
+      return { items, total: totalHeader ? Number(totalHeader) : items.length };
     }
 
     function showTab(id, btn) {
@@ -544,8 +559,10 @@ What is your incident response SLA?</textarea>
     }
 
     function nextNoticePage() {
-      noticeOffset += noticeLimit;
-      refreshAll();
+      if (noticeOffset + noticeLimit < totalNotices) {
+        noticeOffset += noticeLimit;
+        refreshAll();
+      }
     }
 
     async function refreshAll() {
@@ -559,9 +576,9 @@ What is your incident response SLA?</textarea>
       if (q) noticeParams.set("q", q);
       if (nType) noticeParams.set("notice_type", nType);
 
-      const [summary, notices, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, alertSubs, intelReports, frameworks, cohorts, enrolments, buyerDrafts] = await Promise.all([
+      const [summary, noticePage, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, alertSubs, intelReports, frameworks, cohorts, enrolments, buyerDrafts, members] = await Promise.all([
         api(`/api/v1/workspaces/${currentWsId}/summary`),
-        api(`/api/v1/notices?${noticeParams.toString()}`),
+        apiNotices(`/api/v1/notices?${noticeParams.toString()}`),
         api(`/api/v1/grants/calls?workspace_id=${currentWsId}`),
         api(`/api/v1/answer-library?workspace_id=${currentWsId}`),
         api(`/api/v1/evidence-library?workspace_id=${currentWsId}`),
@@ -583,16 +600,24 @@ What is your incident response SLA?</textarea>
         api(`/api/v1/frameworks?workspace_id=${currentWsId}`),
         api("/api/v1/training/cohorts"),
         api(`/api/v1/training/enrolments?workspace_id=${currentWsId}`),
-        api(`/api/v1/public-sector/drafts?workspace_id=${currentWsId}`)
+        api(`/api/v1/public-sector/drafts?workspace_id=${currentWsId}`),
+        api(`/api/v1/workspaces/${currentWsId}/members`)
       ]);
 
-      document.getElementById("statNotices").textContent = notices.length;
+      const notices = noticePage.items;
+      totalNotices = noticePage.total;
+      const totalPages = Math.max(1, Math.ceil(totalNotices / noticeLimit));
+      const currentPage = Math.floor(noticeOffset / noticeLimit) + 1;
+
+      document.getElementById("statNotices").textContent = totalNotices;
       document.getElementById("statGrants").textContent = grants.length;
       document.getElementById("statAnswers").textContent = `${answers.length} / ${evidence.length}`;
       document.getElementById("statQueue").textContent = summary.pending_qa_count;
       document.getElementById("statWinRate").textContent = `${summary.win_rate_pct}%`;
       document.getElementById("statRevenue").textContent = `£${summary.total_order_revenue.toLocaleString()}`;
-      document.getElementById("noticePageLabel").textContent = `Page ${Math.floor(noticeOffset / noticeLimit) + 1}`;
+      document.getElementById("noticePageLabel").textContent = `Page ${currentPage} of ${totalPages} (${totalNotices} total)`;
+      document.getElementById("btnPrevNotices").disabled = noticeOffset <= 0;
+      document.getElementById("btnNextNotices").disabled = noticeOffset + noticeLimit >= totalNotices;
 
       document.getElementById("feedList").innerHTML = notices.map(n => `<div class="row-item">
         <span class="badge">${n.notice_type}</span> <strong>#${n.id} ${n.title}</strong> — ${n.funder_or_buyer} (${n.currency} ${n.contract_value.toLocaleString()})
@@ -629,6 +654,7 @@ What is your incident response SLA?</textarea>
         <span class="badge">${g.source_portal}</span> <strong>#${g.id} ${g.title}</strong> (${g.currency} ${g.contract_value.toLocaleString()})
         <div class="inline-actions">
           <button class="small" onclick="extractGrantCriteria(${g.id})">Extract Criteria (${g.structured_criteria.length})</button>
+          <button class="small secondary" onclick="draftProposalForCall(${g.id}, ${g.contract_value})">Draft Proposal</button>
         </div>
       </div>`).join("");
 
@@ -658,7 +684,10 @@ What is your incident response SLA?</textarea>
 
       document.getElementById("assetsList").innerHTML = assets.map(a => `<div class="row-item">
         <strong>${a.title}</strong> (${a.asset_type}) — <span class="badge">${a.status}</span> (Evidence ID: ${a.promoted_evidence_id || "-"})
-        <div class="inline-actions"><button class="small secondary" onclick="exportBidderAsset(${a.id})">Export Markdown</button></div>
+        <div class="inline-actions">
+          ${a.status !== 'promoted' ? `<button class="small" onclick="promoteBidderAsset(${a.id})">Promote to Evidence</button>` : ""}
+          <button class="small secondary" onclick="exportBidderAsset(${a.id})">Export Markdown</button>
+        </div>
       </div>`).join("");
 
       document.getElementById("reviewersList").innerHTML = reviewers.map(r => `<div class="row-item">
@@ -735,6 +764,10 @@ What is your incident response SLA?</textarea>
         ${b.validation_issues.length ? `<div class="muted">Issues: ${b.validation_issues.join(" | ")}</div>` : `<div class="muted">All criteria weights sum to 100% and specification passed clarity checks.</div>`}
         <div class="inline-actions"><button class="small secondary" onclick="exportBuyerDraft(${b.id})">Export Tender Pack Markdown</button></div>
       </div>`).join("");
+
+      document.getElementById("membersList").innerHTML = members.map(m => `<div class="row-item">
+        <strong>${m.full_name}</strong> (${m.email}) — <span class="badge">${m.role}</span> | Status: ${m.status}
+      </div>`).join("") || `<div class="muted">No members added to this workspace yet.</div>`;
     }
 
     async function addAnswerItem() {
@@ -906,6 +939,18 @@ What is your incident response SLA?</textarea>
         role: document.getElementById("memRole").value
       });
       document.getElementById("accessReviewOutput").textContent = JSON.stringify(member, null, 2);
+      refreshAll();
+    }
+
+    async function draftProposalForCall(noticeId, amount) {
+      document.getElementById("gpNoticeId").value = String(noticeId);
+      if (amount) document.getElementById("gpAmount").value = String(amount);
+      await createGrantProposal();
+    }
+
+    async function promoteBidderAsset(assetId) {
+      await api(`/api/v1/bidder-assets/${assetId}/promote-to-evidence`, "POST");
+      refreshAll();
     }
 
     async function reviewQueueItem(itemId, status) {
