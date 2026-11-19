@@ -111,3 +111,18 @@ def test_workspace_summary_kpis(client):
     assert "win_rate_pct" in data
     assert "total_order_revenue" in data
 
+
+def test_invalid_foreign_key_returns_400_instead_of_500(client):
+    res = client.post(
+        "/api/v1/answer-library",
+        json={
+            "workspace_id": 9999,
+            "category": "security",
+            "question_pattern": "Do you have SOC2?",
+            "answer_text": "Yes",
+            "tags": ["soc2"],
+        },
+    )
+    assert res.status_code == 400
+    assert "detail" in res.json()
+

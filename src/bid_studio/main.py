@@ -2,8 +2,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from bid_studio.config import settings
@@ -39,6 +40,13 @@ def create_app() -> FastAPI:
         description="Bid Studio — Tender, Grant Proposal, Compliance, Intelligence & Public-Sector Procurement Writing Platform",
         lifespan=lifespan,
     )
+
+    @app.exception_handler(IntegrityError)
+    def handle_integrity_error(_request: Request, _exc: IntegrityError) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Invalid reference or duplicate constraint violation."},
+        )
 
     app.include_router(core.router)
     app.include_router(grants.router)
