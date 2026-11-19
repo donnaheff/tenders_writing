@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from bid_studio.database import get_db
 from bid_studio.models import (
     AnswerLibraryItem,
+    BidOutcome,
     EmailDeliveryLog,
     EvidenceItem,
     GrantProposal,
@@ -80,6 +81,16 @@ def add_workspace_member(
     ws = db.get(Workspace, workspace_id)
     if not ws:
         raise HTTPException(status_code=404, detail="Workspace not found")
+    existing = (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.email == payload.email,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="Member email already exists in workspace")
     member = WorkspaceMember(workspace_id=workspace_id, **payload.model_dump())
     db.add(member)
     db.commit()
@@ -91,6 +102,40 @@ def add_workspace_member(
         "full_name": member.full_name,
         "role": member.role,
         "status": member.status,
+    }
+
+
+@router.get("/workspaces/{workspace_id}/summary")
+def get_workspace_summary(workspace_id: int, db: Session = Depends(get_db)):
+    ws = db.get(Workspace, workspace_id)
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    proposals = db.query(GrantProposal).filter(GrantProposal.workspace_id == workspace_id).all()
+    orders = db.query(Order).filter(Order.workspace_id == workspace_id).all()
+    outcomes = db.query(BidOutcome).filter(BidOutcome.workspace_id == workspace_id).all()
+    pending_qa = (
+        db.query(QualityQueueItem)
+        .filter(
+            QualityQueueItem.workspace_id == workspace_id,
+            QualityQueueItem.status.in_(["queued", "in_review"]),
+        )
+        .count()
+    )
+    decided = [o for o in outcomes if o.outcome in ("won", "lost")]
+    won_count = sum(1 for o in decided if o.outcome == "won")
+    win_rate_pct = round((won_count / len(decided)) * 100.0, 1) if decided else 0.0
+
+    return {
+        "workspace_id": ws.id,
+        "brand_name": ws.brand_name,
+        "grant_proposals_count": len(proposals),
+        "requested_grant_total": round(sum(p.requested_amount for p in proposals), 2),
+        "orders_count": len(orders),
+        "total_order_revenue": round(sum(o.amount for o in orders), 2),
+        "training_enrolment_orders": sum(1 for o in orders if o.source == "training_enrolment"),
+        "pending_qa_count": pending_qa,
+        "win_rate_pct": win_rate_pct,
     }
 
 
@@ -137,6 +182,8 @@ def list_notices(
     sector: str | None = Query(default=None),
     status: str | None = Query(default=None),
     q: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     query = db.query(OpportunityNotice)
@@ -153,17 +200,21 @@ def list_notices(
         query = query.filter(OpportunityNotice.sector == sector)
     if status:
         query = query.filter(OpportunityNotice.status == status)
-    notices = query.order_by(OpportunityNotice.id.desc()).all()
     if q:
-        q_low = q.lower()
-        notices = [
-            n
-            for n in notices
-            if q_low in n.title.lower()
-            or q_low in n.funder_or_buyer.lower()
-            or q_low in n.raw_pack_text.lower()
-        ]
-    return notices
+        pattern = f"%{q}%"
+        query = query.filter(
+            or_(
+                OpportunityNotice.title.ilike(pattern),
+                OpportunityNotice.funder_or_buyer.ilike(pattern),
+                OpportunityNotice.raw_pack_text.ilike(pattern),
+            )
+        )
+    return (
+        query.order_by(OpportunityNotice.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.post("/notices", response_model=NoticeRead, status_code=201)

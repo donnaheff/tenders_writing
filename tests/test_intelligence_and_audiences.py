@@ -22,6 +22,22 @@ def test_tender_alerts_and_weekly_digest(client):
     orders = client.get("/api/v1/orders?workspace_id=1&source=subscription").json()
     assert any(o["customer_email"] == "growth@bidstudio.example" for o in orders)
 
+    # Private notice in workspace 2 must not leak into workspace 1 digest
+    priv = client.post(
+        "/api/v1/notices",
+        json={
+            "workspace_id": 2,
+            "notice_type": "tender",
+            "funder_or_buyer": "Secret Buyer",
+            "title": "Workspace 2 Private CleanTech Tender",
+            "sector": "CleanTech & Transport",
+            "contract_value": 500000.0,
+        },
+    )
+    assert priv.status_code == 201
+    digest2 = client.post(f"/api/v1/alerts/subscriptions/{sub_id}/generate-digest").json()
+    assert all(item["notice_id"] != priv.json()["id"] for item in digest2["items"])
+
 
 def test_buyer_and_competitor_intelligence_report(client):
     res = client.post(
@@ -34,6 +50,27 @@ def test_buyer_and_competitor_intelligence_report(client):
     assert report["total_spend"] == 2770000.0
     assert report["top_winners"][0]["supplier"] == "GreenGrid Systems Ltd"
     assert report["top_winners"][0]["wins"] == 2
+
+    # Private awarded notice in workspace 2 must not leak into workspace 1 intelligence report
+    priv_award = client.post(
+        "/api/v1/notices",
+        json={
+            "workspace_id": 2,
+            "notice_type": "awarded_tender",
+            "status": "awarded",
+            "funder_or_buyer": "Riverbend Borough Council",
+            "title": "Workspace 2 Private Award",
+            "sector": "CleanTech & Transport",
+            "contract_value": 999999.0,
+            "awarded_supplier": "Shadow Corp",
+        },
+    )
+    assert priv_award.status_code == 201
+    report2 = client.post(
+        "/api/v1/intelligence/buyer-report",
+        json={"workspace_id": 1, "buyer_name": "Riverbend Borough Council"},
+    ).json()
+    assert report2["awards_analyzed"] == 3
 
 
 def test_framework_and_dps_onboarding_checklist(client):
@@ -91,6 +128,30 @@ def test_training_cohort_riverbend_enrolment_creates_training_order(client):
         )
         assert prog.status_code == 200
     assert prog.json()["progress_pct"] == 50.0
+
+    # Fill remaining seats and verify 400 when cohort is full
+    remaining = riverbend["max_seats"] - (riverbend["enrolled_count"] + 1)
+    for i in range(remaining):
+        fill_res = client.post(
+            f"/api/v1/training/cohorts/{riverbend['id']}/enrol",
+            json={
+                "workspace_id": 1,
+                "learner_name": f"Learner {i}",
+                "learner_email": f"learner{i}@bidacademy.example",
+            },
+        )
+        assert fill_res.status_code == 201
+
+    full_res = client.post(
+        f"/api/v1/training/cohorts/{riverbend['id']}/enrol",
+        json={
+            "workspace_id": 1,
+            "learner_name": "Overflow Learner",
+            "learner_email": "overflow@bidacademy.example",
+        },
+    )
+    assert full_res.status_code == 400
+    assert "full" in full_res.json()["detail"].lower()
 
 
 def test_public_sector_draft_validates_weights_and_ambiguity(client):

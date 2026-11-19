@@ -25,12 +25,17 @@ def test_white_label_and_access_review_and_isolation(client):
     assert create_res.status_code == 201
     ws_id = create_res.json()["id"]
 
-    # Add member and run access review
+    # Add member and verify duplicate member returns 409
     member_res = client.post(
         f"/api/v1/workspaces/{ws_id}/members",
         json={"email": "writer@apex.example", "full_name": "Sam Writer", "role": "writer"},
     )
     assert member_res.status_code == 201
+    dup_res = client.post(
+        f"/api/v1/workspaces/{ws_id}/members",
+        json={"email": "writer@apex.example", "full_name": "Sam Writer", "role": "writer"},
+    )
+    assert dup_res.status_code == 409
 
     review_res = client.get(f"/api/v1/workspaces/{ws_id}/access-review")
     assert review_res.status_code == 200
@@ -84,4 +89,21 @@ def test_private_workspace_notices_are_isolated(client):
 
     ws2_notices = client.get("/api/v1/notices?workspace_id=2").json()
     assert any(n["id"] == notice_id for n in ws2_notices)
+
+    # Search and pagination on notices
+    searched = client.get("/api/v1/notices?workspace_id=2&q=Confidential").json()
+    assert len(searched) == 1
+    assert searched[0]["id"] == notice_id
+
+    page = client.get("/api/v1/notices?workspace_id=1&limit=2&offset=1").json()
+    assert len(page) == 2
+
+
+def test_workspace_summary_kpis(client):
+    res = client.get("/api/v1/workspaces/1/summary")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["workspace_id"] == 1
+    assert "win_rate_pct" in data
+    assert "total_order_revenue" in data
 

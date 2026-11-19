@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from bid_studio.config import settings
@@ -14,8 +14,23 @@ def normalize_database_url(database_url: str) -> str:
 
 def build_engine(database_url: str):
     url = normalize_database_url(database_url)
-    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    return create_engine(url, connect_args=connect_args, future=True)
+    is_sqlite = url.startswith("sqlite")
+    connect_args = {"check_same_thread": False} if is_sqlite else {}
+    eng = create_engine(
+        url,
+        connect_args=connect_args,
+        pool_pre_ping=not is_sqlite,
+        future=True,
+    )
+    if is_sqlite:
+
+        @event.listens_for(eng, "connect")
+        def _enable_sqlite_fks(dbapi_connection, _connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+    return eng
 
 
 engine = build_engine(settings.database_url)
