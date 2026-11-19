@@ -6,6 +6,10 @@ def test_health_and_dashboard(client):
     home = client.get("/")
     assert home.status_code == 200
     assert "Bid Studio" in home.text
+    assert "statWinRate" in home.text
+    assert "exportSocialValue" in home.text
+    assert "exportBuyerDraft" in home.text
+    assert "createWhiteLabelWorkspace" in home.text
 
 
 def test_white_label_and_access_review_and_isolation(client):

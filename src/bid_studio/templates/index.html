@@ -186,27 +186,48 @@
     <main>
       <section id="overview" class="panel active">
         <div class="grid">
-          <div class="card"><div>Feed Notices</div><div class="stat" id="statNotices">-</div></div>
+          <div class="card"><div>Feed Notices (Page)</div><div class="stat" id="statNotices">-</div></div>
           <div class="card"><div>Grant Calls</div><div class="stat" id="statGrants">-</div></div>
-          <div class="card"><div>Answer Library</div><div class="stat" id="statAnswers">-</div></div>
-          <div class="card"><div>Quality Queue</div><div class="stat" id="statQueue">-</div></div>
+          <div class="card"><div>Answer / Evidence</div><div class="stat" id="statAnswers">-</div></div>
+          <div class="card"><div>Pending QA</div><div class="stat" id="statQueue">-</div></div>
+          <div class="card"><div>Win Rate</div><div class="stat" id="statWinRate">-</div></div>
+          <div class="card"><div>Order Revenue</div><div class="stat" id="statRevenue">-</div></div>
         </div>
         <div class="card">
           <h3>Live Opportunity Feed (Tenders, Grants &amp; Awarded Notices)</h3>
           <div class="inline-actions" style="margin-bottom:10px;">
-            <input id="feedSearch" placeholder="Search title, buyer, or keyword..." oninput="refreshAll()" />
-            <select id="feedType" onchange="refreshAll()">
+            <input id="feedSearch" placeholder="Search title, buyer, or keyword..." oninput="noticeOffset=0; refreshAll()" />
+            <select id="feedType" onchange="noticeOffset=0; refreshAll()">
               <option value="">All notice types</option>
               <option value="grant_call">Grant Calls</option>
               <option value="tender">Open Tenders</option>
               <option value="awarded_tender">Awarded Tenders</option>
             </select>
+            <button class="small secondary" onclick="prevNoticePage()">&larr; Prev</button>
+            <span class="muted" id="noticePageLabel">Page 1</span>
+            <button class="small secondary" onclick="nextNoticePage()">Next &rarr;</button>
           </div>
           <div id="feedList">Loading...</div>
         </div>
         <div class="card">
-          <h3>Quality Review Queue &amp; Outbound Email Deliveries</h3>
+          <h3>Answer Library &amp; Evidence Library</h3>
+          <div class="form-grid">
+            <input id="alTitle" placeholder="Answer Title" value="Cyber Essentials Plus &amp; Zero Trust" />
+            <input id="alCategory" placeholder="Category (e.g. security, net_zero, delivery)" value="security" />
+            <textarea id="alContent" rows="2" placeholder="Reusable boilerplate answer...">We maintain Cyber Essentials Plus and ISO 27001 controls with quarterly penetration testing.</textarea>
+            <div class="inline-actions">
+              <button onclick="addAnswerItem()">Add to Answer Library</button>
+            </div>
+          </div>
+          <div id="answerLibraryList"></div>
+          <h4 style="margin-top:14px;">Evidence Library</h4>
+          <div id="evidenceLibraryList"></div>
+        </div>
+        <div class="card">
+          <h3>Quality Review Queue, Orders Ledger &amp; Email Deliveries</h3>
           <div id="queueList"></div>
+          <h4 style="margin-top:14px;">Recent Orders</h4>
+          <div id="ordersList"></div>
           <h4 style="margin-top:14px;">Recent Email Deliveries</h4>
           <div id="deliveriesList"></div>
         </div>
@@ -408,6 +429,25 @@ What is your incident response SLA?</textarea>
               <button class="secondary" onclick="runAccessReview()">Run Access Review</button>
             </div>
           </div>
+          <h4 style="margin-top:14px;">Create Client-Isolated White-Label Consultancy</h4>
+          <div class="form-grid">
+            <input id="newWsSlug" placeholder="Slug (e.g. meridian-bids)" />
+            <input id="newWsName" placeholder="Consultancy Name (e.g. Meridian Bid Advisory)" />
+            <input id="newWsBrand" placeholder="White-Label Brand Name" />
+            <button onclick="createWhiteLabelWorkspace()">Create Consultancy Workspace</button>
+          </div>
+          <h4 style="margin-top:14px;">Add Member to Current Workspace</h4>
+          <div class="form-grid">
+            <input id="memEmail" placeholder="Member Email" />
+            <input id="memName" placeholder="Full Name" />
+            <select id="memRole">
+              <option value="writer">Writer</option>
+              <option value="reviewer">Reviewer</option>
+              <option value="admin">Admin</option>
+              <option value="client">Client</option>
+            </select>
+            <button class="secondary" onclick="addWorkspaceMember()">Add Workspace Member</button>
+          </div>
           <pre id="accessReviewOutput" style="margin-top:12px;">Select a workspace and click Run Access Review.</pre>
         </div>
       </section>
@@ -429,6 +469,8 @@ What is your incident response SLA?</textarea>
 
   <script>
     let currentWsId = {{ workspace_id }};
+    let noticeOffset = 0;
+    const noticeLimit = 6;
 
     async function api(path, method = "GET", body = null) {
       const opts = { method, headers: { "Content-Type": "application/json" } };
@@ -458,6 +500,7 @@ What is your incident response SLA?</textarea>
 
     async function switchWorkspace() {
       currentWsId = Number(document.getElementById("wsSelect").value);
+      noticeOffset = 0;
       const list = await api("/api/v1/workspaces");
       const ws = list.find(w => w.id === currentWsId);
       if (ws) {
@@ -468,17 +511,34 @@ What is your incident response SLA?</textarea>
       refreshAll();
     }
 
-    async function refreshAll() {
-      const q = encodeURIComponent(document.getElementById("feedSearch")?.value || "");
-      const nType = encodeURIComponent(document.getElementById("feedType")?.value || "");
-      const noticeParams = new URLSearchParams({ workspace_id: String(currentWsId) });
-      if (q) noticeParams.set("q", document.getElementById("feedSearch").value);
-      if (nType) noticeParams.set("notice_type", document.getElementById("feedType").value);
+    function prevNoticePage() {
+      noticeOffset = Math.max(0, noticeOffset - noticeLimit);
+      refreshAll();
+    }
 
-      const [notices, grants, answers, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, frameworks, cohorts, enrolments, buyerDrafts] = await Promise.all([
+    function nextNoticePage() {
+      noticeOffset += noticeLimit;
+      refreshAll();
+    }
+
+    async function refreshAll() {
+      const q = document.getElementById("feedSearch")?.value || "";
+      const nType = document.getElementById("feedType")?.value || "";
+      const noticeParams = new URLSearchParams({
+        workspace_id: String(currentWsId),
+        limit: String(noticeLimit),
+        offset: String(noticeOffset)
+      });
+      if (q) noticeParams.set("q", q);
+      if (nType) noticeParams.set("notice_type", nType);
+
+      const [summary, notices, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, matrices, svs, frameworks, cohorts, enrolments, buyerDrafts] = await Promise.all([
+        api(`/api/v1/workspaces/${currentWsId}/summary`),
         api(`/api/v1/notices?${noticeParams.toString()}`),
         api("/api/v1/grants/calls"),
         api(`/api/v1/answer-library?workspace_id=${currentWsId}`),
+        api(`/api/v1/evidence-library?workspace_id=${currentWsId}`),
+        api(`/api/v1/orders?workspace_id=${currentWsId}`),
         api(`/api/v1/quality-queue?workspace_id=${currentWsId}`),
         api(`/api/v1/deliveries?workspace_id=${currentWsId}`),
         api(`/api/v1/grants/proposals?workspace_id=${currentWsId}`),
@@ -499,13 +559,30 @@ What is your incident response SLA?</textarea>
 
       document.getElementById("statNotices").textContent = notices.length;
       document.getElementById("statGrants").textContent = grants.length;
-      document.getElementById("statAnswers").textContent = answers.length;
-      document.getElementById("statQueue").textContent = queue.length;
+      document.getElementById("statAnswers").textContent = `${answers.length} / ${evidence.length}`;
+      document.getElementById("statQueue").textContent = summary.pending_qa_count;
+      document.getElementById("statWinRate").textContent = `${summary.win_rate_pct}%`;
+      document.getElementById("statRevenue").textContent = `£${summary.total_order_revenue.toLocaleString()}`;
+      document.getElementById("noticePageLabel").textContent = `Page ${Math.floor(noticeOffset / noticeLimit) + 1}`;
 
       document.getElementById("feedList").innerHTML = notices.map(n => `<div class="row-item">
         <span class="badge">${n.notice_type}</span> <strong>#${n.id} ${n.title}</strong> — ${n.funder_or_buyer} (${n.currency} ${n.contract_value.toLocaleString()})
         <div class="muted">${n.ai_summary}</div>
-      </div>`).join("") || `<div class="muted">No matching notices.</div>`;
+      </div>`).join("") || `<div class="muted">No matching notices on this page.</div>`;
+
+      document.getElementById("answerLibraryList").innerHTML = answers.slice(0, 5).map(a => `<div class="row-item">
+        <span class="badge">${a.category}</span> <strong>${a.title}</strong>
+        <div class="muted">${a.content}</div>
+      </div>`).join("") || `<div class="muted">No answer library items in this workspace.</div>`;
+
+      document.getElementById("evidenceLibraryList").innerHTML = evidence.slice(0, 5).map(e => `<div class="row-item">
+        <span class="badge">${e.metric_highlight || "evidence"}</span> <strong>${e.title}</strong> (${e.client_name})
+        <div class="muted">${e.summary}</div>
+      </div>`).join("") || `<div class="muted">No evidence items in this workspace.</div>`;
+
+      document.getElementById("ordersList").innerHTML = orders.slice(0, 5).map(o => `<div class="row-item">
+        <span class="badge">${o.source}</span> <strong>#${o.id} ${o.service_type}</strong> — ${o.customer_email} (${o.currency} ${o.amount.toLocaleString()})
+      </div>`).join("") || `<div class="muted">No orders recorded yet.</div>`;
 
       document.getElementById("queueList").innerHTML = queue.map(qItem => `<div class="row-item">
         <strong>#${qItem.id} ${qItem.title}</strong> (${qItem.item_type}) — <span class="badge">${qItem.status}</span> Score: ${qItem.review_score ?? "-"}
@@ -581,6 +658,7 @@ What is your incident response SLA?</textarea>
       document.getElementById("socialValueList").innerHTML = svs.map(s => `<div class="row-item">
         <strong>${s.bid_title}</strong> (Net Zero ${s.net_zero_target_year})
         <div class="muted">${s.generated_statement}</div>
+        <div class="inline-actions"><button class="small secondary" onclick="exportSocialValue(${s.id})">Export Markdown</button></div>
       </div>`).join("");
 
       document.getElementById("frameworksList").innerHTML = frameworks.map(f => `<div class="row-item">
@@ -606,7 +684,62 @@ What is your incident response SLA?</textarea>
       document.getElementById("buyerDraftsList").innerHTML = buyerDrafts.map(b => `<div class="row-item">
         <strong>${b.title}</strong> (${b.authority_name}) — Clarity: <strong>${b.clarity_score}%</strong> | Status: <span class="badge">${b.status}</span>
         ${b.validation_issues.length ? `<div class="muted">Issues: ${b.validation_issues.join(" | ")}</div>` : `<div class="muted">All criteria weights sum to 100% and specification passed clarity checks.</div>`}
+        <div class="inline-actions"><button class="small secondary" onclick="exportBuyerDraft(${b.id})">Export Tender Pack Markdown</button></div>
       </div>`).join("");
+    }
+
+    async function addAnswerItem() {
+      await api("/api/v1/answer-library", "POST", {
+        workspace_id: currentWsId,
+        title: document.getElementById("alTitle").value,
+        category: document.getElementById("alCategory").value,
+        content: document.getElementById("alContent").value,
+        tags: [document.getElementById("alCategory").value]
+      });
+      refreshAll();
+    }
+
+    async function exportSocialValue(statementId) {
+      const data = await api(`/api/v1/social-value/${statementId}/export`);
+      let pre = document.getElementById("svExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "svExportPreview";
+        document.getElementById("socialValueList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function exportBuyerDraft(draftId) {
+      const data = await api(`/api/v1/public-sector/drafts/${draftId}/export-pack`);
+      let pre = document.getElementById("psExportPreview");
+      if (!pre) {
+        pre = document.createElement("pre");
+        pre.id = "psExportPreview";
+        document.getElementById("buyerDraftsList").after(pre);
+      }
+      pre.textContent = data.markdown;
+    }
+
+    async function createWhiteLabelWorkspace() {
+      const ws = await api("/api/v1/workspaces", "POST", {
+        slug: document.getElementById("newWsSlug").value,
+        name: document.getElementById("newWsName").value,
+        is_white_label: true,
+        brand_name: document.getElementById("newWsBrand").value || document.getElementById("newWsName").value
+      });
+      currentWsId = ws.id;
+      await loadWorkspaces();
+      await switchWorkspace();
+    }
+
+    async function addWorkspaceMember() {
+      const member = await api(`/api/v1/workspaces/${currentWsId}/members`, "POST", {
+        email: document.getElementById("memEmail").value,
+        full_name: document.getElementById("memName").value,
+        role: document.getElementById("memRole").value
+      });
+      document.getElementById("accessReviewOutput").textContent = JSON.stringify(member, null, 2);
     }
 
     async function reviewQueueItem(itemId, status) {
