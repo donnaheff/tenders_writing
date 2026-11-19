@@ -222,6 +222,31 @@ def auto_match_compliance_pack(pack_id: int, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/compliance/packs/{pack_id}/export")
+def export_compliance_pack_markdown(pack_id: int, db: Session = Depends(get_db)):
+    pack = db.get(CompliancePack, pack_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail="Compliance pack not found")
+    sections_md = "\n\n".join(
+        f"## {s.get('section', 'Section')}\n{s.get('content', '')}"
+        for s in (pack.policy_sections or [])
+    )
+    q_rows = "\n".join(
+        f"| {q.get('id')} | {q.get('question')} | {q.get('status')} | {q.get('matched_answer_text') or '-'} |"
+        for q in (pack.questionnaire_items or [])
+    )
+    md = (
+        f"# {pack.title}\n"
+        f"- **Pack Type:** {pack.pack_type}\n"
+        f"- **Standard Ref:** {pack.standard_ref}\n"
+        f"- **Status:** {pack.status}\n\n"
+        f"{sections_md}\n\n"
+        f"## Security Questionnaire Responses\n"
+        f"| ID | Question | Status | Matched Answer |\n| --- | --- | --- | --- |\n{q_rows}\n"
+    )
+    return {"pack_id": pack.id, "markdown": md}
+
+
 # --- 3. CV, Capability Statement & Case Study Writing ---
 @router.get("/bidder-assets")
 def list_bidder_assets(workspace_id: int = 1, db: Session = Depends(get_db)):

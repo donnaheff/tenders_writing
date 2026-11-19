@@ -41,6 +41,11 @@ def test_white_label_and_access_review_and_isolation(client):
     )
     assert dup_res.status_code == 409
 
+    members_list = client.get(f"/api/v1/workspaces/{ws_id}/members")
+    assert members_list.status_code == 200
+    assert len(members_list.json()) == 1
+    assert members_list.json()[0]["email"] == "writer@apex.example"
+
     review_res = client.get(f"/api/v1/workspaces/{ws_id}/access-review")
     assert review_res.status_code == 200
     data = review_res.json()
@@ -99,8 +104,9 @@ def test_private_workspace_notices_are_isolated(client):
     assert len(searched) == 1
     assert searched[0]["id"] == notice_id
 
-    page = client.get("/api/v1/notices?workspace_id=1&limit=2&offset=1").json()
-    assert len(page) == 2
+    page_res = client.get("/api/v1/notices?workspace_id=1&limit=2&offset=1")
+    assert len(page_res.json()) == 2
+    assert int(page_res.headers["X-Total-Count"]) >= 5
 
 
 def test_workspace_summary_kpis(client):

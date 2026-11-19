@@ -69,6 +69,10 @@ def test_compliance_security_questionnaire_auto_matches_answer_library(client):
     assert body["matched_count"] == 3
     assert all(item["matched_answer_id"] is not None for item in body["questionnaire_items"])
 
+    export_res = client.get(f"/api/v1/compliance/packs/{pack_id}/export")
+    assert export_res.status_code == 200
+    assert "Public Cloud Security Assessment" in export_res.json()["markdown"]
+
 
 def test_bidder_asset_promotes_to_evidence_library(client):
     asset_res = client.post(

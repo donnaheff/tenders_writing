@@ -163,6 +163,24 @@ def update_clarification_question_status(
     return pack
 
 
+@router.get("/clarifications/{pack_id}/export")
+def export_clarification_pack_markdown(pack_id: int, db: Session = Depends(get_db)):
+    pack = db.get(ClarificationPack, pack_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail="Clarification pack not found")
+    rows = "\n".join(
+        f"| {q.get('id')} | {q.get('priority')} | {q.get('status')} | {q.get('drafted_question')} | {q.get('buyer_response') or '-'} |"
+        for q in (pack.questions or [])
+    )
+    md = (
+        f"# Clarification Register: {pack.tender_title}\n"
+        f"- **Clarification Deadline:** {pack.clarification_deadline}\n\n"
+        f"| ID | Priority | Status | Drafted Question | Buyer Response |\n"
+        f"| --- | --- | --- | --- | --- |\n{rows}\n"
+    )
+    return {"pack_id": pack.id, "markdown": md}
+
+
 # --- 7. Pricing & Cost-Narrative Writing ---
 @router.get("/pricing/templates")
 def list_pricing_templates(db: Session = Depends(get_db)):
@@ -224,6 +242,27 @@ def create_price_matrix(payload: PriceMatrixCreate, db: Session = Depends(get_db
     db.commit()
     db.refresh(matrix)
     return matrix
+
+
+@router.get("/pricing/matrices/{matrix_id}/export")
+def export_price_matrix_markdown(matrix_id: int, db: Session = Depends(get_db)):
+    matrix = db.get(PriceMatrix, matrix_id)
+    if not matrix:
+        raise HTTPException(status_code=404, detail="Price matrix not found")
+    rows = "\n".join(
+        f"| {row.get('line_id')} | {row.get('category')} | {row.get('description')} | {row.get('quantity')} {row.get('unit')} | {matrix.currency} {row.get('unit_rate', 0):,.2f} | {matrix.currency} {row.get('line_total', 0):,.2f} |"
+        for row in (matrix.lines or [])
+    )
+    md = (
+        f"# Pricing & Cost Narrative: {matrix.bid_title}\n"
+        f"- **Direct Subtotal:** {matrix.currency} {matrix.subtotal:,.2f}\n"
+        f"- **Margin:** {matrix.margin_pct:.1f}% | **Contingency:** {matrix.contingency_pct:.1f}%\n"
+        f"- **Total Price:** {matrix.currency} {matrix.total_price:,.2f}\n\n"
+        f"| ID | Category | Description | Quantity | Unit Rate | Line Total |\n"
+        f"| --- | --- | --- | --- | --- | --- |\n{rows}\n\n"
+        f"## Evaluator Cost Narrative\n{matrix.cost_narrative}\n"
+    )
+    return {"matrix_id": matrix.id, "markdown": md}
 
 
 # --- 8. Social Value & Sustainability Statements ---
