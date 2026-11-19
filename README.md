@@ -7,11 +7,11 @@ Bid Studio is a Python + FastAPI platform for tender writing, grant and funding 
 ## Core Platform & Implemented Modules
 
 ### Core Infrastructure
-- **Multi-Tenant Workspaces & Access Review:** Client-isolated workspaces, member role management (`owner`, `admin`, `writer`, `reviewer`, `client`), white-label branding, workspace KPI summaries (`/api/v1/workspaces/{id}/summary`), and timestamped access reviews.
-- **Unified Opportunity Feed:** Stores open tenders, awarded notices, and structured funding calls with AI-style summaries, SQL keyword search (`q`), and `limit`/`offset` pagination.
+- **Multi-Tenant Workspaces & Access Review:** Client-isolated workspaces, member role management (`owner`, `admin`, `writer`, `reviewer`, `client`), `GET /api/v1/workspaces/{id}/members`, white-label branding, workspace KPI summaries (`/api/v1/workspaces/{id}/summary`), and timestamped access reviews.
+- **Unified Opportunity Feed:** Stores open tenders, awarded notices, and structured funding calls with AI-style summaries, SQL keyword search (`q`), `limit`/`offset` pagination, and `X-Total-Count` response header.
 - **Answer & Evidence Libraries:** Reusable verified answers and buyer-formatted evidence items.
 - **Quality Review Queue, Orders & Email Delivery Log:** Shared QA pipeline, order tracking (including `training_enrolment`), and outbound delivery audit logs.
-- **Markdown Export Endpoints:** Export deliverables directly as Markdown across Grant Proposals (`/api/v1/grants/proposals/{id}/export`), Technical Docs (`/api/v1/tech-docs/{id}/export`), Win/Loss Debriefs (`/api/v1/debriefs/outcomes/{id}/export`), Social Value Statements (`/api/v1/social-value/{id}/export`), and Public Sector Packs (`/api/v1/public-sector/drafts/{id}/export-pack`).
+- **Markdown Export Endpoints:** Export deliverables directly as Markdown across Grant Proposals (`/api/v1/grants/proposals/{id}/export`), Technical Docs (`/api/v1/tech-docs/{id}/export`), Compliance Packs (`/api/v1/compliance/packs/{id}/export`), Bidder Assets (`/api/v1/bidder-assets/{id}/export`), Marketplace Reviews (`/api/v1/marketplace/reviews/{id}/export`), Win/Loss Debriefs (`/api/v1/debriefs/outcomes/{id}/export`), Clarification Registers (`/api/v1/clarifications/{id}/export`), Pricing Matrices (`/api/v1/pricing/matrices/{id}/export`), Social Value Statements (`/api/v1/social-value/{id}/export`), Intelligence Reports (`/api/v1/intelligence/reports/{id}/export`), Framework Checklists (`/api/v1/frameworks/{id}/export`), and Public Sector Packs (`/api/v1/public-sector/drafts/{id}/export-pack`).
 
 ### Primary Product
 0. **Grant and Funding Proposal Writing (`/api/v1/grants`)**
@@ -90,9 +90,15 @@ uvicorn bid_studio.main:app --reload --host 0.0.0.0 --port 8000
 ### Run Linting & Tests
 
 ```bash
-ruff check src tests
+ruff check src tests api
 pytest -v
 ```
+
+### Vercel & PostgreSQL (Supabase) Deployment
+
+The repository includes `api/index.py`, `vercel.json`, and `requirements.txt` (with `psycopg[binary]`) for serverless deployment on Vercel:
+- Set `DATABASE_URL` in Vercel environment variables to your PostgreSQL connection string (`postgresql://...` or `postgres://...`).
+- If `DATABASE_URL` is omitted on Vercel, SQLite falls back to `/tmp/bid_studio.db` for ephemeral previews.
 
 ---
 
