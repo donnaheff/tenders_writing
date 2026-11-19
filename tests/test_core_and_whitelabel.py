@@ -10,6 +10,10 @@ def test_health_and_dashboard(client):
     assert "exportSocialValue" in home.text
     assert "exportBuyerDraft" in home.text
     assert "createWhiteLabelWorkspace" in home.text
+    assert "membersList" in home.text
+    assert "apiNotices" in home.text
+    assert "draftProposalForCall" in home.text
+    assert "promoteBidderAsset" in home.text
 
 
 def test_white_label_and_access_review_and_isolation(client):
