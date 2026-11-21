@@ -31,7 +31,7 @@ def _visible(query, workspace_id: int | None):
     )
 
 
-def _serialize(n: OpportunityNotice, url: str, saved: bool, has_proposal: bool, today):
+def _serialize(n: OpportunityNotice, url: str, saved: bool, proposal_id: int | None, today):
     deadline = parse_iso(n.deadline)
     return {
         "id": n.id,
@@ -49,7 +49,8 @@ def _serialize(n: OpportunityNotice, url: str, saved: bool, has_proposal: bool, 
         "url": url or None,
         "criteria_count": len(n.structured_criteria or []),
         "saved": saved,
-        "has_proposal": has_proposal,
+        "has_proposal": proposal_id is not None,
+        "proposal_id": proposal_id,
     }
 
 
@@ -150,7 +151,7 @@ def grants_feed(
 
     links = {}
     saved_ids: set[int] = set()
-    proposal_ids: set[int] = set()
+    proposal_ids: dict[int, int] = {}
     if ids:
         links = {
             link.notice_id: link.url
@@ -163,14 +164,14 @@ def grants_feed(
                     SavedGrant.workspace_id == workspace_id, SavedGrant.notice_id.in_(ids)
                 )
             }
-            proposal_ids = {
-                p.notice_id
-                for p in db.query(GrantProposal).filter(
-                    GrantProposal.workspace_id == workspace_id, GrantProposal.notice_id.in_(ids)
-                )
-            }
+            for p in (
+                db.query(GrantProposal)
+                .filter(GrantProposal.workspace_id == workspace_id, GrantProposal.notice_id.in_(ids))
+                .order_by(GrantProposal.id.desc())
+            ):
+                proposal_ids[p.notice_id] = p.id
     return [
-        _serialize(n, links.get(n.id, ""), n.id in saved_ids, n.id in proposal_ids, today)
+        _serialize(n, links.get(n.id, ""), n.id in saved_ids, proposal_ids.get(n.id), today)
         for n in rows
     ]
 

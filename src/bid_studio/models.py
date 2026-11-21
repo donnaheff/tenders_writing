@@ -359,3 +359,15 @@ class SavedGrant(Base):
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
     notice_id: Mapped[int] = mapped_column(ForeignKey("opportunity_notices.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ProposalVersion(Base):
+    __tablename__ = "proposal_versions"
+    __table_args__ = (UniqueConstraint("proposal_id", "version_no", name="uq_proposal_version"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    proposal_id: Mapped[int] = mapped_column(ForeignKey("grant_proposals.id"), index=True)
+    version_no: Mapped[int] = mapped_column(Integer)
+    label: Mapped[str] = mapped_column(String(120), default="")
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

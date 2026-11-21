@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grant Studio | {{ brand_name }}</title>
+  <style>
+    :root {
+      --primary: {{ primary_color }}; --accent: {{ accent_color }};
+      --bg: #f8fafc; --card: #fff; --border: #e2e8f0; --text: #0f172a; --muted: #475569;
+      --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.45; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; border: 0; border-radius: 6px; padding: 7px 12px; background: var(--accent); color: #fff; font-weight: 600; }
+    button.secondary { background: #e2e8f0; color: #0f172a; }
+    button.small { padding: 4px 9px; font-size: .8rem; }
+    button:disabled { opacity: .5; cursor: default; }
+    input, select, textarea { border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; background: #fff; }
+    .topbar { background: var(--primary); color: #fff; padding: 10px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+    .topbar a { color: #cbd5e1; text-decoration: none; font-size: .9rem; }
+    .topbar a:hover { color: #fff; }
+    .topbar .title { flex: 1; min-width: 220px; }
+    .topbar .title input { width: 100%; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); color: #fff; font-weight: 700; font-size: 1.05rem; }
+    .topbar .title input:disabled { opacity: .8; }
+    .badge { display: inline-block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border-radius: 999px; padding: 3px 10px; background: #e2e8f0; color: #334155; }
+    .badge.draft { background: #dbeafe; color: #1e40af; } .badge.in_review { background: #fef3c7; color: #92400e; } .badge.approved { background: #dcfce7; color: #166534; }
+    #saveState { font-size: .82rem; color: #cbd5e1; min-width: 110px; }
+    #saveState.err { color: #fca5a5; }
+    .meter { display: flex; align-items: center; gap: 10px; }
+    .meter .ring { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .9rem; background: conic-gradient(var(--accent) calc(var(--pct) * 1%), rgba(255,255,255,.2) 0); position: relative; }
+    .meter .ring::after { content: attr(data-label); position: absolute; inset: 5px; background: var(--primary); border-radius: 50%; display: grid; place-items: center; }
+    .meter small { color: #cbd5e1; line-height: 1.2; display: block; }
+    .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr) 340px; gap: 16px; padding: 16px 20px; align-items: start; }
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .panel h3 { margin: 0 0 10px; font-size: .95rem; }
+    .sec-item { display: block; width: 100%; text-align: left; background: #fff; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; margin-bottom: 8px; font-weight: 500; }
+    .sec-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+    .sec-item .row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .sec-item .t { font-weight: 700; font-size: .88rem; }
+    .sec-item .m { font-size: .78rem; color: var(--muted); margin-top: 3px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: #cbd5e1; flex: none; }
+    .dot.written { background: var(--ok); } .dot.over { background: var(--bad); }
+    .bar { height: 5px; background: #e2e8f0; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: var(--accent); }
+    .editor textarea { width: 100%; min-height: 380px; resize: vertical; line-height: 1.55; font-size: .98rem; }
+    .editor .meta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 10px 0; font-size: .88rem; }
+    .editor label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+    .editor input[type=number] { width: 84px; }
+    .count { font-weight: 700; } .count.over { color: var(--bad); } .count.near { color: var(--warn); }
+    .guidance { background: #eff6ff; border-radius: 8px; padding: 9px 12px; font-size: .88rem; color: #1e3a8a; margin: 8px 0 12px; }
+    .refs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .ref { background: #f1f5f9; border-radius: 999px; padding: 2px 8px; font-size: .78rem; }
+    .ref button { background: transparent; color: #64748b; padding: 0 0 0 4px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+    .tabs button { background: #f1f5f9; color: #334155; }
+    .tabs button.active { background: var(--accent); color: #fff; }
+    .tabpane { display: none; } .tabpane.active { display: block; }
+    .item { border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; margin-bottom: 8px; font-size: .88rem; }
+    .item .h { font-weight: 700; margin-bottom: 3px; }
+    .item .x { color: var(--muted); font-size: .84rem; margin-bottom: 6px; max-height: 5.4em; overflow: hidden; }
+    .check { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: .88rem; }
+    .check:last-child { border-bottom: 0; }
+    .check .ic { font-weight: 800; flex: none; width: 16px; }
+    .check.ok .ic { color: var(--ok); } .check.fail.blocker .ic { color: var(--bad); } .check.fail.warning .ic { color: var(--warn); }
+    .check .d { color: var(--muted); font-size: .8rem; }
+    .callbox { font-size: .86rem; color: var(--muted); margin-bottom: 12px; }
+    .callbox strong { color: var(--text); }
+    .banner { background: #fef3c7; color: #92400e; padding: 9px 20px; font-size: .9rem; display: none; }
+    .banner.show { display: block; }
+    #preview { white-space: pre-wrap; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: .84rem; max-height: 300px; overflow: auto; margin-top: 8px; display: none; }
+    .search { display: flex; gap: 6px; margin-bottom: 10px; } .search input { flex: 1; min-width: 0; }
+    .muted { color: var(--muted); font-size: .85rem; }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="/app">&larr; Dashboard</a>
+    <div class="title"><input id="pTitle" aria-label="Proposal title" /></div>
+    <span id="status" class="badge"></span>
+    <div class="meter" title="Weighted self-assessed score">
+      <div class="ring" id="ring" data-label="0%" style="--pct:0"></div>
+      <small>Self-assessed<br />score</small>
+    </div>
+    <span id="saveState" role="status"></span>
+    <button class="secondary" id="btnVersion">Save version</button>
+    <button class="secondary" id="btnExport">Export .md</button>
+    <button id="btnSubmit">Submit for review</button>
+  </div>
+  <div class="banner" id="lockBanner">This proposal is in review or approved and is read-only. If a reviewer requests changes it reopens for editing.</div>
+
+  <div class="layout">
+    <aside class="panel">
+      <h3>Sections</h3>
+      <div id="secList"></div>
+      <h3 style="margin-top:14px;">Proposal details</h3>
+      <div style="display:grid; gap:8px;">
+        <label class="muted">Applicant organisation<input id="pOrg" style="width:100%" /></label>
+        <label class="muted">Requested amount<input id="pAmount" type="number" min="0" style="width:100%" /></label>
+        <label class="muted">Currency<input id="pCur" maxlength="10" style="width:100%" /></label>
+      </div>
+    </aside>
+
+    <section class="panel editor" id="editorPanel">
+      <h3 id="secTitle">Loading...</h3>
+      <div class="guidance" id="secGuidance" style="display:none"></div>
+      <textarea id="secText" aria-label="Section text" spellcheck="true"></textarea>
+      <div class="meta">
+        <span><span class="count" id="wc">0</span><span id="wcLimit"></span> words</span>
+        <label>Word limit <input id="secLimit" type="number" min="1" placeholder="none" /></label>
+        <label>Self-score <input id="secScore" type="number" step="0.5" min="0" /> / <span id="secMax"></span></label>
+      </div>
+      <div><strong class="muted">Evidence cited</strong><div class="refs" id="refs"></div></div>
+      <label class="muted" style="display:block; margin-top:12px;">Notes (internal, not exported)
+        <textarea id="secNotes" style="width:100%; min-height:70px;"></textarea>
+      </label>
+    </section>
+
+    <aside class="panel">
+      <div class="callbox" id="callBox"></div>
+      <div class="tabs" id="tabs">
+        <button data-tab="ai" class="active">Assistant</button>
+        <button data-tab="library">Library</button>
+        <button data-tab="ready">Readiness</button>
+        <button data-tab="versions">Versions</button>
+      </div>
+      <div class="tabpane active" id="tab-ai">
+        <div class="muted" id="aiStatus" style="margin-bottom:8px;">Checking assistant...</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+          <button class="small" data-ai="draft">Draft section</button>
+          <button class="small" data-ai="improve">Improve</button>
+          <button class="small" data-ai="shorten">Shorten</button>
+          <button class="small" data-ai="critique">Critique</button>
+        </div>
+        <div class="search"><input id="aiQ" placeholder="Ask or instruct, e.g. make it more concrete" maxlength="1500" /><button class="small" id="aiAsk">Ask</button></div>
+        <div id="aiOut" class="muted">Pick an action. It works on the section you are editing.</div>
+      </div>
+      <div class="tabpane" id="tab-library">
+        <div class="search"><input id="libQ" placeholder="Search answers and evidence" /><button class="small" id="libGo">Search</button></div>
+        <div id="libList" class="muted">Loading suggestions...</div>
+      </div>
+      <div class="tabpane" id="tab-ready"><div id="readyList"></div></div>
+      <div class="tabpane" id="tab-versions">
+        <div id="verList" class="muted">Loading...</div>
+        <pre id="preview"></pre>
+      </div>
+    </aside>
+  </div>
+
+<script>
+  const PID = {{ proposal_id }};
+  const base = `/api/v1/grants/proposals/${PID}`;
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  let state = null, sections = [], cur = 0, dirty = false, saving = false, timer = null, locked = false;
+
+  const wordCount = t => (t.match(/\S+/g) || []).length;
+  const isUnwritten = t => !t.trim() || t.trim().startsWith("Draft response for");
+
+  async function call(path, method = "GET", body = null) {
+    const res = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : null });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { const e = new Error(typeof data.detail === "string" ? data.detail : "Request failed"); e.status = res.status; e.data = data; throw e; }
+    return data;
+  }
+
+  function setSave(msg, err = false) { const el = $("saveState"); el.textContent = msg; el.className = err ? "err" : ""; }
+
+  function applyState(s) {
+    state = s; locked = s.locked;
+    if (!dirty) sections = s.sections.map(x => ({ ...x }));
+    $("pTitle").value = s.proposal.title; $("pOrg").value = s.proposal.applicant_org || "";
+    $("pAmount").value = s.proposal.requested_amount; $("pCur").value = s.proposal.currency;
+    $("status").textContent = s.proposal.status.replace("_", " "); $("status").className = "badge " + s.proposal.status;
+    $("lockBanner").classList.toggle("show", locked);
+    for (const id of ["pTitle", "pOrg", "pAmount", "pCur", "secText", "secLimit", "secScore", "secNotes"]) $(id).disabled = locked;
+    $("btnSubmit").disabled = locked; $("btnVersion").disabled = locked;
+    renderScore(s.proposal.total_weighted_score);
+    renderCall(s.call); renderReady(s.readiness);
+  }
+
+  function localScore() {
+    const tw = sections.reduce((a, s) => a + Number(s.weight || 0), 0);
+    if (tw <= 0) return 0;
+    const sum = sections.reduce((a, s) => a + Math.max(0, Math.min(1, Number(s.self_score || 0) / (Number(s.max_score) || 5))) * Number(s.weight || 0), 0);
+    return Math.round((sum / tw) * 10000) / 100;
+  }
+  function renderScore(v) { const r = $("ring"); r.style.setProperty("--pct", v); r.dataset.label = Math.round(v) + "%"; r.title = v + "%"; }
+
+  function renderCall(c) {
+    const due = c.deadline ? `${esc(c.deadline)} (${c.days_left < 0 ? "closed" : c.days_left + " day" + (c.days_left === 1 ? "" : "s") + " left"})` : "Rolling / no stated deadline";
+    $("callBox").innerHTML = `<strong>${esc(c.title)}</strong><br>${esc(c.funder)}<br>Deadline: ${due}` +
+      (c.url ? `<br><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">View original call</a>` : "");
+  }
+
+  function renderReady(r) {
+    const blockers = r.checks.filter(c => c.severity === "blocker" && !c.ok).length;
+    $("tabs").querySelector('[data-tab="ready"]').textContent = blockers ? `Readiness (${blockers})` : "Readiness ✓";
+    $("readyList").innerHTML = `<div class="muted" style="margin-bottom:8px;">${r.ready ? "No blockers: this proposal can be submitted." : "Fix the blockers below before submitting."}</div>` +
+      r.checks.map(c => `<div class="check ${c.ok ? "ok" : "fail " + c.severity}"><span class="ic">${c.ok ? "✓" : c.severity === "blocker" ? "✕" : "!"}</span><div>${esc(c.label)}${c.detail ? `<div class="d">${esc(c.detail)}</div>` : ""}</div></div>`).join("");
+    $("btnSubmit").title = r.ready ? "" : "Fix readiness blockers first";
+  }
+
+  function renderSections() {
+    $("secList").innerHTML = sections.map((s, i) => {
+      const wc = wordCount(s.draft_text || ""), over = s.word_limit && wc > s.word_limit;
+      const pct = Math.round(Math.max(0, Math.min(1, Number(s.self_score || 0) / (Number(s.max_score) || 5))) * 100);
+      return `<button class="sec-item ${i === cur ? "active" : ""}" data-i="${i}">
+        <div class="row"><span class="t">${esc(s.title)}</span><span class="dot ${over ? "over" : isUnwritten(s.draft_text || "") ? "" : "written"}"></span></div>
+        <div class="m">Weight ${s.weight}% &middot; ${wc}${s.word_limit ? "/" + s.word_limit : ""} words &middot; ${s.self_score}/${s.max_score}</div>
+        <div class="bar"><i style="width:${pct}%"></i></div></button>`;
+    }).join("");
+    document.querySelectorAll(".sec-item").forEach(b => b.onclick = () => selectSection(Number(b.dataset.i)));
+  }
+
+  function renderCount() {
+    const s = sections[cur]; const wc = wordCount($("secText").value);
+    const c = $("wc"); c.textContent = wc;
+    c.className = "count" + (s.word_limit ? (wc > s.word_limit ? " over" : wc > s.word_limit * 0.9 ? " near" : "") : "");
+    $("wcLimit").textContent = s.word_limit ? ` / ${s.word_limit}` : "";
+  }
+
+  function selectSection(i) {
+    cur = i; const s = sections[i];
+    $("secTitle").textContent = `${s.criterion_id} · ${s.title} (weight ${s.weight}%)`;
+    const crit = (state.criteria || []).find(c => c.criterion_id === s.criterion_id);
+    const g = $("secGuidance"); g.style.display = crit && crit.guidance ? "block" : "none"; g.textContent = crit ? "Funder guidance: " + crit.guidance : "";
+    $("secText").value = s.draft_text || ""; $("secLimit").value = s.word_limit || "";
+    $("secScore").value = s.self_score; $("secScore").max = s.max_score; $("secMax").textContent = s.max_score;
+    $("secNotes").value = s.notes || "";
+    renderRefs(); renderSections(); renderCount(); loadSuggestions();
+  }
+
+  function renderRefs() {
+    const refs = sections[cur].evidence_refs || [];
+    $("refs").innerHTML = refs.map((r, i) => `<span class="ref">Evidence #${esc(r)}${locked ? "" : `<button data-r="${i}" aria-label="Remove">×</button>`}</span>`).join("") || `<span class="muted">None yet. Insert evidence from the Library tab.</span>`;
+    $("refs").querySelectorAll("button").forEach(b => b.onclick = () => { sections[cur].evidence_refs.splice(Number(b.dataset.r), 1); touched(); renderRefs(); });
+  }
+
+  function readFields() {
+    const s = sections[cur];
+    s.draft_text = $("secText").value;
+    const lim = parseInt($("secLimit").value, 10); s.word_limit = lim > 0 ? lim : null;
+    const sc = parseFloat($("secScore").value); s.self_score = isNaN(sc) ? 0 : sc;
+    s.notes = $("secNotes").value;
+  }
+
+  function touched() { if (locked) return; readFields(); dirty = true; setSave("Unsaved changes..."); renderScore(localScore()); renderSections(); renderCount(); clearTimeout(timer); timer = setTimeout(save, 1500); }
+
+  async function save(label = "") {
+    if (locked || saving || (!dirty && !label)) return null;
+    saving = true; clearTimeout(timer); setSave("Saving...");
+    readFields();
+    const payload = { sections, label, meta: { title: $("pTitle").value.trim() || undefined, applicant_org: $("pOrg").value, requested_amount: parseFloat($("pAmount").value) || 0, currency: $("pCur").value.trim() || undefined } };
+    try {
+      dirty = false;
+      const s = await call(`${base}/studio/save`, "PUT", payload);
+      applyState(s);
+      setSave("Saved " + new Date().toLocaleTimeString());
+      if (s.version_created) loadVersions();
+      return s;
+    } catch (e) {
+      dirty = true; setSave(e.status === 409 ? "Locked" : "Save failed: " + e.message, true);
+      return null;
+    } finally { saving = false; }
+  }
+
+  async function loadSuggestions(q = "") {
+    const el = $("libList"); el.textContent = "Loading suggestions...";
+    try {
+      const d = await call(`${base}/studio/suggestions?section=${cur}&q=${encodeURIComponent(q)}`);
+      const ans = d.answers.map(a => `<div class="item"><div class="h">${esc(a.title)}</div><div class="x">${esc(a.text)}</div><button class="small" data-kind="a" data-id="${a.id}" ${locked ? "disabled" : ""}>Insert answer</button></div>`);
+      const ev = d.evidence.map(e => `<div class="item"><div class="h">${esc(e.title)} <span class="badge">${esc(e.type)}</span></div><div class="x">${esc(e.text)}</div><button class="small" data-kind="e" data-id="${e.id}" ${locked ? "disabled" : ""}>Insert &amp; cite</button></div>`);
+      el.innerHTML = (ans.length ? `<div class="muted" style="margin-bottom:6px">Answers</div>${ans.join("")}` : "") + (ev.length ? `<div class="muted" style="margin:8px 0 6px">Evidence</div>${ev.join("")}` : "") || `<div class="muted">No matches${q ? "" : " for this section yet"}. Try a search.</div>`;
+      const lookup = { a: Object.fromEntries(d.answers.map(a => [a.id, a])), e: Object.fromEntries(d.evidence.map(e => [e.id, e])) };
+      el.querySelectorAll("button[data-kind]").forEach(b => b.onclick = () => insertItem(b.dataset.kind, lookup[b.dataset.kind][b.dataset.id]));
+    } catch (e) { el.textContent = "Could not load suggestions."; }
+  }
+
+  function insertItem(kind, item) {
+    const ta = $("secText"), start = ta.selectionStart ?? ta.value.length, end = ta.selectionEnd ?? start;
+    const before = ta.value.slice(0, start), after = ta.value.slice(end);
+    const sep = before && !before.endsWith("\n") ? "\n\n" : "";
+    ta.value = before + sep + item.text + after;
+    if (kind === "e") { const refs = sections[cur].evidence_refs || (sections[cur].evidence_refs = []); if (!refs.includes(String(item.id))) refs.push(String(item.id)); renderRefs(); }
+    touched(); ta.focus();
+  }
+
+  async function loadVersions() {
+    try {
+      const v = await call(`${base}/versions`);
+      $("verList").innerHTML = v.map(x => `<div class="item"><div class="h">v${x.version_no}${x.label ? " · " + esc(x.label) : ""}</div><div class="x">${new Date(x.created_at + (x.created_at.endsWith("Z") ? "" : "Z")).toLocaleString()} &middot; ${x.word_count} words &middot; score ${x.score ?? "-"}%</div>
+        <button class="small secondary" data-view="${x.version_no}">Preview</button> <button class="small" data-restore="${x.version_no}" ${locked ? "disabled" : ""}>Restore</button></div>`).join("") || "No versions yet.";
+      $("verList").querySelectorAll("[data-view]").forEach(b => b.onclick = () => viewVersion(Number(b.dataset.view)));
+      $("verList").querySelectorAll("[data-restore]").forEach(b => b.onclick = () => restoreVersion(Number(b.dataset.restore)));
+    } catch (e) { $("verList").textContent = "Could not load versions."; }
+  }
+
+  async function viewVersion(n) {
+    const v = await call(`${base}/versions/${n}`), pre = $("preview");
+    pre.textContent = v.snapshot.sections.map(s => `## ${s.title}\n${s.draft_text}`).join("\n\n"); pre.style.display = "block";
+  }
+
+  async function restoreVersion(n) {
+    if (!confirm(`Restore version ${n}? Your current text is saved as a version first.`)) return;
+    await save();
+    try { dirty = false; const s = await call(`${base}/versions/${n}/restore`, "POST"); sections = s.sections.map(x => ({ ...x })); applyState(s); selectSection(Math.min(cur, sections.length - 1)); setSave("Restored v" + n); loadVersions(); }
+    catch (e) { alert(e.message); }
+  }
+
+  async function submitReview() {
+    await save();
+    if (dirty) return;
+    try {
+      await call(`${base}/studio/submit`, "POST");
+      sections = []; dirty = false;
+      applyState(await call(`${base}/studio`)); sections = state.sections.map(x => ({ ...x })); selectSection(cur); loadVersions();
+      setSave("Submitted for review");
+    } catch (e) {
+      if (e.status === 422 && e.data.detail && e.data.detail.failing) { document.querySelector('[data-tab="ready"]').click(); alert("Not ready to submit:\n- " + e.data.detail.failing.map(c => c.label + (c.detail ? " (" + c.detail + ")" : "")).join("\n- ")); }
+      else alert(e.message);
+    }
+  }
+
+  async function exportMd() {
+    await save();
+    const d = await call(`${base}/export`);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([d.markdown], { type: "text/markdown" }));
+    a.download = (d.title || "proposal").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".md"; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => {
+    $("tabs").querySelectorAll("button").forEach(x => x.classList.remove("active")); b.classList.add("active");
+    document.querySelectorAll(".tabpane").forEach(p => p.classList.remove("active")); $("tab-" + b.dataset.tab).classList.add("active");
+    if (b.dataset.tab === "versions") loadVersions();
+  });
+  for (const id of ["secText", "secLimit", "secScore", "secNotes", "pTitle", "pOrg", "pAmount", "pCur"]) $(id).addEventListener("input", touched);
+  $("libGo").onclick = () => loadSuggestions($("libQ").value);
+  $("libQ").addEventListener("keydown", e => { if (e.key === "Enter") loadSuggestions($("libQ").value); });
+  $("btnVersion").onclick = async () => { const l = prompt("Name this version (optional):", ""); if (l === null) return; await save(l || "Manual snapshot"); };
+  $("btnSubmit").onclick = submitReview; $("btnExport").onclick = exportMd;
+  window.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); save(); } });
+  window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+  // --- AI assistant ---
+  let aiResult = null;
+  async function loadAiStatus() {
+    try {
+      const st = await call(`${base}/assistant/status`);
+      $("aiStatus").innerHTML = st.provider === "claude"
+        ? `Powered by Claude (${esc(st.model)}). Section text is sent to the AI provider.`
+        : `Offline helper: rule-based, not an AI model. Set ANTHROPIC_API_KEY for full AI drafting and questions.`;
+    } catch (e) { $("aiStatus").textContent = "Assistant unavailable."; }
+  }
+
+  async function runAi(action) {
+    const out = $("aiOut"); out.className = "muted"; out.textContent = "Working...";
+    document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = true);
+    try {
+      readFields();
+      const s = sections[cur];
+      aiResult = await call(`${base}/assistant`, "POST", {
+        action, section_index: cur, instruction: $("aiQ").value, text: s.draft_text, word_limit: s.word_limit || null
+      });
+      renderAi(action);
+    } catch (e) { out.className = "muted"; out.textContent = "Assistant error: " + e.message; }
+    finally { document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = false); }
+  }
+
+  function renderAi(action) {
+    const r = aiResult, out = $("aiOut");
+    const badge = `<span class="badge">${r.provider === "claude" ? "Claude" : "Offline helper"}</span>`;
+    const list = (t, a) => a && a.length ? `<div style="margin-top:8px"><strong>${t}</strong><ul style="margin:4px 0 0 18px; padding:0;">${a.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
+    const isText = action !== "critique";
+    out.className = "";
+    out.innerHTML = `${badge}
+      ${isText ? `<div class="item" style="margin-top:8px; white-space:pre-wrap; max-height:260px; overflow:auto;">${esc(r.text)}</div>` : `<div style="margin:8px 0">${esc(r.text)}</div>`}
+      ${r.suggested_score != null ? `<div><strong>Suggested score:</strong> ${r.suggested_score} / ${sections[cur].max_score}</div>` : ""}
+      ${list("Strengths", r.strengths)}${list("Gaps", r.gaps)}${list("Notes", r.notes)}
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
+        ${isText && action !== "ask" ? `<button class="small" id="aiReplace" ${locked ? "disabled" : ""}>Replace section</button>` : ""}
+        ${isText ? `<button class="small secondary" id="aiInsert" ${locked ? "disabled" : ""}>Insert at cursor</button>` : ""}
+        ${r.suggested_score != null ? `<button class="small secondary" id="aiScore" ${locked ? "disabled" : ""}>Apply score</button>` : ""}
+      </div>
+      <div class="muted" style="margin-top:8px;">AI output can contain mistakes. Check every fact, and replace any [TO CONFIRM] placeholders before submitting.</div>`;
+    const bind = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+    bind("aiReplace", () => { $("secText").value = aiResult.text; touched(); });
+    bind("aiInsert", () => insertItem("a", { text: aiResult.text }));
+    bind("aiScore", () => { $("secScore").value = aiResult.suggested_score; touched(); });
+  }
+
+  document.querySelectorAll("[data-ai]").forEach(b => b.onclick = () => runAi(b.dataset.ai));
+  $("aiAsk").onclick = () => runAi("ask");
+  $("aiQ").addEventListener("keydown", e => { if (e.key === "Enter") runAi("ask"); });
+
+  (async () => {
+    loadAiStatus();
+    try { applyState(await call(`${base}/studio`)); selectSection(0); loadVersions(); }
+    catch (e) { $("secTitle").textContent = "Could not load this proposal: " + e.message; }
+  })();
+</script>
+</body>
+</html>

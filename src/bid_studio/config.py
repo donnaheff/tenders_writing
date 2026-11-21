@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     feed_sync_limit: int = 50
     auto_process_grants: bool = False
     reminder_window_days: int = 14
+    # AI assistant: with a key it calls Claude, otherwise a rule-based offline helper is used
+    anthropic_api_key: str = ""
+    assistant_model: str = "claude-sonnet-5-5"
+    assistant_timeout: float = 60.0
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""

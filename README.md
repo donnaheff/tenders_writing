@@ -10,6 +10,19 @@ The app serves a public marketing site (`/`, `/features`, `/pricing`, `/about`, 
 
 ---
 
+## Grant Studio
+
+A focused editor for one proposal at `/app/studio/{proposal_id}`, opened from the Grants Feed, the Grants tab or an auto-process.
+
+- **Editor:** one section at a time with the funder's guidance beside it, live word count against a per-section word limit you set, self-score with a live weighted-score meter, notes, and cited evidence. Autosaves after 1.5 seconds; Ctrl/Cmd+S saves immediately; Export downloads Markdown.
+- **Library:** answers and evidence ranked against the section (or your search); one click inserts the text, and evidence is cited on the section.
+- **Readiness:** blockers (unwritten sections, over-limit sections, missing applicant or amount, closed call, out-of-range scores) must pass before `POST .../studio/submit` will queue the proposal for QA; warnings cover evidence, weights, a close deadline and a low score.
+- **Versions:** snapshots on first save, when named, every 10 minutes of changes, and on submit; preview and restore (restoring first snapshots your current text). Submitted or approved proposals are read-only until a reviewer requests changes.
+- **AI assistant:** Draft, Improve, Shorten, Critique and free-form Ask on the current section. With `ANTHROPIC_API_KEY` set it calls Claude (`ASSISTANT_MODEL`, default `claude-sonnet-5-5`) with the funder, call, criterion guidance, word limit and your strongest library matches, and is told never to invent facts (it writes `[TO CONFIRM: ...]` placeholders instead). **Section text is sent to the Anthropic API when a key is set.** Without a key a clearly-labelled offline helper does rule-based scaffolds, filler clean-up, sentence-ranking shortening and a keyword critique; free-form Ask needs a key.
+- **API:** `GET /api/v1/grants/proposals/{id}/studio`, `PUT .../studio/save`, `GET .../studio/suggestions`, `POST .../studio/submit`, `GET|POST .../versions`, `POST .../versions/{n}/restore`, `GET .../assistant/status`, `POST .../assistant`.
+
+---
+
 ## Grants Feed
 
 A grants-only feed built from the seeded calls plus live public sources.

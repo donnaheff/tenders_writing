@@ -122,6 +122,8 @@ class GrantSectionInput(BaseModel):
     draft_text: str
     self_score: float = 0.0
     evidence_refs: list[str] = Field(default_factory=list)
+    word_limit: int | None = Field(default=None, ge=1, le=100000)
+    notes: str = Field(default="", max_length=4000)
 
 
 class GrantProposalCreate(BaseModel):
@@ -232,3 +234,28 @@ class ContactRequestCreate(BaseModel):
     organisation: str = Field(default="", max_length=200)
     plan: Literal["general", "starter", "team", "consultancy"] = "general"
     message: str = Field(min_length=1, max_length=4000)
+
+
+class StudioMeta(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=240)
+    applicant_org: str | None = Field(default=None, max_length=180)
+    requested_amount: float | None = Field(default=None, ge=0)
+    currency: str | None = Field(default=None, min_length=3, max_length=10)
+
+
+class StudioSave(BaseModel):
+    sections: list[GrantSectionInput]
+    meta: StudioMeta | None = None
+    label: str = Field(default="", max_length=120)
+
+
+class VersionCreate(BaseModel):
+    label: str = Field(default="", max_length=120)
+
+
+class AssistantRequestIn(BaseModel):
+    action: Literal["draft", "improve", "shorten", "critique", "ask"]
+    section_index: int = Field(default=0, ge=0)
+    instruction: str = Field(default="", max_length=1500)
+    text: str | None = Field(default=None, max_length=30000)  # unsaved editor text
+    word_limit: int | None = Field(default=None, ge=1, le=100000)

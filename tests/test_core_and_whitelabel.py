@@ -15,6 +15,7 @@ def test_health_and_dashboard(client):
     assert "renderMarkdownExport" in home.text
     assert "saveProposalSections" in home.text
     assert "gfRefresh" in home.text
+    assert "/app/studio/" in home.text
     assert "function esc(" in home.text
     assert "pmTemplate" in home.text
 

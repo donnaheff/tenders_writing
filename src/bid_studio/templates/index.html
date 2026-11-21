@@ -607,14 +607,15 @@
       document.getElementById("grantProposalsList").innerHTML = proposals.map(p => `<div class="row-item">
         <strong>${esc(p.title)}</strong> — ${p.funder_type} | Weighted Score: <strong>${p.total_weighted_score}%</strong> | Status: <span class="badge">${p.status}</span>
         <div class="inline-actions">
+          <a href="/app/studio/${p.id}"><button class="small">Open in Studio</button></a>
           <button class="small" onclick="submitGrantReview(${p.id})">Submit to Quality Queue</button>
           <button class="small secondary" onclick="toggleEditProposal(${p.id})">Edit Sections</button>
           <button class="small secondary" onclick="exportGrantProposal(${p.id})">Export Markdown</button>
         </div>
         <div id="gpEdit-${p.id}" style="display:none; margin-top:8px;">
           ${(p.sections || []).map((s, idx) => `<div style="margin-bottom:8px;">
-            <div class="muted"><strong>${s.criterion_id} — ${s.title}</strong> (Weight ${s.weight}%, Max ${s.max_score})</div>
-            <textarea id="gpSecText-${p.id}-${idx}" rows="2">${s.draft_text || ""}</textarea>
+            <div class="muted"><strong>${esc(s.criterion_id)} — ${esc(s.title)}</strong> (Weight ${s.weight}%, Max ${s.max_score})</div>
+            <textarea id="gpSecText-${p.id}-${idx}" rows="2">${esc(s.draft_text || "")}</textarea>
             <input id="gpSecScore-${p.id}-${idx}" type="number" step="0.5" value="${s.self_score}" style="width:120px; margin-top:4px;" />
           </div>`).join("")}
           <button class="small" onclick="saveProposalSections(${p.id})">Save Sections &amp; Recalculate Score</button>
@@ -873,7 +874,7 @@
           <div class="muted">${esc(i.summary)}</div>
           <div class="inline-actions">
             <button class="small secondary" onclick="gfToggleSave(${i.id}, ${i.saved})">${i.saved ? "★ Saved" : "☆ Save"}</button>
-            ${i.has_proposal ? `<span class="badge">Proposal started</span>` : `<button class="small" onclick="gfAutoProcess(${i.id})">Auto-process</button>`}
+            ${i.has_proposal ? `<a class="small" href="/app/studio/${i.proposal_id}"><button class="small">Open in Studio</button></a>` : `<button class="small" onclick="gfAutoProcess(${i.id})">Auto-process &amp; open Studio</button>`}
             ${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">View original</a>` : ""}
           </div>
         </div>`;
@@ -886,8 +887,8 @@
     }
 
     async function gfAutoProcess(id) {
-      await api(`/api/v1/grants/calls/${id}/auto-process?workspace_id=${currentWsId}`, "POST");
-      await refreshAll();
+      const res = await api(`/api/v1/grants/calls/${id}/auto-process?workspace_id=${currentWsId}&submit_for_review=false`, "POST");
+      window.location.href = `/app/studio/${res.proposal.id}`;
     }
 
     async function autoProcessCall(noticeId) {

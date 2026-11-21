@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from bid_studio.config import settings
 from bid_studio.database import Base, SessionLocal, engine, get_db
-from bid_studio.models import Workspace
+from bid_studio.models import GrantProposal, Workspace
 from bid_studio.routers import (
     automation,
     bid_enhancements,
@@ -19,6 +19,7 @@ from bid_studio.routers import (
     grants,
     intelligence,
     site,
+    studio,
 )
 from bid_studio.seed import seed_database
 
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(automation.router)
     app.include_router(feed.router)
     app.include_router(grants.router)
+    app.include_router(studio.router)
     app.include_router(bid_enhancements.router)
     app.include_router(intelligence.router)
 
@@ -73,6 +75,24 @@ def create_app() -> FastAPI:
             name="index.html",
             context={
                 "workspace_id": ws.id if ws else 1,
+                "brand_name": ws.brand_name if ws else settings.app_name,
+                "primary_color": ws.primary_color if ws else "#0f172a",
+                "accent_color": ws.accent_color if ws else "#2563eb",
+            },
+        )
+
+    @app.get("/app/studio/{proposal_id}", response_class=HTMLResponse, include_in_schema=False)
+    def grant_studio(proposal_id: int, request: Request, db: Session = Depends(get_db)):
+        proposal = db.get(GrantProposal, proposal_id)
+        if not proposal:
+            raise HTTPException(status_code=404, detail="Grant proposal not found")
+        ws = db.get(Workspace, proposal.workspace_id)
+        return templates.TemplateResponse(
+            request=request,
+            name="studio.html",
+            context={
+                "proposal_id": proposal.id,
+                "workspace_id": proposal.workspace_id,
                 "brand_name": ws.brand_name if ws else settings.app_name,
                 "primary_color": ws.primary_color if ws else "#0f172a",
                 "accent_color": ws.accent_color if ws else "#2563eb",
