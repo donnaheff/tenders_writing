@@ -4,6 +4,12 @@ Bid Studio is a Python + FastAPI platform focused on grant and funding applicati
 
 ---
 
+## Database upgrades
+
+There are no migration files. On startup the app creates missing tables and **adds missing columns** to existing tables (never dropping, renaming or retyping anything), so upgrading a database that predates a new field is safe. Foreign-key constraints are not added to existing tables, and a column type change needs a manual migration.
+
+---
+
 ## Licence keys
 
 Bid Studio can require a signed licence key. Keys are verified **offline** with Ed25519: the app holds only your *public* key, so it can check keys but never create them.
@@ -56,7 +62,7 @@ A fixed-fee service line for technical documentation and compliance writing, alo
 - **Security questionnaires:** paste the customer's questions (one per line); each is matched against the workspace Answer Library by shared terms and marked *matched* (50%+ of the question's terms found) or *needs review* (25%+). Anything you have approved or answered by hand is never overwritten by re-matching. Approved answers can be saved back to the library. **Matching is keyword overlap, not verification:** a person must confirm every security claim is true before approving, and the app never marks an answer approved by itself.
 - **Pipeline:** drafting -> quality review (via the existing Quality Review Queue) -> approved -> delivered. Submitting is blocked until every section or answer is written and no `[TO CONFIRM]` placeholders remain. Reviewer notes reopen the project for edits; delivery emails the Markdown to the client through the same delivery log and mailer as digests (actually sent only if `SMTP_HOST` is set).
 - **AI assistant:** the same Claude-or-offline assistant drafts, improves, shortens and critiques sections or questionnaire answers, grounded in your closest library answer. Export any project as Markdown.
-- **Not built yet:** selling these as marketplace job types, and the CV / capability-statement / case-study templates.
+- **Not built yet:** the CV / capability-statement / case-study templates.
 
 ---
 
@@ -69,6 +75,8 @@ Clients hire vetted grant writers; accepted writers work inside the client's Gra
 - **Flow:** writer applies with a profile, **pending until an admin approves** (only approved writers appear or can bid) -> client posts a brief (optionally linked to a Studio proposal) -> writers bid -> client accepts one bid (others are declined, the writer is added to the client's workspace) -> messages -> writer delivers -> client approves or requests changes -> client reviews (rating is averaged onto the profile).
 - **Grant Studio access:** once a job linked to a proposal is in progress or delivered, the proposal's Studio, save, assistant, versions, export and submit endpoints require a signed-in participant (its client, its accepted writer, or an admin). Proposals without a live job keep the original open behaviour.
 - **Accounts:** scrypt-hashed passwords, database-backed sessions in an HttpOnly SameSite=Lax cookie (Secure outside development), Origin checks on state-changing requests, and a per-process login rate limit.
+- **Job types:** a brief is one of *grant proposal writing*, *technical documentation*, *compliance and policy writing*, *security questionnaire response* or *other writing*. Writers tick the services they offer on their profile; the public directory filters by service and shows it on cards and profiles. Writers can filter open jobs by type, or by "only jobs matching the services I offer".
+- **Work inside the project:** a brief can link a Grant Studio proposal (grant jobs) or a documentation project (the other types, checked to match: technical docs need a technical-documentation project, policies a policy project, and so on). Once the job is in progress or delivered, the linked document editor and its API require a signed-in participant (the client, the accepted writer, or an admin), exactly as for proposals, and it opens up again when the job completes.
 - **Payments (v1 is tracking only):** no money moves through Bid Studio. A job records the agreed price, a platform fee (`MARKETPLACE_FEE_PCT`, default 10%, recorded not collected) and a two-step payment status (client marks paid, writer confirms). Because nothing is escrowed, protection for buyers comes from admin vetting, ratings and the job record. **To avoid holding client money yourself, add Stripe Connect** so payment is taken through Stripe, held there, and released to the writer on approval minus your fee; Stripe, not you, is the regulated party. That needs your Stripe account and legal advice for your country, and is not built yet.
 - **Not built yet:** email verification and password reset, payments/escrow and disputes, writer-to-client reviews, file attachments, and login for the main dashboard (the dashboard and its other endpoints remain open; only marketplace-linked proposals are protected).
 

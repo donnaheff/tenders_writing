@@ -424,6 +424,7 @@ class WriterProfile(Base):
     bio: Mapped[str] = mapped_column(Text, default="")
     specialisms: Mapped[list[str]] = mapped_column(JSON, default=list)
     funders: Mapped[list[str]] = mapped_column(JSON, default=list)
+    service_types: Mapped[list[str]] = mapped_column(JSON, default=list)
     day_rate: Mapped[float] = mapped_column(Float, default=0.0)
     currency: Mapped[str] = mapped_column(String(10), default="GBP")
     samples: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
@@ -442,6 +443,10 @@ class JobBrief(Base):
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
     proposal_id: Mapped[int | None] = mapped_column(
         ForeignKey("grant_proposals.id"), nullable=True, index=True
+    )
+    job_type: Mapped[str] = mapped_column(String(30), default="grant_proposal", index=True)
+    doc_project_id: Mapped[int | None] = mapped_column(
+        ForeignKey("doc_projects.id"), nullable=True, index=True
     )
     title: Mapped[str] = mapped_column(String(220))
     description: Mapped[str] = mapped_column(Text, default="")

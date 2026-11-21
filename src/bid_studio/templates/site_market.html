@@ -54,7 +54,8 @@
 <script>
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  let me = null, tab = null;
+  let me = null, tab = null, jobTypes = [], jf = { type: "", matching: false };
+  const typeLabel = k => (jobTypes.find(t => t.key === k) || {}).label || k;
   const money = (c, v) => `${esc(c)} ${Number(v || 0).toLocaleString()}`;
   const statusLabel = { open: "Open", in_progress: "In progress", delivered: "Delivered", completed: "Completed", cancelled: "Cancelled" };
 
@@ -90,6 +91,7 @@
   };
   function start() {
     $("authBox").style.display = "none"; $("appBox").style.display = "block";
+    if (!jobTypes.length) api("/job-types").then(t => { jobTypes = t; }).catch(() => {});
     $("who").innerHTML = `Signed in as <strong>${esc(me.name)}</strong> (${esc(me.role)})`;
     $("nav").innerHTML = NAVS[me.role].map(([k, l]) => `<button data-k="${k}">${l}</button>`).join("");
     $("nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.k));
@@ -111,6 +113,8 @@
       <form class="f" id="pf">
         <label>Headline <input name="headline" maxlength="200" value="${esc(p.headline || "")}" /></label>
         <label>Bio <textarea name="bio" maxlength="4000">${esc(p.bio || "")}</textarea></label>
+        <fieldset style="border:1px solid var(--border); border-radius:8px; padding:8px 12px"><legend style="font-weight:600; font-size:.9rem">Services I offer</legend>
+          ${jobTypes.map(t => `<label style="display:flex; gap:8px; align-items:center; font-weight:400"><input type="checkbox" name="st" value="${t.key}" ${(p.service_types || []).includes(t.key) ? "checked" : ""} style="width:auto" /> ${esc(t.label)}</label>`).join("")}</fieldset>
         <label>Specialisms (comma-separated) <input name="specialisms" value="${esc((p.specialisms || []).join(", "))}" /></label>
         <label>Funders you have worked with (comma-separated) <input name="funders" value="${esc((p.funders || []).join(", "))}" /></label>
         <label>Day rate <input name="day_rate" type="number" min="0" value="${p.day_rate || 0}" /></label>
@@ -121,22 +125,27 @@
     $("pf").onsubmit = e => { e.preventDefault(); act(async () => {
       const f = Object.fromEntries(new FormData(e.target)), list = s => s.split(",").map(x => x.trim()).filter(Boolean);
       const samples = f.samples.split("\n").map(l => l.split("|").map(x => x.trim())).filter(a => a[0] && a[1]).map(a => ({ title: a[0], url: a[1] }));
-      await api("/writers/me", "PUT", { headline: f.headline, bio: f.bio, specialisms: list(f.specialisms), funders: list(f.funders), day_rate: Number(f.day_rate) || 0, currency: f.currency || "GBP", samples });
+      await api("/writers/me", "PUT", { headline: f.headline, bio: f.bio, specialisms: list(f.specialisms), funders: list(f.funders), service_types: [...e.target.querySelectorAll("input[name=st]:checked")].map(x => x.value), day_rate: Number(f.day_rate) || 0, currency: f.currency || "GBP", samples });
       say("Profile saved.", true); profileView();
     }); };
   }
 
   // ---------- writer: jobs
   async function openJobsView() {
-    const jobs = await api("/jobs?scope=open").catch(e => { $("view").innerHTML = `<p class="note">${esc(e.message)}</p>`; return null; });
+    const qs = new URLSearchParams({ scope: "open" }); if (jf.type) qs.set("job_type", jf.type); if (jf.matching) qs.set("matching", "true");
+    const jobs = await api("/jobs?" + qs).catch(e => { $("view").innerHTML = `<p class="note">${esc(e.message)}</p>`; return null; });
     if (!jobs) return;
-    $("view").innerHTML = jobs.map(j => `<div class="row"><h3>${esc(j.title)}</h3>
+    const bar = `<div class="topline" style="justify-content:flex-start"><select id="jfType"><option value="">All job types</option>${jobTypes.map(t => `<option value="${t.key}" ${t.key === jf.type ? "selected" : ""}>${esc(t.label)}</option>`).join("")}</select>
+      <label style="display:flex; gap:6px; align-items:center"><input type="checkbox" id="jfMatch" ${jf.matching ? "checked" : ""} style="width:auto" /> Only jobs matching the services I offer</label></div>`;
+    $("view").innerHTML = bar + jobs.map(j => `<div class="row"><h3>${esc(j.title)} <span class="tag">${esc(j.job_type_label)}</span></h3>
       <div class="meta">${esc(j.funder)} &middot; budget ${money(j.currency, j.budget_min)}–${money(j.currency, j.budget_max)} &middot; ${j.deadline ? "deadline " + esc(j.deadline) : "no deadline"} &middot; ${j.bid_count} bid(s)</div>
-      <p>${esc(j.description.slice(0, 280))}</p><div class="acts"><button class="btn small" onclick="go('#job/${j.id}')">View and bid</button></div></div>`).join("") || `<p class="note">No open jobs right now.</p>`;
+      <p>${esc(j.description.slice(0, 280))}</p><div class="acts"><button class="btn small" onclick="go('#job/${j.id}')">View and bid</button></div></div>`).join("") || `<p class="note">No open jobs match.</p>`;
+    $("jfType").onchange = e => { jf.type = e.target.value; openJobsView(); };
+    $("jfMatch").onchange = e => { jf.matching = e.target.checked; openJobsView(); };
   }
   async function myJobsView() {
     const jobs = await api("/jobs?scope=mine");
-    $("view").innerHTML = jobs.map(j => `<div class="row"><h3>${esc(j.title)} <span class="tag">${statusLabel[j.status]}</span></h3>
+    $("view").innerHTML = jobs.map(j => `<div class="row"><h3>${esc(j.title)} <span class="tag">${esc(j.job_type_label)}</span> <span class="tag">${statusLabel[j.status]}</span></h3>
       <div class="meta">${esc(j.funder)} &middot; ${j.bid_count} bid(s)${j.agreed_price ? " &middot; agreed " + money(j.currency, j.agreed_price) : ""}</div>
       <div class="acts"><button class="btn small" onclick="go('#job/${j.id}')">Open</button></div></div>`).join("") || `<p class="note">Nothing here yet.</p>`;
   }
@@ -150,17 +159,28 @@
       <label>Deadline <input name="deadline" type="date" /></label>
       <div class="grid2"><label>Budget min <input name="budget_min" type="number" min="0" /></label><label>Budget max <input name="budget_max" type="number" min="0" /></label></div>
       <label>Currency <input name="currency" maxlength="10" value="GBP" /></label>
-      <label>Work in a Grant Studio proposal (optional)
-        <select name="proposal_id"><option value="">None</option></select></label>
+      <label>What do you need? <select name="job_type" id="jtSel">${jobTypes.map(t => `<option value="${t.key}">${esc(t.label)}</option>`).join("")}</select></label>
+      <label id="linkLabel">Link a project so the writer works inside it (optional)
+        <select name="link_id" id="linkSel"><option value="">None</option></select></label>
       <button class="btn" type="submit">Publish brief</button></form>`;
-    // Fill the proposal list afterwards so typing is never overwritten by a late render
-    fetch(`/api/v1/grants/proposals?workspace_id=${me.workspace_id}`).then(r => r.json()).then(list => {
-      const sel = document.querySelector("#jf [name=proposal_id]");
-      if (sel && Array.isArray(list)) sel.insertAdjacentHTML("beforeend", list.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join(""));
-    }).catch(() => {});
+    // Linkable items load afterwards so typing is never overwritten by a late render
+    let proposals = [], docs = [];
+    const fits = (t, p) => (t === "technical_docs" ? p.kind === "techdoc" : t === "compliance_policy" ? p.kind === "compliance" && p.doc_type !== "security_questionnaire" : t === "security_questionnaire" ? p.doc_type === "security_questionnaire" : false);
+    const fillLinks = () => {
+      const t = $("jtSel").value, sel = $("linkSel"), lab = $("linkLabel");
+      const items = t === "grant_proposal" ? proposals.map(p => [p.id, p.title]) : docs.filter(p => fits(t, p)).map(p => [p.id, `${p.title} (${p.type_title})`]);
+      lab.style.display = t === "other" ? "none" : "";
+      sel.innerHTML = `<option value="">None</option>` + items.map(([id, title]) => `<option value="${id}">${esc(title)}</option>`).join("");
+    };
+    $("jtSel").onchange = fillLinks;
+    Promise.all([
+      fetch(`/api/v1/grants/proposals?workspace_id=${me.workspace_id}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/v1/services/projects?workspace_id=${me.workspace_id}`).then(r => r.json()).catch(() => []),
+    ]).then(([a, b]) => { proposals = Array.isArray(a) ? a : []; docs = Array.isArray(b) ? b : []; fillLinks(); });
     $("jf").onsubmit = e => { e.preventDefault(); act(async () => {
       const f = Object.fromEntries(new FormData(e.target));
-      const job = await api("/jobs", "POST", { title: f.title, description: f.description, funder: f.funder, deadline: f.deadline, budget_min: Number(f.budget_min) || 0, budget_max: Number(f.budget_max) || 0, currency: f.currency || "GBP", proposal_id: f.proposal_id ? Number(f.proposal_id) : null });
+      const job = await api("/jobs", "POST", { title: f.title, description: f.description, funder: f.funder, deadline: f.deadline, budget_min: Number(f.budget_min) || 0, budget_max: Number(f.budget_max) || 0, currency: f.currency || "GBP", job_type: f.job_type,
+        proposal_id: f.job_type === "grant_proposal" && f.link_id ? Number(f.link_id) : null, doc_project_id: !["grant_proposal", "other"].includes(f.job_type) && f.link_id ? Number(f.link_id) : null });
       go("#job/" + job.id);
     }); };
   }
@@ -183,7 +203,7 @@
     try { j = await api("/jobs/" + id); } catch (e) { $("view").innerHTML = `<p class="note">${esc(e.message)}</p>`; return; }
     const bids = await api(`/jobs/${id}/bids`).catch(() => []);
     const msgs = ["in_progress", "delivered", "completed"].includes(j.status) && (j.is_client || j.is_writer || me.role === "admin") ? await api(`/jobs/${id}/messages`).catch(() => []) : null;
-    const studio = j.proposal_id ? `<a class="btn small" href="/app/studio/${j.proposal_id}">Open in Grant Studio</a>` : "";
+    const studio = j.proposal_id ? `<a class="btn small" href="/app/studio/${j.proposal_id}">Open in Grant Studio</a>` : j.doc_project_id ? `<a class="btn small" href="/app/docs/${j.doc_project_id}">Open the document editor</a>` : "";
     const payLbl = { unpaid: "Not paid yet", client_marked_paid: "Client says paid, awaiting writer confirmation", writer_confirmed: "Payment confirmed by writer" }[j.payment_status] || "";
     let actions = "";
     if (j.is_client) {

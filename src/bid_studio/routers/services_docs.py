@@ -16,10 +16,17 @@ from bid_studio.models import (
 from bid_studio.services import assistant as ai
 from bid_studio.services import questionnaire as qn
 from bid_studio.services import service_templates as tpl
+from bid_studio.services.access import doc_project_guard
 from bid_studio.services.domain_logic import tokenize
 from bid_studio.services.mailer import deliver
 
 router = APIRouter(prefix="/api/v1/services", tags=["documentation-services"])
+# Routes for one project live on their own router so the marketplace access guard covers them all.
+project_router = APIRouter(
+    prefix="/api/v1/services/projects/{project_id}",
+    tags=["documentation-services"],
+    dependencies=[Depends(doc_project_guard)],
+)
 
 PLACEHOLDER = "[TO CONFIRM"
 EDITABLE = ("drafting",)
@@ -201,12 +208,12 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     return _dict(p)
 
 
-@router.get("/projects/{project_id}")
+@project_router.get("")
 def get_project(project_id: int, db: Session = Depends(get_db)):
     return _dict(_get(db, project_id))
 
 
-@router.put("/projects/{project_id}")
+@project_router.put("")
 def save_project(project_id: int, payload: ProjectSave, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     _editable(p)
@@ -230,7 +237,7 @@ def _library(db: Session, workspace_id: int) -> list[AnswerLibraryItem]:
     return db.query(AnswerLibraryItem).filter(AnswerLibraryItem.workspace_id == workspace_id).all()
 
 
-@router.post("/projects/{project_id}/questions")
+@project_router.post("/questions")
 def add_questions(project_id: int, payload: AddQuestionsIn, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     _editable(p)
@@ -249,7 +256,7 @@ def add_questions(project_id: int, payload: AddQuestionsIn, db: Session = Depend
     return _dict(p)
 
 
-@router.post("/projects/{project_id}/auto-match")
+@project_router.post("/auto-match")
 def auto_match_project(project_id: int, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     _editable(p)
@@ -262,7 +269,7 @@ def auto_match_project(project_id: int, db: Session = Depends(get_db)):
     return {"changed": changed, "project": _dict(p)}
 
 
-@router.post("/projects/{project_id}/promote-answer", status_code=201)
+@project_router.post("/promote-answer", status_code=201)
 def promote_answer(project_id: int, payload: PromoteIn, db: Session = Depends(get_db)):
     """Save an approved answer into the workspace's answer library for reuse."""
     p = _get(db, project_id)
@@ -281,7 +288,7 @@ def promote_answer(project_id: int, payload: PromoteIn, db: Session = Depends(ge
     return {"id": lib.id}
 
 
-@router.post("/projects/{project_id}/assistant")
+@project_router.post("/assistant")
 def assistant(project_id: int, payload: AssistIn, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     if _is_questionnaire(p):
@@ -318,7 +325,7 @@ def assistant(project_id: int, payload: AssistIn, db: Session = Depends(get_db))
         raise HTTPException(status_code=502, detail="Could not reach the AI provider") from exc
 
 
-@router.post("/projects/{project_id}/submit-quality")
+@project_router.post("/submit-quality")
 def submit_quality(project_id: int, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     _editable(p)
@@ -348,13 +355,13 @@ def _markdown(p: DocProject) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
-@router.get("/projects/{project_id}/export")
+@project_router.get("/export")
 def export_project(project_id: int, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     return {"project_id": p.id, "title": p.title, "markdown": _markdown(p)}
 
 
-@router.post("/projects/{project_id}/deliver")
+@project_router.post("/deliver")
 def deliver_project(project_id: int, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     if p.status != "approved":

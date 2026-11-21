@@ -34,3 +34,24 @@ def proposal_guard(proposal_id: int, request: Request, db: Session = Depends(get
     allowed = account.role == "admin" or account.id in (job.client_account_id, job.writer_account_id)
     if not allowed:
         raise HTTPException(status_code=403, detail="You are not part of the job for this proposal")
+
+
+def active_job_for_doc_project(db: Session, project_id: int) -> JobBrief | None:
+    return (
+        db.query(JobBrief)
+        .filter(JobBrief.doc_project_id == project_id, JobBrief.status.in_(ACTIVE_JOB_STATUSES))
+        .first()
+    )
+
+
+def doc_project_guard(project_id: int, request: Request, db: Session = Depends(get_db)) -> None:
+    """Same rule as proposals: a live marketplace job restricts the project to its participants."""
+    job = active_job_for_doc_project(db, project_id)
+    if job is None:
+        return
+    check_origin(request)
+    account = account_from_request(db, request)
+    if account is None:
+        raise HTTPException(status_code=401, detail="Sign in to work on this project")
+    if not (account.role == "admin" or account.id in (job.client_account_id, job.writer_account_id)):
+        raise HTTPException(status_code=403, detail="You are not part of the job for this project")

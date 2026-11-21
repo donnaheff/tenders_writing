@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from bid_studio.config import settings
-from bid_studio.database import Base, SessionLocal, engine, get_db
+from bid_studio.database import Base, SessionLocal, add_missing_columns, engine, get_db
 from bid_studio.models import DocProject, GrantProposal, Workspace
 from bid_studio.routers import (
     automation,
@@ -36,6 +36,7 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    add_missing_columns(engine)
     if settings.seed_on_startup:
         with SessionLocal() as db:
             seed_database(db)
@@ -84,6 +85,7 @@ def create_app() -> FastAPI:
     app.include_router(studio.router)
     app.include_router(plan.router)
     app.include_router(services_docs.router)
+    app.include_router(services_docs.project_router)
     app.include_router(bid_enhancements.router)
     app.include_router(intelligence.router)
 

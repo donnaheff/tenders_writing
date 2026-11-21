@@ -8,6 +8,7 @@
     <div class="filters">
       <input id="q" placeholder="Search name, skills or funder" aria-label="Search" />
       <input id="specialism" placeholder="Specialism, e.g. Horizon Europe" aria-label="Specialism" />
+      <select id="serviceType" aria-label="Service"><option value="">Any service</option></select>
       <input id="maxRate" type="number" min="0" placeholder="Max day rate" aria-label="Max day rate" />
       <select id="minRating" aria-label="Minimum rating"><option value="">Any rating</option><option value="4">4+ stars</option><option value="4.5">4.5+ stars</option></select>
       <select id="sort" aria-label="Sort"><option value="rating">Top rated</option><option value="rate">Lowest rate</option><option value="jobs">Most jobs completed</option><option value="newest">Newest</option></select>
@@ -31,7 +32,7 @@
   .btn.ghost { margin-left: 8px; }
 </style>
 <script>
-  const LIMIT = 12; let offset = 0, total = 0, timer = null;
+  const LIMIT = 12; let offset = 0, total = 0, timer = null, labels = {};
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const stars = w => w.rating_count ? `<span class="stars">★ ${w.rating_avg.toFixed(1)}</span> (${w.rating_count})` : "No reviews yet";
@@ -41,6 +42,7 @@
     if ($("specialism").value) p.set("specialism", $("specialism").value);
     if ($("maxRate").value) p.set("max_rate", $("maxRate").value);
     if ($("minRating").value) p.set("min_rating", $("minRating").value);
+    if ($("serviceType").value) p.set("service_type", $("serviceType").value);
     let items = [];
     try {
       const res = await fetch("/api/v1/market/writers?" + p);
@@ -53,16 +55,19 @@
       <div class="meta">${esc(w.headline)}</div>
       <p>${stars(w)} &middot; ${w.completed_jobs} job${w.completed_jobs === 1 ? "" : "s"} completed</p>
       <div class="meta">${w.day_rate > 0 ? `${esc(w.currency)} ${w.day_rate.toLocaleString()} / day` : "Rate on request"}</div>
-      <p>${w.specialisms.map(s => `<span class="tag">${esc(s)}</span>`).join(" ")}</p>
+      <p>${(w.service_types || []).map(k => `<span class="tag" style="background:#ecfdf5;color:#047857">${esc(labels[k] || k)}</span>`).join(" ")} ${w.specialisms.map(s => `<span class="tag">${esc(s)}</span>`).join(" ")}</p>
     </article>`).join("") || `<p class="note">No writers match these filters yet.</p>`;
     $("pageInfo").textContent = `Page ${Math.floor(offset / LIMIT) + 1} of ${Math.max(1, Math.ceil(total / LIMIT))}`;
     $("prev").disabled = offset === 0; $("next").disabled = offset + LIMIT >= total;
   }
   const reset = () => { offset = 0; load(); };
   for (const id of ["q", "specialism", "maxRate"]) $(id).addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(reset, 300); });
-  for (const id of ["minRating", "sort"]) $(id).addEventListener("change", reset);
+  for (const id of ["minRating", "sort", "serviceType"]) $(id).addEventListener("change", reset);
   $("prev").onclick = () => { offset = Math.max(0, offset - LIMIT); load(); };
   $("next").onclick = () => { offset += LIMIT; load(); };
-  load();
+  fetch("/api/v1/market/job-types").then(r => r.json()).then(ts => {
+    ts.forEach(t => { labels[t.key] = t.label; if (t.key !== "other") $("serviceType").insertAdjacentHTML("beforeend", `<option value="${t.key}">${t.label}</option>`); });
+    load();
+  }).catch(load);
 </script>
 {% endblock %}

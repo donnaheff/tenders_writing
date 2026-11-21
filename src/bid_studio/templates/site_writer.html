@@ -11,18 +11,20 @@
   </div>
 </section>
 <script>
-  const WID = {{ writer_id }};
+  const WID = {{ writer_id }}; const labels = {};
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   (async () => {
     const res = await fetch(`/api/v1/market/writers/${WID}`);
     if (!res.ok) { document.getElementById("body").innerHTML = "<p>This writer profile is not available.</p>"; return; }
     const w = await res.json();
+    try { (await (await fetch("/api/v1/market/job-types")).json()).forEach(t => { labels[t.key] = t.label; }); } catch (_) {}
     document.title = `${w.name} | Bid Studio`;
     document.getElementById("name").textContent = w.name;
     document.getElementById("headline").textContent = w.headline;
     document.getElementById("body").innerHTML = `
       <p>${w.rating_count ? `<strong>★ ${w.rating_avg.toFixed(1)}</strong> from ${w.rating_count} review${w.rating_count === 1 ? "" : "s"}` : "No reviews yet"} &middot; ${w.completed_jobs} job${w.completed_jobs === 1 ? "" : "s"} completed &middot; ${w.day_rate > 0 ? `${esc(w.currency)} ${w.day_rate.toLocaleString()} / day` : "Rate on request"}</p>
       <p style="white-space:pre-wrap">${esc(w.bio)}</p>
+      <p><strong>Services:</strong> ${(w.service_types || []).map(k => `<span class="tag" style="background:#ecfdf5;color:#047857">${esc(labels[k] || k)}</span>`).join(" ") || "-"}</p>
       <p><strong>Specialisms:</strong> ${w.specialisms.map(s => `<span class="tag">${esc(s)}</span>`).join(" ") || "-"}</p>
       <p><strong>Funders worked with:</strong> ${w.funders.map(s => `<span class="tag">${esc(s)}</span>`).join(" ") || "-"}</p>
       ${w.samples.length ? `<p><strong>Samples:</strong></p><ul>${w.samples.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(s.title)}</a></li>`).join("")}</ul>` : ""}`;

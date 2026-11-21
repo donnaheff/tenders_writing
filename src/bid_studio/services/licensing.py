@@ -219,7 +219,7 @@ def current_status(db) -> Status:
     return evaluate(installed_key(db))
 
 
-PUBLIC_API_GETS = ("/api/v1/grants/feed", "/api/v1/market/writers")  # the public /grants page reads these
+PUBLIC_API_GETS = ("/api/v1/grants/feed", "/api/v1/market/writers", "/api/v1/market/job-types")  # the public /grants page reads these
 OPEN_PATH_PREFIXES = ("/static", "/docs", "/redoc", "/openapi.json")
 OPEN_API_PREFIXES = ("/api/v1/health", "/api/v1/license", "/api/v1/contact")
 

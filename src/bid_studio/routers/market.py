@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from bid_studio.config import settings
 from bid_studio.database import get_db
 from bid_studio.models import (
+    DocProject,
     GrantProposal,
     JobBid,
     JobBrief,
@@ -18,8 +19,8 @@ from bid_studio.models import (
     WorkspaceMember,
     WriterProfile,
 )
-from bid_studio.services import auth, licensing
-from bid_studio.services.access import active_job_for_proposal
+from bid_studio.services import auth, job_types, licensing
+from bid_studio.services.access import active_job_for_doc_project, active_job_for_proposal
 from bid_studio.services.mailer import deliver
 
 router = APIRouter(prefix="/api/v1/market", tags=["marketplace"])
@@ -53,6 +54,7 @@ class ProfileIn(BaseModel):
     bio: str = Field(default="", max_length=4000)
     specialisms: list[str] = Field(default_factory=list, max_length=20)
     funders: list[str] = Field(default_factory=list, max_length=20)
+    service_types: list[str] = Field(default_factory=list, max_length=10)
     day_rate: float = Field(default=0.0, ge=0, le=100000)
     currency: str = Field(default="GBP", min_length=3, max_length=10)
     samples: list[SampleIn] = Field(default_factory=list, max_length=10)
@@ -66,7 +68,9 @@ class JobIn(BaseModel):
     budget_min: float = Field(default=0.0, ge=0)
     budget_max: float = Field(default=0.0, ge=0)
     currency: str = Field(default="GBP", min_length=3, max_length=10)
+    job_type: str = Field(default="grant_proposal", max_length=30)
     proposal_id: int | None = None
+    doc_project_id: int | None = None
 
 
 class BidIn(BaseModel):
@@ -133,6 +137,7 @@ def _writer_dict(p: WriterProfile, name: str) -> dict:
         "bio": p.bio,
         "specialisms": p.specialisms,
         "funders": p.funders,
+        "service_types": p.service_types or [],
         "day_rate": p.day_rate,
         "currency": p.currency,
         "samples": p.samples,
@@ -156,6 +161,8 @@ def _job_dict(job: JobBrief, db: Session, account: MarketAccount | None) -> dict
     data = {
         "id": job.id,
         "title": job.title,
+        "job_type": job.job_type,
+        "job_type_label": job_types.JOB_TYPES.get(job.job_type, {}).get("label", job.job_type),
         "description": job.description,
         "funder": job.funder,
         "deadline": job.deadline or None,
@@ -173,6 +180,7 @@ def _job_dict(job: JobBrief, db: Session, account: MarketAccount | None) -> dict
         data.update(
             {
                 "proposal_id": job.proposal_id,
+                "doc_project_id": job.doc_project_id,
                 "writer_name": _name_of(db, job.writer_account_id),
                 "agreed_price": job.agreed_price,
                 "platform_fee": job.platform_fee,
@@ -288,6 +296,7 @@ def list_writers(
     q: str | None = None,
     specialism: str | None = None,
     funder: str | None = None,
+    service_type: str | None = None,
     max_rate: float | None = Query(default=None, ge=0),
     min_rating: float | None = Query(default=None, ge=0, le=5),
     sort: str = Query(default="rating", pattern="^(rating|rate|jobs|newest)$"),
@@ -315,6 +324,8 @@ def list_writers(
         query = query.filter(cast(WriterProfile.specialisms, String).ilike(f'%"{specialism}"%'))
     if funder:
         query = query.filter(cast(WriterProfile.funders, String).ilike(f'%"{funder}"%'))
+    if service_type:
+        query = query.filter(cast(WriterProfile.service_types, String).ilike(f'%"{service_type}"%'))
     if max_rate is not None:
         query = query.filter(WriterProfile.day_rate <= max_rate)
     if min_rating is not None:
@@ -349,6 +360,10 @@ def save_my_profile(
     data["samples"] = [s.model_dump() for s in payload.samples]
     data["specialisms"] = [s.strip() for s in payload.specialisms if s.strip()]
     data["funders"] = [s.strip() for s in payload.funders if s.strip()]
+    unknown = [t for t in payload.service_types if t not in job_types.JOB_TYPES]
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"Unknown service type {unknown[0]!r}")
+    data["service_types"] = sorted(set(payload.service_types))
     if p is None:
         p = WriterProfile(account_id=account.id, status="pending", **data)
         db.add(p)
@@ -451,6 +466,27 @@ def create_job(
 ):
     if payload.budget_max and payload.budget_max < payload.budget_min:
         raise HTTPException(status_code=422, detail="Maximum budget is below the minimum")
+    if payload.job_type not in job_types.JOB_TYPES:
+        raise HTTPException(status_code=422, detail=f"Unknown job type {payload.job_type!r}")
+    if payload.proposal_id is not None and payload.doc_project_id is not None:
+        raise HTTPException(status_code=422, detail="Link either a proposal or a documentation project, not both")
+    if payload.proposal_id is not None and payload.job_type != "grant_proposal":
+        raise HTTPException(status_code=422, detail="Proposals can only be linked to grant proposal jobs")
+    if payload.doc_project_id is not None:
+        project = db.get(DocProject, payload.doc_project_id)
+        if not project or project.workspace_id != account.workspace_id:
+            raise HTTPException(status_code=404, detail="Project not found in your workspace")
+        if not job_types.doc_project_fits(payload.job_type, project.kind, project.doc_type):
+            raise HTTPException(status_code=422, detail="This project does not match the job type")
+        if (
+            db.query(JobBrief)
+            .filter(
+                JobBrief.doc_project_id == payload.doc_project_id,
+                JobBrief.status.in_(("open", "in_progress", "delivered")),
+            )
+            .first()
+        ):
+            raise HTTPException(status_code=409, detail="This project already has a live job")
     if payload.proposal_id is not None:
         proposal = db.get(GrantProposal, payload.proposal_id)
         if not proposal or proposal.workspace_id != account.workspace_id:
@@ -479,6 +515,8 @@ def list_jobs(
     response: Response,
     scope: str = Query(default="open", pattern="^(open|mine)$"),
     q: str | None = None,
+    job_type: str | None = None,
+    matching: bool = False,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     account: MarketAccount = Depends(current_account),
@@ -501,6 +539,11 @@ def list_jobs(
         if account.role == "writer":
             _approved_writer(db, account)
         query = query.filter(JobBrief.status == "open")
+        if matching and account.role == "writer":
+            offered = _approved_writer(db, account).service_types or []
+            query = query.filter(JobBrief.job_type.in_(offered or ["__none__"]))
+    if job_type:
+        query = query.filter(JobBrief.job_type == job_type)
     if q:
         like = f"%{q}%"
         query = query.filter(or_(JobBrief.title.ilike(like), JobBrief.description.ilike(like), JobBrief.funder.ilike(like)))
@@ -773,7 +816,18 @@ def review_writer(
 def studio_link(job_id: int, account: MarketAccount = Depends(current_account), db: Session = Depends(get_db)):
     job = _get_job(db, job_id)
     _message_participant(job, account)
-    live = job.proposal_id and active_job_for_proposal(db, job.proposal_id)
-    return {"proposal_id": job.proposal_id, "url": f"/app/studio/{job.proposal_id}" if job.proposal_id else None,
+    live = (job.proposal_id and active_job_for_proposal(db, job.proposal_id)) or (
+        job.doc_project_id and active_job_for_doc_project(db, job.doc_project_id)
+    )
+    url = (
+        f"/app/studio/{job.proposal_id}" if job.proposal_id
+        else f"/app/docs/{job.doc_project_id}" if job.doc_project_id else None
+    )
+    return {"proposal_id": job.proposal_id, "doc_project_id": job.doc_project_id, "url": url,
             "access_restricted": bool(live)}
+
+
+@router.get("/job-types")
+def list_job_types():
+    return job_types.catalogue()
 
