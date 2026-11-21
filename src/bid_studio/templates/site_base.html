@@ -14,6 +14,7 @@
       <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('menu-open')">Menu</button>
       <nav class="site-nav" aria-label="Main">
         <a href="/grants" {% if active == 'grants' %}class="current"{% endif %}>Grants</a>
+        <a href="/writers" {% if active == 'writers' %}class="current"{% endif %}>Writers</a>
         <a href="/features" {% if active == 'features' %}class="current"{% endif %}>Features</a>
         <a href="/pricing" {% if active == 'pricing' %}class="current"{% endif %}>Pricing</a>
         <a href="/about" {% if active == 'about' %}class="current"{% endif %}>About</a>
@@ -34,6 +35,8 @@
       <div>
         <strong>Product</strong>
         <a href="/grants">Open grants</a>
+        <a href="/writers">Hire a writer</a>
+        <a href="/market">Marketplace</a>
         <a href="/features">Features</a>
         <a href="/pricing">Pricing</a>
         <a href="/app">Dashboard</a>

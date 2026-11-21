@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from bid_studio.database import get_db
 from bid_studio.models import GrantProposal, OpportunityNotice
 from bid_studio.schemas import GrantProposalCreate, GrantProposalSectionUpdate
+from bid_studio.services.access import proposal_guard
 from bid_studio.services.domain_logic import (
     compute_proposal_weighted_score,
     extract_grant_criteria,
@@ -99,7 +100,7 @@ def create_grant_proposal(payload: GrantProposalCreate, db: Session = Depends(ge
     return proposal
 
 
-@router.put("/proposals/{proposal_id}/sections")
+@router.put("/proposals/{proposal_id}/sections", dependencies=[Depends(proposal_guard)])
 def update_proposal_sections(
     proposal_id: int,
     payload: GrantProposalSectionUpdate,
@@ -116,7 +117,7 @@ def update_proposal_sections(
     return proposal
 
 
-@router.post("/proposals/{proposal_id}/submit-review")
+@router.post("/proposals/{proposal_id}/submit-review", dependencies=[Depends(proposal_guard)])
 def submit_proposal_for_review(proposal_id: int, db: Session = Depends(get_db)):
     proposal = db.get(GrantProposal, proposal_id)
     if not proposal:
@@ -190,7 +191,7 @@ def auto_process_open_calls(
     return {"processed": len(calls), "created_proposal_ids": created_ids}
 
 
-@router.get("/proposals/{proposal_id}/export")
+@router.get("/proposals/{proposal_id}/export", dependencies=[Depends(proposal_guard)])
 def export_grant_proposal_markdown(proposal_id: int, db: Session = Depends(get_db)):
     proposal = db.get(GrantProposal, proposal_id)
     if not proposal:

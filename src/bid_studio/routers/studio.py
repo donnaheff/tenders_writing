@@ -14,6 +14,7 @@ from bid_studio.models import (
 )
 from bid_studio.schemas import AssistantRequestIn, StudioSave, VersionCreate
 from bid_studio.services import assistant as ai
+from bid_studio.services.access import proposal_guard
 from bid_studio.services.feed_sources import parse_iso
 from bid_studio.services.pipeline import queue_for_review
 from bid_studio.services.studio import (
@@ -27,7 +28,11 @@ from bid_studio.services.studio import (
     word_count,
 )
 
-router = APIRouter(prefix="/api/v1/grants/proposals/{proposal_id}", tags=["grant-studio"])
+router = APIRouter(
+    prefix="/api/v1/grants/proposals/{proposal_id}",
+    tags=["grant-studio"],
+    dependencies=[Depends(proposal_guard)],
+)
 
 EDITABLE_STATUSES = {"draft"}
 MIN_MATERIAL_MATCH = 2

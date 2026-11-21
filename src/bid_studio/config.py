@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     license_public_key: str = ""
     license_grace_days: int = 14
     license_revoked_ids: str = ""
+    # Writers marketplace
+    marketplace_admin_emails: str = ""
+    marketplace_fee_pct: float = 10.0
+    session_days: int = 14
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""

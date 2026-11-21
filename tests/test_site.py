@@ -6,6 +6,8 @@ import pytest
     [
         ("/", "grant and funding applications"),
         ("/grants", "Open grants"),
+        ("/writers", "Grant writers"),
+        ("/market", "Writers marketplace"),
         ("/features", "Grant &amp; funding proposals"),
         ("/pricing", "Consultancy"),
         ("/about", "About Bid Studio"),
@@ -44,3 +46,9 @@ def test_contact_request_saved_and_validated(client):
         json={"name": "Sam", "email": "not-an-email", "message": "Hello"},
     )
     assert bad.status_code == 422
+
+
+def test_writer_profile_page_renders(client):
+    page = client.get("/writers/7")
+    assert page.status_code == 200 and "const WID = 7" in page.text
+    assert client.get("/writers/abc").status_code == 422

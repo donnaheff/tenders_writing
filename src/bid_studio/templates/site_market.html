@@ -1,0 +1,229 @@
+{% extends "site_base.html" %}
+{% block title %}Marketplace{% endblock %}
+{% block content %}
+<section class="page-head"><div class="wrap"><h1>Writers marketplace</h1><p id="sub">Sign in to post briefs, bid on work and collaborate in the Grant Studio.</p></div></section>
+<section class="block"><div class="wrap">
+  <div id="authBox" style="display:none; max-width:460px">
+    <div class="tabs2"><button id="tabLogin" class="on">Sign in</button><button id="tabReg">Create account</button></div>
+    <form class="contact" id="loginForm">
+      <label>Email <input name="email" type="email" required autocomplete="username" /></label>
+      <label>Password <input name="password" type="password" required autocomplete="current-password" /></label>
+      <button class="btn" type="submit">Sign in</button>
+    </form>
+    <form class="contact" id="regForm" style="display:none">
+      <label>I am a
+        <select name="role" id="regRole"><option value="client">Client: I need a grant writer</option><option value="writer">Writer: I want to find work</option></select>
+      </label>
+      <label>Name <input name="name" required maxlength="160" /></label>
+      <label id="orgLabel">Organisation <input name="organisation" maxlength="200" /></label>
+      <label>Email <input name="email" type="email" required autocomplete="username" /></label>
+      <label>Password (10+ characters) <input name="password" type="password" required minlength="10" autocomplete="new-password" /></label>
+      <button class="btn" type="submit">Create account</button>
+    </form>
+    <div id="authMsg" class="msg" role="status"></div>
+  </div>
+
+  <div id="appBox" style="display:none">
+    <div class="topline"><span id="who"></span><button class="btn small ghost" id="logout">Sign out</button></div>
+    <div class="tabs2" id="nav"></div>
+    <div id="view"></div>
+    <div id="msg" class="msg" role="status"></div>
+  </div>
+</div></section>
+<style>
+  .tabs2 { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+  .tabs2 button { background: #e2e8f0; color: #0f172a; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  .tabs2 button.on { background: var(--accent); color: #fff; }
+  .topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+  .msg { font-weight: 600; margin-top: 12px; } .msg.ok { color: #15803d; } .msg.err { color: #b91c1c; }
+  .row { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+  .row h3 { margin: 0 0 4px; font-size: 1.05rem; } .row .meta { color: var(--muted); font-size: .88rem; }
+  .row .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .grid2 { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  form.f { display: grid; gap: 12px; max-width: 640px; }
+  form.f label { display: grid; gap: 4px; font-weight: 600; font-size: .9rem; }
+  form.f input, form.f select, form.f textarea { font: inherit; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+  form.f textarea { min-height: 100px; }
+  .thread { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px; max-height: 320px; overflow: auto; margin: 8px 0; }
+  .bub { margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: #f1f5f9; max-width: 85%; white-space: pre-wrap; font-size: .92rem; }
+  .bub.mine { background: #dbeafe; margin-left: auto; }
+  .bub small { display: block; color: var(--muted); }
+  .btn.small.sec { background: #e2e8f0; color: #0f172a !important; }
+  .btn.small.danger { background: #b91c1c; }
+</style>
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  let me = null, tab = null;
+  const money = (c, v) => `${esc(c)} ${Number(v || 0).toLocaleString()}`;
+  const statusLabel = { open: "Open", in_progress: "In progress", delivered: "Delivered", completed: "Completed", cancelled: "Cancelled" };
+
+  async function api(path, method = "GET", body = null) {
+    const res = await fetch("/api/v1/market" + path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : null });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { const d = data.detail; throw new Error(typeof d === "string" ? d : Array.isArray(d) ? d.map(x => x.msg).join("; ") : "Request failed"); }
+    return data;
+  }
+  function say(text, ok = false) { const m = $("msg"); m.className = "msg " + (ok ? "ok" : "err"); m.textContent = text; }
+  async function act(fn) { try { await fn(); } catch (e) { say(e.message); } }
+
+  // ---------- auth
+  function showAuth() { $("authBox").style.display = "block"; $("appBox").style.display = "none"; }
+  $("tabLogin").onclick = () => { $("loginForm").style.display = ""; $("regForm").style.display = "none"; $("tabLogin").className = "on"; $("tabReg").className = ""; };
+  $("tabReg").onclick = () => { $("loginForm").style.display = "none"; $("regForm").style.display = ""; $("tabReg").className = "on"; $("tabLogin").className = ""; };
+  $("regRole").onchange = e => { $("orgLabel").style.display = e.target.value === "client" ? "" : "none"; };
+  async function submitAuth(e, path) {
+    e.preventDefault();
+    const m = $("authMsg"); m.className = "msg"; m.textContent = "Please wait...";
+    try { me = await api(path, "POST", Object.fromEntries(new FormData(e.target))); m.textContent = ""; start(); }
+    catch (err) { m.className = "msg err"; m.textContent = err.message; }
+  }
+  $("loginForm").onsubmit = e => submitAuth(e, "/auth/login");
+  $("regForm").onsubmit = e => submitAuth(e, "/auth/register");
+  $("logout").onclick = async () => { await api("/auth/logout", "POST"); me = null; showAuth(); };
+
+  // ---------- shell
+  const NAVS = {
+    writer: [["profile", "My profile"], ["open", "Open jobs"], ["mine", "My jobs"]],
+    client: [["post", "Post a brief"], ["mine", "My briefs"]],
+    admin: [["approvals", "Writer approvals"], ["mine", "All jobs"]],
+  };
+  function start() {
+    $("authBox").style.display = "none"; $("appBox").style.display = "block";
+    $("who").innerHTML = `Signed in as <strong>${esc(me.name)}</strong> (${esc(me.role)})`;
+    $("nav").innerHTML = NAVS[me.role].map(([k, l]) => `<button data-k="${k}">${l}</button>`).join("");
+    $("nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.k));
+    go(location.hash.startsWith("#job/") ? location.hash : NAVS[me.role][0][0]);
+  }
+  function go(k) {
+    $("msg").textContent = "";
+    if (typeof k === "string" && k.startsWith("#job/")) { tab = k; history.replaceState(null, "", k); return jobView(Number(k.slice(5))); }
+    tab = k; history.replaceState(null, "", location.pathname);
+    $("nav").querySelectorAll("button").forEach(b => b.className = b.dataset.k === k ? "on" : "");
+    ({ profile: profileView, open: openJobsView, mine: myJobsView, post: postView, approvals: approvalsView })[k]();
+  }
+
+  // ---------- writer: profile
+  async function profileView() {
+    const p = await api("/writers/me");
+    const st = p.status ? { pending: "Pending approval: an admin will review your profile", approved: "Approved: you appear in the directory and can bid", suspended: "Suspended" }[p.status] : "Complete your profile to apply";
+    $("view").innerHTML = `<p class="note"><strong>${esc(st)}</strong>${p.status === "approved" ? ` &middot; <a href="/writers/${p.id}">View public profile</a>` : ""}</p>
+      <form class="f" id="pf">
+        <label>Headline <input name="headline" maxlength="200" value="${esc(p.headline || "")}" /></label>
+        <label>Bio <textarea name="bio" maxlength="4000">${esc(p.bio || "")}</textarea></label>
+        <label>Specialisms (comma-separated) <input name="specialisms" value="${esc((p.specialisms || []).join(", "))}" /></label>
+        <label>Funders you have worked with (comma-separated) <input name="funders" value="${esc((p.funders || []).join(", "))}" /></label>
+        <label>Day rate <input name="day_rate" type="number" min="0" value="${p.day_rate || 0}" /></label>
+        <label>Currency <input name="currency" maxlength="10" value="${esc(p.currency || "GBP")}" /></label>
+        <label>Samples (one per line: Title | https://link) <textarea name="samples">${esc((p.samples || []).map(s => s.title + " | " + s.url).join("\n"))}</textarea></label>
+        <button class="btn" type="submit">${p.exists ? "Save profile" : "Submit for approval"}</button>
+      </form>`;
+    $("pf").onsubmit = e => { e.preventDefault(); act(async () => {
+      const f = Object.fromEntries(new FormData(e.target)), list = s => s.split(",").map(x => x.trim()).filter(Boolean);
+      const samples = f.samples.split("\n").map(l => l.split("|").map(x => x.trim())).filter(a => a[0] && a[1]).map(a => ({ title: a[0], url: a[1] }));
+      await api("/writers/me", "PUT", { headline: f.headline, bio: f.bio, specialisms: list(f.specialisms), funders: list(f.funders), day_rate: Number(f.day_rate) || 0, currency: f.currency || "GBP", samples });
+      say("Profile saved.", true); profileView();
+    }); };
+  }
+
+  // ---------- writer: jobs
+  async function openJobsView() {
+    const jobs = await api("/jobs?scope=open").catch(e => { $("view").innerHTML = `<p class="note">${esc(e.message)}</p>`; return null; });
+    if (!jobs) return;
+    $("view").innerHTML = jobs.map(j => `<div class="row"><h3>${esc(j.title)}</h3>
+      <div class="meta">${esc(j.funder)} &middot; budget ${money(j.currency, j.budget_min)}–${money(j.currency, j.budget_max)} &middot; ${j.deadline ? "deadline " + esc(j.deadline) : "no deadline"} &middot; ${j.bid_count} bid(s)</div>
+      <p>${esc(j.description.slice(0, 280))}</p><div class="acts"><button class="btn small" onclick="go('#job/${j.id}')">View and bid</button></div></div>`).join("") || `<p class="note">No open jobs right now.</p>`;
+  }
+  async function myJobsView() {
+    const jobs = await api("/jobs?scope=mine");
+    $("view").innerHTML = jobs.map(j => `<div class="row"><h3>${esc(j.title)} <span class="tag">${statusLabel[j.status]}</span></h3>
+      <div class="meta">${esc(j.funder)} &middot; ${j.bid_count} bid(s)${j.agreed_price ? " &middot; agreed " + money(j.currency, j.agreed_price) : ""}</div>
+      <div class="acts"><button class="btn small" onclick="go('#job/${j.id}')">Open</button></div></div>`).join("") || `<p class="note">Nothing here yet.</p>`;
+  }
+
+  // ---------- client
+  function postView() {
+    $("view").innerHTML = `<form class="f" id="jf">
+      <label>Title <input name="title" required minlength="3" maxlength="220" placeholder="e.g. Horizon Europe RIA proposal writer" /></label>
+      <label>Description <textarea name="description" maxlength="8000" placeholder="What do you need, and what do you already have?"></textarea></label>
+      <label>Funder <input name="funder" maxlength="200" /></label>
+      <label>Deadline <input name="deadline" type="date" /></label>
+      <div class="grid2"><label>Budget min <input name="budget_min" type="number" min="0" /></label><label>Budget max <input name="budget_max" type="number" min="0" /></label></div>
+      <label>Currency <input name="currency" maxlength="10" value="GBP" /></label>
+      <label>Work in a Grant Studio proposal (optional)
+        <select name="proposal_id"><option value="">None</option></select></label>
+      <button class="btn" type="submit">Publish brief</button></form>`;
+    // Fill the proposal list afterwards so typing is never overwritten by a late render
+    fetch(`/api/v1/grants/proposals?workspace_id=${me.workspace_id}`).then(r => r.json()).then(list => {
+      const sel = document.querySelector("#jf [name=proposal_id]");
+      if (sel && Array.isArray(list)) sel.insertAdjacentHTML("beforeend", list.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join(""));
+    }).catch(() => {});
+    $("jf").onsubmit = e => { e.preventDefault(); act(async () => {
+      const f = Object.fromEntries(new FormData(e.target));
+      const job = await api("/jobs", "POST", { title: f.title, description: f.description, funder: f.funder, deadline: f.deadline, budget_min: Number(f.budget_min) || 0, budget_max: Number(f.budget_max) || 0, currency: f.currency || "GBP", proposal_id: f.proposal_id ? Number(f.proposal_id) : null });
+      go("#job/" + job.id);
+    }); };
+  }
+
+  // ---------- admin
+  async function approvalsView() {
+    const rows = await api("/admin/writers?status=pending");
+    $("view").innerHTML = rows.map(w => `<div class="row"><h3>${esc(w.name)} <span class="meta">${esc(w.email)}</span></h3>
+      <div class="meta">${esc(w.headline)} &middot; ${w.day_rate ? money(w.currency, w.day_rate) + "/day" : "no rate"}</div>
+      <p>${esc(w.bio)}</p><p>${w.specialisms.map(s => `<span class="tag">${esc(s)}</span>`).join(" ")}</p>
+      ${w.samples.map(s => `<div><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(s.title)}</a></div>`).join("")}
+      <div class="acts"><button class="btn small" onclick="decide(${w.id}, 'approve')">Approve</button><button class="btn small danger" onclick="decide(${w.id}, 'suspend')">Reject / suspend</button></div></div>`).join("") || `<p class="note">No writers waiting for approval.</p>`;
+  }
+  window.decide = (id, what) => act(async () => { await api(`/admin/writers/${id}/${what}`, "POST"); approvalsView(); });
+
+  // ---------- job detail
+  async function jobView(id) {
+    $("nav").querySelectorAll("button").forEach(b => b.className = "");
+    let j;
+    try { j = await api("/jobs/" + id); } catch (e) { $("view").innerHTML = `<p class="note">${esc(e.message)}</p>`; return; }
+    const bids = await api(`/jobs/${id}/bids`).catch(() => []);
+    const msgs = ["in_progress", "delivered", "completed"].includes(j.status) && (j.is_client || j.is_writer || me.role === "admin") ? await api(`/jobs/${id}/messages`).catch(() => []) : null;
+    const studio = j.proposal_id ? `<a class="btn small" href="/app/studio/${j.proposal_id}">Open in Grant Studio</a>` : "";
+    const payLbl = { unpaid: "Not paid yet", client_marked_paid: "Client says paid, awaiting writer confirmation", writer_confirmed: "Payment confirmed by writer" }[j.payment_status] || "";
+    let actions = "";
+    if (j.is_client) {
+      if (j.status === "open" || j.status === "in_progress") actions += `<button class="btn small danger" onclick="jobAct(${id}, 'cancel')">Cancel job</button>`;
+      if (j.status === "delivered") actions += `<button class="btn small" onclick="jobAct(${id}, 'approve')">Approve and complete</button><button class="btn small sec" onclick="reqChanges(${id})">Request changes</button>`;
+      if (["in_progress", "delivered", "completed"].includes(j.status) && j.payment_status === "unpaid") actions += `<button class="btn small sec" onclick="jobAct(${id}, 'payment/mark-paid')">I have paid the writer</button>`;
+    }
+    if (j.is_writer) {
+      if (j.status === "in_progress") actions += `<button class="btn small" onclick="jobAct(${id}, 'deliver')">Mark as delivered</button>`;
+      if (j.payment_status === "client_marked_paid") actions += `<button class="btn small sec" onclick="jobAct(${id}, 'payment/confirm')">Confirm payment received</button>`;
+    }
+    const bidRows = bids.map(b => `<div class="row"><strong>${esc(b.writer_name)}</strong> ${b.writer_rating_count ? `★ ${b.writer_rating.toFixed(1)} (${b.writer_rating_count})` : ""} &middot; <strong>${money(b.currency, b.price)}</strong> in ${b.timeline_days} days <span class="tag">${esc(b.status)}</span>
+      <p>${esc(b.message)}</p><div class="acts">${b.writer_id ? `<a href="/writers/${b.writer_id}" target="_blank">Profile</a>` : ""}
+      ${j.is_client && j.status === "open" && b.status === "pending" ? `<button class="btn small" onclick="acceptBid(${id}, ${b.id})">Accept bid</button>` : ""}
+      ${me.role === "writer" && b.status === "pending" && j.status === "open" ? `<button class="btn small sec" onclick="withdraw(${id}, ${b.id})">Withdraw</button>` : ""}</div></div>`).join("");
+    const canBid = me.role === "writer" && j.status === "open" && !bids.length;
+    $("view").innerHTML = `<p><a href="#" onclick="go(NAVS[me.role][${me.role === "client" ? 1 : me.role === "writer" ? 2 : 1}][0]); return false;">&larr; Back</a></p>
+      <div class="row"><h3>${esc(j.title)} <span class="tag">${statusLabel[j.status]}</span></h3>
+      <div class="meta">${esc(j.client_name)} &middot; ${esc(j.funder)} &middot; budget ${money(j.currency, j.budget_min)}–${money(j.currency, j.budget_max)} &middot; ${j.deadline ? "deadline " + esc(j.deadline) : "no deadline"}</div>
+      <p style="white-space:pre-wrap">${esc(j.description)}</p>
+      ${j.agreed_price ? `<p><strong>Agreed:</strong> ${money(j.currency, j.agreed_price)} with ${esc(j.writer_name)} &middot; platform fee ${money(j.currency, j.platform_fee)} (recorded, not collected) &middot; ${esc(payLbl)}</p>` : ""}
+      <div class="acts">${studio}${actions}</div></div>
+      ${canBid ? `<h3>Place a bid</h3><form class="f" id="bf"><label>Price (${esc(j.currency)}) <input name="price" type="number" min="1" step="any" required /></label>
+        <label>Timeline (days) <input name="timeline_days" type="number" min="1" value="14" required /></label>
+        <label>Why you? <textarea name="message" maxlength="4000"></textarea></label><button class="btn" type="submit">Submit bid</button></form>` : ""}
+      ${bids.length ? `<h3>${j.is_client ? "Bids" : "Your bid"}</h3>${bidRows}` : (j.is_client ? "<p class='note'>No bids yet.</p>" : "")}
+      ${msgs ? `<h3>Messages</h3><div class="thread" id="thread">${msgs.map(m => `<div class="bub ${m.mine ? "mine" : ""}"><small>${esc(m.sender)}</small>${esc(m.body)}</div>`).join("") || "<span class='note'>No messages yet.</span>"}</div>
+        <form class="f" id="mf"><textarea name="body" required maxlength="4000" placeholder="Write a message"></textarea><button class="btn small" type="submit">Send</button></form>` : ""}
+      ${j.is_client && j.status === "completed" ? `<h3>Review the writer</h3><form class="f" id="rf"><label>Rating <select name="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>Comment <textarea name="comment" maxlength="2000"></textarea></label><button class="btn small" type="submit">Submit review</button></form>` : ""}`;
+    const bf = $("bf"); if (bf) bf.onsubmit = e => { e.preventDefault(); act(async () => { const f = Object.fromEntries(new FormData(e.target)); await api(`/jobs/${id}/bids`, "POST", { price: Number(f.price), timeline_days: Number(f.timeline_days), message: f.message }); jobView(id); }); };
+    const mf = $("mf"); if (mf) mf.onsubmit = e => { e.preventDefault(); act(async () => { await api(`/jobs/${id}/messages`, "POST", { body: new FormData(e.target).get("body") }); jobView(id); }); };
+    const rf = $("rf"); if (rf) rf.onsubmit = e => { e.preventDefault(); act(async () => { const f = Object.fromEntries(new FormData(e.target)); await api(`/jobs/${id}/review`, "POST", { rating: Number(f.rating), comment: f.comment }); say("Thanks for your review.", true); jobView(id); }); };
+    const t = $("thread"); if (t) t.scrollTop = t.scrollHeight;
+  }
+  window.jobAct = (id, path) => act(async () => { await api(`/jobs/${id}/${path}`, "POST"); jobView(id); });
+  window.acceptBid = (id, bid) => act(async () => { if (!confirm("Accept this bid? Other bids will be declined and the writer will be added to your workspace.")) return; await api(`/jobs/${id}/bids/${bid}/accept`, "POST"); jobView(id); });
+  window.withdraw = (id, bid) => act(async () => { await api(`/jobs/${id}/bids/${bid}/withdraw`, "POST"); jobView(id); });
+  window.reqChanges = id => act(async () => { const note = prompt("What needs to change?"); if (!note) return; await api(`/jobs/${id}/request-changes`, "POST", { note }); jobView(id); });
+  window.go = go; window.NAVS = NAVS;
+
+  (async () => { try { me = await api("/auth/me"); start(); } catch (_) { showAuth(); } })();
+</script>
+{% endblock %}

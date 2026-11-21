@@ -19,6 +19,7 @@ from bid_studio.routers import (
     grants,
     intelligence,
     license,
+    market,
     site,
     studio,
 )
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.include_router(site.router)
     app.include_router(license.router)
+    app.include_router(market.router)
     app.include_router(core.router)
     app.include_router(automation.router)
     app.include_router(feed.router)

@@ -384,3 +384,115 @@ class LicenseRecord(Base):
     licensee: Mapped[str] = mapped_column(String(200))
     plan: Mapped[str] = mapped_column(String(40))
     activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ---------------------------------------------------------------- writers marketplace
+
+class MarketAccount(Base):
+    __tablename__ = "market_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    password_hash: Mapped[str] = mapped_column(String(300))
+    role: Mapped[str] = mapped_column(String(20), index=True)  # writer | client | admin
+    organisation: Mapped[str] = mapped_column(String(200), default="")
+    workspace_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workspaces.id"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("market_accounts.id"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class WriterProfile(Base):
+    __tablename__ = "writer_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("market_accounts.id"), unique=True, index=True
+    )
+    headline: Mapped[str] = mapped_column(String(200), default="")
+    bio: Mapped[str] = mapped_column(Text, default="")
+    specialisms: Mapped[list[str]] = mapped_column(JSON, default=list)
+    funders: Mapped[list[str]] = mapped_column(JSON, default=list)
+    day_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    currency: Mapped[str] = mapped_column(String(10), default="GBP")
+    samples: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    rating_avg: Mapped[float] = mapped_column(Float, default=0.0)
+    rating_count: Mapped[int] = mapped_column(Integer, default=0)
+    completed_jobs: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class JobBrief(Base):
+    __tablename__ = "job_briefs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    client_account_id: Mapped[int] = mapped_column(ForeignKey("market_accounts.id"), index=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    proposal_id: Mapped[int | None] = mapped_column(
+        ForeignKey("grant_proposals.id"), nullable=True, index=True
+    )
+    title: Mapped[str] = mapped_column(String(220))
+    description: Mapped[str] = mapped_column(Text, default="")
+    funder: Mapped[str] = mapped_column(String(200), default="")
+    deadline: Mapped[str] = mapped_column(String(40), default="")
+    budget_min: Mapped[float] = mapped_column(Float, default=0.0)
+    budget_max: Mapped[float] = mapped_column(Float, default=0.0)
+    currency: Mapped[str] = mapped_column(String(10), default="GBP")
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)
+    accepted_bid_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    writer_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("market_accounts.id"), nullable=True, index=True
+    )
+    agreed_price: Mapped[float] = mapped_column(Float, default=0.0)
+    platform_fee: Mapped[float] = mapped_column(Float, default=0.0)
+    payment_status: Mapped[str] = mapped_column(String(30), default="unpaid")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class JobBid(Base):
+    __tablename__ = "job_bids"
+    __table_args__ = (UniqueConstraint("job_id", "writer_account_id", name="uq_job_bid_writer"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("job_briefs.id"), index=True)
+    writer_account_id: Mapped[int] = mapped_column(ForeignKey("market_accounts.id"), index=True)
+    price: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String(10), default="GBP")
+    timeline_days: Mapped[int] = mapped_column(Integer, default=14)
+    message: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class JobMessage(Base):
+    __tablename__ = "job_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("job_briefs.id"), index=True)
+    sender_account_id: Mapped[int] = mapped_column(ForeignKey("market_accounts.id"))
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class JobReview(Base):
+    __tablename__ = "job_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("job_briefs.id"), unique=True, index=True)
+    writer_account_id: Mapped[int] = mapped_column(ForeignKey("market_accounts.id"), index=True)
+    reviewer_account_id: Mapped[int] = mapped_column(ForeignKey("market_accounts.id"))
+    rating: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -13,6 +13,8 @@ router = APIRouter()
 PAGES = {
     "/": ("site_home.html", "home"),
     "/grants": ("site_grants.html", "grants"),
+    "/writers": ("site_writers.html", "writers"),
+    "/market": ("site_market.html", "market"),
     "/features": ("site_features.html", "features"),
     "/pricing": ("site_pricing.html", "pricing"),
     "/about": ("site_about.html", "about"),
@@ -61,3 +63,12 @@ def submit_contact_request(payload: ContactRequestCreate, db: Session = Depends(
     db.commit()
     db.refresh(item)
     return {"id": item.id, "status": "received"}
+
+
+@router.get("/writers/{writer_id}", response_class=HTMLResponse, include_in_schema=False)
+def writer_page(writer_id: int, request: Request) -> HTMLResponse:
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="site_writer.html",
+        context={"active": "writers", "writer_id": writer_id},
+    )

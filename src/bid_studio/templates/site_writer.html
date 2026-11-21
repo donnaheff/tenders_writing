@@ -1,0 +1,33 @@
+{% extends "site_base.html" %}
+{% block title %}Writer profile{% endblock %}
+{% block content %}
+<section class="page-head"><div class="wrap"><h1 id="name">Writer</h1><p id="headline"></p></div></section>
+<section class="block">
+  <div class="wrap" style="max-width:820px">
+    <div id="body"><p class="note">Loading...</p></div>
+    <h2 style="margin-top:34px; font-size:1.3rem;">Reviews</h2>
+    <div id="reviews"></div>
+    <p style="margin-top:26px"><a class="btn" href="/market">Hire this writer: post a brief</a> <a class="btn ghost" href="/writers" style="margin-left:8px">All writers</a></p>
+  </div>
+</section>
+<script>
+  const WID = {{ writer_id }};
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  (async () => {
+    const res = await fetch(`/api/v1/market/writers/${WID}`);
+    if (!res.ok) { document.getElementById("body").innerHTML = "<p>This writer profile is not available.</p>"; return; }
+    const w = await res.json();
+    document.title = `${w.name} | Bid Studio`;
+    document.getElementById("name").textContent = w.name;
+    document.getElementById("headline").textContent = w.headline;
+    document.getElementById("body").innerHTML = `
+      <p>${w.rating_count ? `<strong>★ ${w.rating_avg.toFixed(1)}</strong> from ${w.rating_count} review${w.rating_count === 1 ? "" : "s"}` : "No reviews yet"} &middot; ${w.completed_jobs} job${w.completed_jobs === 1 ? "" : "s"} completed &middot; ${w.day_rate > 0 ? `${esc(w.currency)} ${w.day_rate.toLocaleString()} / day` : "Rate on request"}</p>
+      <p style="white-space:pre-wrap">${esc(w.bio)}</p>
+      <p><strong>Specialisms:</strong> ${w.specialisms.map(s => `<span class="tag">${esc(s)}</span>`).join(" ") || "-"}</p>
+      <p><strong>Funders worked with:</strong> ${w.funders.map(s => `<span class="tag">${esc(s)}</span>`).join(" ") || "-"}</p>
+      ${w.samples.length ? `<p><strong>Samples:</strong></p><ul>${w.samples.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(s.title)}</a></li>`).join("")}</ul>` : ""}`;
+    const rev = await (await fetch(`/api/v1/market/writers/${WID}/reviews`)).json();
+    document.getElementById("reviews").innerHTML = rev.map(r => `<div class="card" style="margin-bottom:10px"><strong>${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</strong> ${esc(r.job_title)}<p>${esc(r.comment)}</p><p class="note">${esc(r.reviewer)}</p></div>`).join("") || "<p class='note'>No reviews yet.</p>";
+  })();
+</script>
+{% endblock %}

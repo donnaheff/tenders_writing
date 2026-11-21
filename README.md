@@ -47,6 +47,20 @@ The app serves a public marketing site (`/`, `/features`, `/pricing`, `/about`, 
 
 ---
 
+## Writers Marketplace
+
+Clients hire vetted grant writers; accepted writers work inside the client's Grant Studio proposal.
+
+- **Pages:** `/writers` (public directory with search, specialism, rate and rating filters), `/writers/{id}` (profile and reviews), `/market` (sign in, then role-specific tools). API under `/api/v1/market`.
+- **Roles:** *writer* (profile, bids), *client* (briefs, accept, approve, review; registering creates their own workspace), *admin* (approves writers). Set `MARKETPLACE_ADMIN_EMAILS` to a comma-separated list; accounts registering with those emails become admins.
+- **Flow:** writer applies with a profile, **pending until an admin approves** (only approved writers appear or can bid) -> client posts a brief (optionally linked to a Studio proposal) -> writers bid -> client accepts one bid (others are declined, the writer is added to the client's workspace) -> messages -> writer delivers -> client approves or requests changes -> client reviews (rating is averaged onto the profile).
+- **Grant Studio access:** once a job linked to a proposal is in progress or delivered, the proposal's Studio, save, assistant, versions, export and submit endpoints require a signed-in participant (its client, its accepted writer, or an admin). Proposals without a live job keep the original open behaviour.
+- **Accounts:** scrypt-hashed passwords, database-backed sessions in an HttpOnly SameSite=Lax cookie (Secure outside development), Origin checks on state-changing requests, and a per-process login rate limit.
+- **Payments (v1 is tracking only):** no money moves through Bid Studio. A job records the agreed price, a platform fee (`MARKETPLACE_FEE_PCT`, default 10%, recorded not collected) and a two-step payment status (client marks paid, writer confirms). Because nothing is escrowed, protection for buyers comes from admin vetting, ratings and the job record. **To avoid holding client money yourself, add Stripe Connect** so payment is taken through Stripe, held there, and released to the writer on approval minus your fee; Stripe, not you, is the regulated party. That needs your Stripe account and legal advice for your country, and is not built yet.
+- **Not built yet:** email verification and password reset, payments/escrow and disputes, writer-to-client reviews, file attachments, and login for the main dashboard (the dashboard and its other endpoints remain open; only marketplace-linked proposals are protected).
+
+---
+
 ## Grant Studio
 
 A focused editor for one proposal at `/app/studio/{proposal_id}`, opened from the Grants Feed, the Grants tab or an auto-process.
