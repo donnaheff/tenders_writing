@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from bid_studio.config import settings
 from bid_studio.database import get_db
 from bid_studio.models import (
     AlertSubscription,
     DigestDispatch,
-    EmailDeliveryLog,
     FrameworkOnboarding,
     IntelligenceReport,
     OpportunityNotice,
@@ -25,6 +25,7 @@ from bid_studio.services.domain_logic import (
     default_framework_checklist,
     match_notices_for_subscription,
 )
+from bid_studio.services.mailer import deliver
 
 router = APIRouter(prefix="/api/v1", tags=["tender-data-products"])
 
@@ -64,12 +65,7 @@ def create_alert_subscription(payload: AlertSubscriptionCreate, db: Session = De
     return sub
 
 
-@router.post("/alerts/subscriptions/{subscription_id}/generate-digest")
-def generate_subscription_digest(subscription_id: int, db: Session = Depends(get_db)):
-    sub = db.get(AlertSubscription, subscription_id)
-    if not sub:
-        raise HTTPException(status_code=404, detail="Alert subscription not found")
-
+def build_digest(db: Session, sub: AlertSubscription) -> DigestDispatch:
     notices = (
         db.query(OpportunityNotice)
         .filter(
@@ -94,19 +90,26 @@ def generate_subscription_digest(subscription_id: int, db: Session = Depends(get
     db.add(dispatch)
     sub.last_sent_at = now
 
-    preview = "; ".join(f"{m['title']} ({m['funder_or_buyer']})" for m in matched[:3])
-    db.add(
-        EmailDeliveryLog(
-            workspace_id=sub.workspace_id,
-            recipient_email=sub.subscriber_email,
-            subject=f"Bid Studio {sub.cadence.title()} Digest: {len(matched)} matched opportunities",
-            delivery_type="digest",
-            reference_id=sub.id,
-            body_preview=preview or "No matching notices in this window.",
-            status="sent",
-            sent_at=now,
-        )
+    lines = [f"- {m['title']} ({m['funder_or_buyer']})" for m in matched]
+    deliver(
+        db,
+        workspace_id=sub.workspace_id,
+        to=sub.subscriber_email,
+        subject=f"Bid Studio {sub.cadence.title()} Digest: {len(matched)} matched opportunities",
+        body="\n".join(lines) or "No matching notices in this window.",
+        delivery_type="digest",
+        reference_id=sub.id,
+        sender=settings.digest_sender_email,
     )
+    return dispatch
+
+
+@router.post("/alerts/subscriptions/{subscription_id}/generate-digest")
+def generate_subscription_digest(subscription_id: int, db: Session = Depends(get_db)):
+    sub = db.get(AlertSubscription, subscription_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Alert subscription not found")
+    dispatch = build_digest(db, sub)
     db.commit()
     db.refresh(dispatch)
     return dispatch

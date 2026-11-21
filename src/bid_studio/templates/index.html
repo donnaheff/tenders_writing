@@ -253,6 +253,10 @@
       <section id="grants" class="panel">
         <div class="card">
           <h3>1. Grant &amp; Funding Proposal Writing (EU, UKRI, World Bank, Foundations)</h3>
+          <div class="inline-actions" style="margin-bottom:10px;">
+            <button onclick="autoProcessAll()">Auto-process all open calls</button>
+            <span class="muted">Extracts criteria, drafts and scores a proposal, and queues it for QA.</span>
+          </div>
           <div id="grantCallsList"></div>
         </div>
         <div class="card">
@@ -556,6 +560,7 @@
         <div class="inline-actions">
           <button class="small" onclick="extractGrantCriteria(${g.id})">Extract Criteria (${g.structured_criteria.length})</button>
           <button class="small secondary" onclick="draftProposalForCall(${g.id}, ${g.contract_value})">Draft Proposal</button>
+          <button class="small" onclick="autoProcessCall(${g.id})">Auto-process</button>
         </div>
       </div>`).join("");
 
@@ -745,6 +750,17 @@
       });
       document.getElementById("accessReviewOutput").textContent = JSON.stringify(member, null, 2);
       refreshAll();
+    }
+
+    async function autoProcessCall(noticeId) {
+      await api(`/api/v1/grants/calls/${noticeId}/auto-process?workspace_id=${currentWsId}`, "POST");
+      await refreshAll();
+    }
+
+    async function autoProcessAll() {
+      const res = await api(`/api/v1/grants/auto-process?workspace_id=${currentWsId}`, "POST");
+      alert(`Processed ${res.processed} open call(s); created ${res.created_proposal_ids.length} new proposal(s).`);
+      await refreshAll();
     }
 
     async function draftProposalForCall(noticeId, amount) {

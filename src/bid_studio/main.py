@@ -12,6 +12,7 @@ from bid_studio.config import settings
 from bid_studio.database import Base, SessionLocal, engine, get_db
 from bid_studio.models import Workspace
 from bid_studio.routers import (
+    automation,
     bid_enhancements,
     core,
     grants,
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.include_router(site.router)
     app.include_router(core.router)
+    app.include_router(automation.router)
     app.include_router(grants.router)
     app.include_router(bid_enhancements.router)
     app.include_router(intelligence.router)

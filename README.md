@@ -10,6 +10,15 @@ The app serves a public marketing site (`/`, `/features`, `/pricing`, `/about`, 
 
 ---
 
+## Automation
+
+- **Grant workflow in one step:** `POST /api/v1/grants/calls/{id}/auto-process` extracts criteria, drafts and scores a proposal, and queues it for QA. `POST /api/v1/grants/auto-process` does the same for every open call without a proposal. Both are idempotent and have buttons on the Grants tab.
+- **Scheduled jobs:** `GET|POST /api/v1/automation/run` sends due alert digests (daily or weekly), sends one deadline reminder per unfinished proposal whose call closes within `REMINDER_WINDOW_DAYS`, and, when `AUTO_PROCESS_GRANTS=true`, auto-processes open calls in the default workspace. `vercel.json` runs it daily at 07:00 UTC. Set `CRON_SECRET` to require `Authorization: Bearer <secret>` (Vercel cron sends it automatically).
+- **Notifications:** contact-form submissions notify `CONTACT_NOTIFY_EMAIL`. Every email is recorded in the delivery log; it is only actually sent when `SMTP_HOST` is set, otherwise its status is `logged`.
+- **CI:** `.github/workflows/ci.yml` runs ruff and pytest on every push and pull request. Connect the repo to Vercel with its Git integration to deploy automatically on merge.
+
+---
+
 ## Core Platform & Implemented Modules
 
 ### Core Infrastructure
@@ -42,7 +51,7 @@ The app serves a public marketing site (`/`, `/features`, `/pricing`, `/about`, 
 ```text
 .
 ├── api/index.py                  # Vercel Python serverless ASGI entrypoint
-├── docs/ci.yml.example           # GitHub Actions CI template (copy to .github/workflows/ci.yml)
+├── .github/workflows/ci.yml      # CI: ruff + pytest on every push and PR
 ├── .env.example                  # Sample environment variables
 ├── .gitignore
 ├── LICENSE                       # MIT License
