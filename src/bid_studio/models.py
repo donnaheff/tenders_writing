@@ -536,6 +536,8 @@ class DocProject(Base):
     items: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     quality_queue_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     evidence_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    proposal_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    notice_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     reviewer_notes: Mapped[str] = mapped_column(Text, default="")
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

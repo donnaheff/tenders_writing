@@ -20,7 +20,7 @@ def make_doc_project(client, workspace_id, doc_type="api_reference", **extra):
 
 def test_job_type_catalogue_is_public(people):  # noqa: F811
     types = {t["key"]: t for t in people["anon"].get(f"{M}/job-types").json()}
-    assert set(types) == {"grant_proposal", "technical_docs", "compliance_policy", "security_questionnaire", "bid_assets", "other"}
+    assert set(types) == {"grant_proposal", "technical_docs", "compliance_policy", "security_questionnaire", "bid_assets", "grant_documents", "tender_documents", "other"}
     assert types["technical_docs"]["link"] == "doc" and types["other"]["link"] is None
 
 

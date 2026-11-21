@@ -82,6 +82,7 @@
         <div id="libList" class="muted">Loading...</div>
       </div>
       <div class="tabpane" id="tab-proj">
+        <div class="muted" id="linkBox" style="margin-bottom:10px"></div>
         <label class="f">Client name<input id="cName" /></label><label class="f">Client email<input id="cEmail" type="email" /></label>
         <label class="f">Fixed fee<input id="cFee" type="number" min="0" /></label><label class="f">Currency<input id="cCur" maxlength="10" /></label>
         <label class="f">Brief (what the client asked for)<textarea id="cBrief" rows="6"></textarea></label>
@@ -127,6 +128,7 @@
     pe.disabled = !P.can_promote;
     pe.textContent = P.evidence_item_id ? `In evidence library (#${P.evidence_item_id})` : "Save to evidence library";
     pe.title = P.evidence_item_id ? "" : P.can_promote ? "Add this to the evidence library so proposals can cite it" : "Available once the project is quality-approved";
+    $("linkBox").innerHTML = P.proposal_id ? `Linked proposal: <a href="/app/studio/${P.proposal_id}">open in the Grant Studio</a>` : P.notice_id ? `Linked to tender notice #${P.notice_id}` : "";
     renderReview();
   }
 

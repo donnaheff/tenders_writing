@@ -11,6 +11,12 @@ JOB_TYPES: dict[str, dict] = {
         "label": "Security questionnaire response", "link": "doc",
         "doc_types": ("security_questionnaire",),
     },
+    "grant_documents": {
+        "label": "Grant supporting documents and reports", "link": "doc", "kind": "grantdoc",
+    },
+    "tender_documents": {
+        "label": "Tender technical responses and plans", "link": "doc", "kind": "tenderdoc",
+    },
     "bid_assets": {
         "label": "CVs, capability statements and case studies", "link": "doc", "kind": "bidasset",
     },

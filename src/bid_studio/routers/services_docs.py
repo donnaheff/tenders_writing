@@ -11,11 +11,14 @@ from bid_studio.models import (
     AnswerLibraryItem,
     DocProject,
     EvidenceItem,
+    GrantProposal,
+    OpportunityNotice,
     QualityQueueItem,
     Workspace,
 )
 from bid_studio.services import assistant as ai
 from bid_studio.services import questionnaire as qn
+from bid_studio.services import report_prefill
 from bid_studio.services import service_templates as tpl
 from bid_studio.services.access import doc_project_guard
 from bid_studio.services.domain_logic import tokenize
@@ -43,6 +46,8 @@ class ProjectCreate(BaseModel):
     fixed_fee: float = Field(default=0.0, ge=0, le=10_000_000)
     currency: str = Field(default="GBP", min_length=3, max_length=10)
     questions: str = Field(default="", max_length=60000)  # security questionnaire: one per line
+    proposal_id: int | None = None  # funder reports: pre-fill from this proposal's plan
+    notice_id: int | None = None  # method statements: pre-fill this tender's criteria
 
 
 class SectionIn(BaseModel):
@@ -156,6 +161,7 @@ def _dict(p: DocProject) -> dict[str, Any]:
         "sections": p.sections, "items": p.items, "reviewer_notes": p.reviewer_notes,
         "delivered_at": p.delivered_at, "created_at": p.created_at, "stats": stats,
         "readiness": readiness(p), "evidence_item_id": p.evidence_item_id,
+        "proposal_id": p.proposal_id, "notice_id": p.notice_id,
         "promotable": "evidence_type" in tpl.TYPES.get(p.doc_type, {}),
         "can_promote": "evidence_type" in tpl.TYPES.get(p.doc_type, {})
         and p.status in tpl.PROMOTABLE_STATUSES and p.evidence_item_id is None,
@@ -200,11 +206,34 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
             raise HTTPException(status_code=422, detail="Paste at least one question (one per line)")
         items = qn.new_items(questions)
         qn.auto_match(items, _library(db, payload.workspace_id))  # before the row exists
+    link_kind = t.get("link")
+    if (payload.proposal_id is not None or payload.notice_id is not None) and not link_kind:
+        raise HTTPException(status_code=422, detail="This document type cannot be linked to a proposal or tender")
+    sections = tpl.instantiate_sections(payload.doc_type)
+    prefill: dict[str, str] = {}
+    if payload.proposal_id is not None:
+        if link_kind != "proposal":
+            raise HTTPException(status_code=422, detail="This document type links to a tender, not a proposal")
+        proposal = db.get(GrantProposal, payload.proposal_id)
+        if not proposal or proposal.workspace_id != payload.workspace_id:
+            raise HTTPException(status_code=404, detail="Proposal not found in this workspace")
+        prefill = report_prefill.funder_report(db, proposal, final=payload.doc_type == "funder_final_report")
+    if payload.notice_id is not None:
+        if link_kind != "notice":
+            raise HTTPException(status_code=422, detail="This document type links to a proposal, not a tender")
+        notice = db.get(OpportunityNotice, payload.notice_id)
+        if not notice or notice.workspace_id not in (None, payload.workspace_id):
+            raise HTTPException(status_code=404, detail="Tender not found in this workspace")
+        prefill = report_prefill.method_statement(notice)
+    for sec in sections:
+        if sec["id"] in prefill:
+            sec["text"] = prefill[sec["id"]]
     p = DocProject(
         workspace_id=payload.workspace_id, kind=t["kind"], doc_type=payload.doc_type,
+        proposal_id=payload.proposal_id, notice_id=payload.notice_id,
         title=payload.title, client_name=payload.client_name, client_email=payload.client_email,
         brief=payload.brief, fixed_fee=payload.fixed_fee, currency=payload.currency,
-        sections=tpl.instantiate_sections(payload.doc_type), items=items,
+        sections=sections, items=items,
     )
     db.add(p)
     db.commit()

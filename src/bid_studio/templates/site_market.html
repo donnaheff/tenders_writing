@@ -165,7 +165,7 @@
       <button class="btn" type="submit">Publish brief</button></form>`;
     // Linkable items load afterwards so typing is never overwritten by a late render
     let proposals = [], docs = [];
-    const fits = (t, p) => (t === "technical_docs" ? p.kind === "techdoc" : t === "compliance_policy" ? p.kind === "compliance" && p.doc_type !== "security_questionnaire" : t === "security_questionnaire" ? p.doc_type === "security_questionnaire" : t === "bid_assets" ? p.kind === "bidasset" : false);
+    const fits = (t, p) => (t === "technical_docs" ? p.kind === "techdoc" : t === "compliance_policy" ? p.kind === "compliance" && p.doc_type !== "security_questionnaire" : t === "security_questionnaire" ? p.doc_type === "security_questionnaire" : t === "bid_assets" ? p.kind === "bidasset" : t === "grant_documents" ? p.kind === "grantdoc" : t === "tender_documents" ? p.kind === "tenderdoc" : false);
     const fillLinks = () => {
       const t = $("jtSel").value, sel = $("linkSel"), lab = $("linkLabel");
       const items = t === "grant_proposal" ? proposals.map(p => [p.id, p.title]) : docs.filter(p => fits(t, p)).map(p => [p.id, `${p.title} (${p.type_title})`]);

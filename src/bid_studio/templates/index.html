@@ -298,6 +298,7 @@
             <input id="dsEmail" type="email" placeholder="Client email (for delivery)" />
             <input id="dsFee" type="number" min="0" placeholder="Fixed fee" />
             <textarea id="dsBrief" rows="2" placeholder="Brief: what the client asked for"></textarea>
+            <select id="dsLink" style="display:none"></select>
             <textarea id="dsQuestions" rows="5" style="display:none" placeholder="Paste the questionnaire questions, one per line"></textarea>
             <button onclick="dsCreate()">Create and open editor</button>
           </div>
@@ -929,14 +930,20 @@
     }
 
     // --- Documentation & compliance services ---
-    let dsTemplates = [];
+    let dsTemplates = [], dsLoading = null;
+    function dsLoadTemplates() {
+      // One shared load: two overlapping inits must not rebuild the type menu and reset the user's choice
+      dsLoading = dsLoading || api("/api/v1/services/templates").then(ts => {
+        dsTemplates = ts;
+        const group = (k, label) => `<optgroup label="${label}">${ts.filter(t => t.kind === k).map(t => `<option value="${t.key}">${esc(t.title)}</option>`).join("")}</optgroup>`;
+        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing") + group("grantdoc", "Grant supporting documents & reports") + group("tenderdoc", "Tender technical responses & plans") + group("bidasset", "Bid assets: CVs, capability & case studies");
+      });
+      return dsLoading;
+    }
     async function dsInit() {
-      if (!dsTemplates.length) {
-        dsTemplates = await api("/api/v1/services/templates");
-        const group = (k, label) => `<optgroup label="${label}">${dsTemplates.filter(t => t.kind === k).map(t => `<option value="${t.key}">${esc(t.title)}</option>`).join("")}</optgroup>`;
-        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing") + group("bidasset", "Bid assets: CVs, capability & case studies");
-      }
-      dsTypeChanged();
+      const first = !dsTemplates.length;
+      await dsLoadTemplates();
+      if (first) dsTypeChanged();
       const [projects, stats] = await Promise.all([api(`/api/v1/services/projects?workspace_id=${currentWsId}`), api(`/api/v1/services/stats?workspace_id=${currentWsId}`)]);
       document.getElementById("dsStats").textContent = `${stats.projects} project(s): ${stats.by_status.drafting} drafting, ${stats.by_status.quality_review} in review, ${stats.by_status.approved} approved, ${stats.by_status.delivered} delivered. Delivered fees: ${stats.fees_delivered.toLocaleString()}.`;
       document.getElementById("dsList").innerHTML = projects.map(p => `<div class="row-item">
@@ -944,13 +951,25 @@
         <div class="muted">${p.stats.answered !== undefined ? `${p.stats.answered}/${p.stats.total} answered` : `${p.stats.written}/${p.stats.total} sections written`}</div>
         <div class="inline-actions"><a href="/app/docs/${p.id}"><button class="small">Open editor</button></a></div></div>`).join("") || `<div class="muted">No projects yet.</div>`;
     }
-    function dsTypeChanged() {
+    let dsTypeSeq = 0;
+    async function dsTypeChanged() {
+      const seq = ++dsTypeSeq;  // a slow earlier call must never overwrite a later one
       const t = dsTemplates.find(x => x.key === document.getElementById("dsType").value);
       document.getElementById("dsQuestions").style.display = t && t.questionnaire ? "" : "none";
+      const sel = document.getElementById("dsLink");
+      if (!t || !t.link) { sel.style.display = "none"; sel.innerHTML = ""; sel.dataset.kind = ""; return; }
+      sel.style.display = ""; sel.dataset.kind = t.link;
+      const items = t.link === "proposal"
+        ? (await api(`/api/v1/grants/proposals?workspace_id=${currentWsId}`)).map(p => [p.id, p.title])
+        : (await api(`/api/v1/notices?workspace_id=${currentWsId}&notice_type=tender&limit=100`)).map(n => [n.id, `${n.title} (${n.funder_or_buyer})`]);
+      if (seq !== dsTypeSeq) return;
+      sel.innerHTML = `<option value="">${t.link === "proposal" ? "Link a proposal to pre-fill deliverables and budget (optional)" : "Link a tender to pre-fill its criteria (optional)"}</option>` + items.map(([id, title]) => `<option value="${id}">${esc(title)}</option>`).join("");
     }
     async function dsCreate() {
       const g = id => document.getElementById(id).value;
-      const p = await api("/api/v1/services/projects", "POST", { workspace_id: currentWsId, doc_type: g("dsType"), title: g("dsTitle"), client_name: g("dsClient"), client_email: g("dsEmail"), fixed_fee: Number(g("dsFee")) || 0, brief: g("dsBrief"), questions: g("dsQuestions") });
+      const p = await api("/api/v1/services/projects", "POST", { workspace_id: currentWsId, doc_type: g("dsType"), title: g("dsTitle"), client_name: g("dsClient"), client_email: g("dsEmail"), fixed_fee: Number(g("dsFee")) || 0, brief: g("dsBrief"), questions: g("dsQuestions"),
+        proposal_id: document.getElementById("dsLink").dataset.kind === "proposal" && g("dsLink") ? Number(g("dsLink")) : null,
+        notice_id: document.getElementById("dsLink").dataset.kind === "notice" && g("dsLink") ? Number(g("dsLink")) : null });
       window.location.href = `/app/docs/${p.id}`;
     }
 
