@@ -138,55 +138,6 @@ class GrantProposalSectionUpdate(BaseModel):
     sections: list[GrantSectionInput]
 
 
-class TechDocCreate(BaseModel):
-    workspace_id: int = 1
-    doc_type: Literal["user_guide", "api_reference", "sop", "release_notes"]
-    title: str
-    client_email: str
-    fixed_fee: float = 950.0
-    currency: str = "GBP"
-    draft_content: str = ""
-
-
-class TechDocReviewInput(BaseModel):
-    approved: bool
-    reviewer_notes: str = ""
-    draft_content: str | None = None
-
-
-class CompliancePackCreate(BaseModel):
-    workspace_id: int = 1
-    pack_type: Literal["iso_9001", "iso_27001", "security_questionnaire", "data_protection_policy"]
-    title: str
-    standard_ref: str = "ISO/IEC 27001:2022"
-    policy_sections: list[dict[str, Any]] = Field(default_factory=list)
-    questions: list[str] = Field(default_factory=list)
-
-
-class BidderAssetCreate(BaseModel):
-    workspace_id: int = 1
-    asset_type: Literal["cv", "capability_statement", "case_study"]
-    title: str
-    subject_name: str
-    buyer_format: str = "Crown Commercial Service"
-    content: str
-    metrics: dict[str, Any] = Field(default_factory=dict)
-
-
-class MarketplaceReviewCreate(BaseModel):
-    workspace_id: int = 1
-    reviewer_id: int
-    quality_queue_id: int | None = None
-    target_title: str
-    buyer_criteria: list[dict[str, Any]]
-    draft_excerpt: str
-
-
-class MarketplaceScoreSubmit(BaseModel):
-    criterion_scores: list[dict[str, Any]]
-    feedback_summary: str
-
-
 class DebriefCompareInput(BaseModel):
     workspace_id: int = 1
     bid_title: str
@@ -273,23 +224,3 @@ class FrameworkChecklistToggle(BaseModel):
     item_id: str
     completed: bool
     notes: str = ""
-
-
-class TrainingEnrolmentCreate(BaseModel):
-    workspace_id: int = 1
-    learner_name: str
-    learner_email: str
-
-
-class TrainingModuleComplete(BaseModel):
-    module_name: str
-
-
-class BuyerTenderDraftCreate(BaseModel):
-    workspace_id: int = 1
-    authority_name: str
-    title: str
-    budget_value: float = 0.0
-    currency: str = "GBP"
-    specification_text: str
-    evaluation_criteria: list[dict[str, Any]] = Field(default_factory=list)

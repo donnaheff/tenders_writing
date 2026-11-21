@@ -11,12 +11,10 @@ from bid_studio.config import settings
 from bid_studio.database import Base, SessionLocal, engine, get_db
 from bid_studio.models import Workspace
 from bid_studio.routers import (
-    audiences,
     bid_enhancements,
     core,
     grants,
     intelligence,
-    services_line,
 )
 from bid_studio.seed import seed_database
 
@@ -37,7 +35,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
-        description="Bid Studio — Tender, Grant Proposal, Compliance, Intelligence & Public-Sector Procurement Writing Platform",
+        description="Bid Studio — Grant Proposal & Tender Writing Platform",
         lifespan=lifespan,
     )
 
@@ -50,10 +48,8 @@ def create_app() -> FastAPI:
 
     app.include_router(core.router)
     app.include_router(grants.router)
-    app.include_router(services_line.router)
     app.include_router(bid_enhancements.router)
     app.include_router(intelligence.router)
-    app.include_router(audiences.router)
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request, workspace_id: int | None = None, db: Session = Depends(get_db)):

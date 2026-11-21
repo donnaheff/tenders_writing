@@ -181,46 +181,6 @@ def compute_proposal_weighted_score(sections: list[dict[str, Any]]) -> float:
     return round((weighted_sum / total_weight) * 100.0, 2)
 
 
-def match_security_questionnaire(
-    questionnaire_items: list[dict[str, Any]],
-    answer_library: list[Any],
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
-    for idx, q in enumerate(questionnaire_items, start=1):
-        q_text = q.get("question", "")
-        q_tokens = tokenize(q_text)
-        best_item = None
-        best_score = 0.0
-
-        for lib_item in answer_library:
-            lib_text = f"{lib_item.question_pattern} {' '.join(lib_item.tags or [])} {lib_item.answer_text}"
-            lib_tokens = tokenize(lib_text)
-            if not q_tokens or not lib_tokens:
-                continue
-            overlap = len(q_tokens & lib_tokens)
-            union = len(q_tokens | lib_tokens)
-            # Weighted toward query coverage so concise questions match rich library answers
-            coverage = overlap / max(1, len(q_tokens))
-            jaccard = overlap / max(1, union)
-            score = round(0.75 * coverage + 0.25 * jaccard, 3)
-            if score > best_score:
-                best_score = score
-                best_item = lib_item
-
-        matched = best_item is not None and best_score >= 0.2
-        results.append(
-            {
-                "id": q.get("id") or f"SQ-{idx}",
-                "question": q_text,
-                "matched_answer_id": best_item.id if matched else None,
-                "matched_answer_text": best_item.answer_text if matched else "",
-                "confidence": round(min(1.0, best_score), 2) if matched else 0.0,
-                "status": "matched" if matched else "needs_authoring",
-            }
-        )
-    return results
-
-
 def analyze_pack_for_clarifications(source_text: str) -> list[dict[str, Any]]:
     sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+|\n+", source_text) if s.strip()]
     questions: list[dict[str, Any]] = []
@@ -515,37 +475,3 @@ def default_framework_checklist(vehicle_type: str) -> list[dict[str, Any]]:
     elif vehicle_type == "approved_supplier_list":
         base.append({"item_id": "FW-7", "title": "Financial Standing & Credit Check Pack", "completed": False, "notes": ""})
     return base
-
-
-def validate_public_sector_draft(
-    specification_text: str,
-    evaluation_criteria: list[dict[str, Any]],
-) -> tuple[float, list[str], str]:
-    issues: list[str] = []
-    total_weight = sum(float(c.get("weight_pct", 0.0)) for c in evaluation_criteria)
-
-    if not evaluation_criteria:
-        issues.append("No evaluation criteria defined.")
-    elif abs(total_weight - 100.0) > 0.01:
-        issues.append(f"Evaluation criteria weights sum to {total_weight:.1f}%, but must sum to 100.0%.")
-
-    for c in evaluation_criteria:
-        if not c.get("scoring_guidance"):
-            issues.append(f"Criterion '{c.get('name', 'Unnamed')}' is missing scoring guidance for evaluators.")
-        if float(c.get("max_score", 0.0)) <= 0:
-            issues.append(f"Criterion '{c.get('name', 'Unnamed')}' must have max_score > 0.")
-
-    ambiguous_hits = 0
-    for pattern, _, _ in AMBIGUITY_PATTERNS:
-        if re.search(pattern, specification_text, flags=re.IGNORECASE):
-            ambiguous_hits += 1
-    if ambiguous_hits > 0:
-        issues.append(
-            f"Specification contains {ambiguous_hits} ambiguous phrase category(ies) (e.g., TBD/reasonable/etc.) that will trigger supplier clarification questions."
-        )
-    if len(specification_text.strip()) < 60:
-        issues.append("Specification text is too brief (< 60 chars) to support fair, comparable bids.")
-
-    clarity_score = max(0.0, round(100.0 - (len(issues) * 18.0), 1))
-    status = "validated" if not issues else "draft"
-    return clarity_score, issues, status

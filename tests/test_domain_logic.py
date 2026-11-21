@@ -9,7 +9,6 @@ from bid_studio.services.domain_logic import (
     calculate_price_matrix,
     compute_proposal_weighted_score,
     extract_grant_criteria,
-    validate_public_sector_draft,
 )
 
 
@@ -55,21 +54,13 @@ def test_calculate_price_matrix_and_buyer_intel_empty():
     assert empty_intel["top_winners"] == []
 
 
-def test_clarifications_fallback_and_public_sector_validation_edges():
+def test_clarifications_fallback_and_intelligence_edges():
     qs = analyze_pack_for_clarifications(
         "The supplier shall install 10 servers by 1 March 2027 with 99.9% uptime."
     )
     assert len(qs) == 1
     assert qs[0]["priority"] == "Low"
     assert "TUPE" in qs[0]["drafted_question"]
-
-    clarity, issues, status = validate_public_sector_draft(
-        "Short spec",
-        [{"name": "Quality", "weight_pct": 100, "max_score": 0, "scoring_guidance": ""}],
-    )
-    assert status == "draft"
-    assert clarity < 100.0
-    assert len(issues) == 3
 
     notice = SimpleNamespace(
         notice_type="awarded_tender",

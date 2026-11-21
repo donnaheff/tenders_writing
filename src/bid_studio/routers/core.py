@@ -14,7 +14,6 @@ from bid_studio.models import (
     OpportunityNotice,
     Order,
     QualityQueueItem,
-    TechDocProject,
     Workspace,
     WorkspaceMember,
 )
@@ -158,10 +157,28 @@ def get_workspace_summary(workspace_id: int, db: Session = Depends(get_db)):
         "requested_grant_total": round(sum(p.requested_amount for p in proposals), 2),
         "orders_count": len(orders),
         "total_order_revenue": round(sum(o.amount for o in orders), 2),
-        "training_enrolment_orders": sum(1 for o in orders if o.source == "training_enrolment"),
         "pending_qa_count": pending_qa,
         "win_rate_pct": win_rate_pct,
     }
+
+
+@router.get("/white-label/consultancies")
+def list_white_label_consultancies(db: Session = Depends(get_db)):
+    tenants = db.query(Workspace).order_by(Workspace.id).all()
+    return [
+        {
+            "id": w.id,
+            "slug": w.slug,
+            "name": w.name,
+            "is_white_label": w.is_white_label,
+            "brand_name": w.brand_name,
+            "custom_domain": w.custom_domain,
+            "primary_color": w.primary_color,
+            "accent_color": w.accent_color,
+            "client_isolation_enforced": w.client_isolation_enforced,
+        }
+        for w in tenants
+    ]
 
 
 @router.get("/workspaces/{workspace_id}/access-review")
@@ -333,17 +350,6 @@ def review_quality_queue_item(
                 proposal.status = "approved"
             elif payload.status == "changes_requested":
                 proposal.status = "draft"
-    elif item.item_type == "tech_doc" and item.reference_id:
-        doc = db.get(TechDocProject, item.reference_id)
-        if doc:
-            if payload.status == "approved":
-                doc.quality_approved = True
-                doc.pipeline_stage = "approved"
-                doc.reviewer_notes = payload.review_notes
-            elif payload.status == "changes_requested":
-                doc.quality_approved = False
-                doc.pipeline_stage = "drafting"
-                doc.reviewer_notes = payload.review_notes
 
     db.commit()
     db.refresh(item)

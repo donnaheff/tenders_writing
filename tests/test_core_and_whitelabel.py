@@ -8,15 +8,12 @@ def test_health_and_dashboard(client):
     assert "Bid Studio" in home.text
     assert "statWinRate" in home.text
     assert "exportSocialValue" in home.text
-    assert "exportBuyerDraft" in home.text
     assert "createWhiteLabelWorkspace" in home.text
     assert "membersList" in home.text
     assert "apiNotices" in home.text
     assert "draftProposalForCall" in home.text
-    assert "promoteBidderAsset" in home.text
     assert "renderMarkdownExport" in home.text
     assert "saveProposalSections" in home.text
-    assert "revalidateBuyerDraft" in home.text
     assert "pmTemplate" in home.text
 
 

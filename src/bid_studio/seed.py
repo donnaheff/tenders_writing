@@ -6,8 +6,6 @@ from bid_studio.models import (
     EvidenceItem,
     OpportunityNotice,
     PricingTemplate,
-    ReviewerProfile,
-    TrainingCohort,
     Workspace,
     WorkspaceMember,
 )
@@ -394,29 +392,6 @@ def seed_database(db: Session) -> None:
 
     db.add_all(
         [
-            ReviewerProfile(
-                full_name="Dr. Eleanor Shaw",
-                email="eleanor.shaw@reviewers.example",
-                specialisms=["Horizon Europe", "UKRI", "GovTech", "Social Value"],
-                flat_fee=495.0,
-                currency="GBP",
-                rating=4.95,
-                available=True,
-            ),
-            ReviewerProfile(
-                full_name="Marcus Reid",
-                email="marcus.reid@reviewers.example",
-                specialisms=["Public Sector Procurement", "ISO 27001", "Pricing Narrative", "Frameworks"],
-                flat_fee=420.0,
-                currency="GBP",
-                rating=4.88,
-                available=True,
-            ),
-        ]
-    )
-
-    db.add_all(
-        [
             PricingTemplate(
                 name="Public Sector Digital Delivery (Day-Rate)",
                 sector="Digital & Cloud",
@@ -465,29 +440,6 @@ def seed_database(db: Session) -> None:
                     "action": "Include named mobilisation lead, week-by-week RACI, and signed depot readiness checklist.",
                 }
             ],
-        )
-    )
-
-    db.add(
-        TrainingCohort(
-            workspace_id=ws_default.id,
-            title="Mastering Public Sector & Grant Bids (Riverbend Cohort)",
-            pack_name="Riverbend Municipal Fleet & Waste Transformation Pack",
-            pack_summary=(
-                "Hands-on 4-module workshop built around the fictional Riverbend Borough Council tender pack: "
-                "extracting criteria, drafting clarification questions, scoring against buyer rubrics, and pricing narratives."
-            ),
-            price=495.0,
-            currency="GBP",
-            max_seats=25,
-            enrolled_count=4,
-            modules=[
-                "Module 1: Deconstructing the Riverbend Pack & Risk Register",
-                "Module 2: Drafting High-Impact Clarification Questions",
-                "Module 3: Evidence-Led Quality Responses & Social Value",
-                "Module 4: Price Matrix, Cost Narrative & Red-Team Review",
-            ],
-            start_date="2026-12-07",
         )
     )
 

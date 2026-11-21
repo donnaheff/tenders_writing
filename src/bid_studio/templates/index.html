@@ -145,7 +145,7 @@
   <header>
     <div>
       <h1 id="brandHeader">{{ brand_name }}</h1>
-      <div class="sub">Unified Tender, Grant Proposal, Compliance, Intelligence &amp; Public-Sector Bid Studio</div>
+      <div class="sub">Grant Application &amp; Tender Writing Studio</div>
     </div>
     <div class="ws-bar">
       <label for="wsSelect">Workspace:</label>
@@ -158,29 +158,21 @@
     <nav id="sidebar">
       <div class="nav-group">Core &amp; Primary</div>
       <button class="active" onclick="showTab('overview', this)">Overview, Feed &amp; QA</button>
-      <button onclick="showTab('grants', this)">0. Grant &amp; Funding Calls</button>
-
-      <div class="nav-group">New Service Lines</div>
-      <button onclick="showTab('techdocs', this)">1. Technical &amp; API Docs</button>
-      <button onclick="showTab('compliance', this)">2. Compliance &amp; Security Qs</button>
-      <button onclick="showTab('assets', this)">3. CVs &amp; Case Studies</button>
-      <button onclick="showTab('marketplace', this)">4. Bid Review Marketplace</button>
+      <button onclick="showTab('grants', this)">1. Grant &amp; Funding Calls</button>
 
       <div class="nav-group">Closest to Bid Studio</div>
-      <button onclick="showTab('debriefs', this)">5. Win/Loss Debriefs</button>
-      <button onclick="showTab('clarifications', this)">6. Clarification Questions</button>
-      <button onclick="showTab('pricing', this)">7. Pricing &amp; Cost Narrative</button>
-      <button onclick="showTab('socialvalue', this)">8. Social Value &amp; Net Zero</button>
+      <button onclick="showTab('debriefs', this)">2. Win/Loss Debriefs</button>
+      <button onclick="showTab('clarifications', this)">3. Clarification Questions</button>
+      <button onclick="showTab('pricing', this)">4. Pricing &amp; Cost Narrative</button>
+      <button onclick="showTab('socialvalue', this)">5. Social Value &amp; Net Zero</button>
 
       <div class="nav-group">Tender Data Products</div>
-      <button onclick="showTab('alerts', this)">9. Tender Alerts &amp; Digest</button>
-      <button onclick="showTab('intel', this)">10. Buyer &amp; Competitor Intel</button>
-      <button onclick="showTab('frameworks', this)">11. Framework &amp; DPS Onboarding</button>
+      <button onclick="showTab('alerts', this)">6. Tender Alerts &amp; Digest</button>
+      <button onclick="showTab('intel', this)">7. Buyer &amp; Competitor Intel</button>
+      <button onclick="showTab('frameworks', this)">8. Framework &amp; DPS Onboarding</button>
 
-      <div class="nav-group">New Audiences</div>
-      <button onclick="showTab('training', this)">12. Training (Riverbend Pack)</button>
-      <button onclick="showTab('whitelabel', this)">13. White-Label &amp; Access Review</button>
-      <button onclick="showTab('publicsector', this)">14. Public Sector Buyer Side</button>
+      <div class="nav-group">Workspaces</div>
+      <button onclick="showTab('whitelabel', this)">9. White-Label &amp; Access Review</button>
     </nav>
 
     <main>
@@ -260,7 +252,7 @@
 
       <section id="grants" class="panel">
         <div class="card">
-          <h3>0. Grant &amp; Funding Proposal Writing (EU, UKRI, World Bank, Foundations)</h3>
+          <h3>1. Grant &amp; Funding Proposal Writing (EU, UKRI, World Bank, Foundations)</h3>
           <div id="grantCallsList"></div>
         </div>
         <div class="card">
@@ -275,79 +267,13 @@
         </div>
       </section>
 
-      <section id="techdocs" class="panel">
-        <div class="card">
-          <h3>1. Technical Documentation &amp; API Docs (Fixed-Fee + QA + Email Delivery)</h3>
-          <div class="form-grid">
-            <select id="tdType">
-              <option value="api_reference">API Reference</option>
-              <option value="user_guide">User Guide</option>
-              <option value="sop">SOP</option>
-              <option value="release_notes">Release Notes</option>
-            </select>
-            <input id="tdTitle" placeholder="Document Title" value="Partner Webhook API v2 Reference" />
-            <input id="tdEmail" placeholder="Client Email" value="client@example.com" />
-            <input id="tdFee" type="number" value="950" />
-            <button onclick="createTechDoc()">Create Fixed-Fee Doc Project</button>
-          </div>
-          <div id="techDocsList"></div>
-        </div>
-      </section>
 
-      <section id="compliance" class="panel">
-        <div class="card">
-          <h3>2. Compliance &amp; Policy Writing + Security Questionnaire Auto-Match</h3>
-          <div class="form-grid">
-            <select id="cpType">
-              <option value="security_questionnaire">Security Questionnaire</option>
-              <option value="iso_27001">ISO 27001 Manual</option>
-              <option value="iso_9001">ISO 9001 Manual</option>
-              <option value="data_protection_policy">Data Protection Policy</option>
-            </select>
-            <input id="cpTitle" value="NHS Buyer Security Questionnaire" />
-            <textarea id="cpQuestions" rows="3">Do you hold ISO 27001 certification?
-How is data encrypted at rest and in transit?
-What is your incident response SLA?</textarea>
-            <button onclick="createAndMatchCompliance()">Create Pack &amp; Auto-Match Answer Library</button>
-          </div>
-          <div id="complianceList"></div>
-        </div>
-      </section>
 
-      <section id="assets" class="panel">
-        <div class="card">
-          <h3>3. CV, Capability Statement &amp; Case Study Writing &rarr; Evidence Library</h3>
-          <div class="form-grid">
-            <select id="baType">
-              <option value="case_study">Case Study</option>
-              <option value="cv">Team CV</option>
-              <option value="capability_statement">Capability Statement</option>
-            </select>
-            <input id="baTitle" value="Net Zero Fleet Transition Delivery" />
-            <input id="baSubject" value="Borough Fleet Services" />
-            <textarea id="baContent" rows="2">Cut depot fleet emissions by 38% across 18 months with 99.6% SLA.</textarea>
-            <button onclick="createAndPromoteAsset()">Create &amp; Promote to Evidence Library</button>
-          </div>
-          <div id="assetsList"></div>
-        </div>
-      </section>
 
-      <section id="marketplace" class="panel">
-        <div class="card">
-          <h3>4. Bid Review Marketplace</h3>
-          <div id="reviewersList"></div>
-          <div class="form-grid" style="margin-top:12px;">
-            <input id="mrTitle" value="Riverbend Fleet Bid Draft v1" placeholder="Target Draft Title" />
-            <textarea id="mrExcerpt" rows="2">We will deploy 18 electric refuse trucks with 99.5% route SLA and verified Scope 1-3 reductions.</textarea>
-            <button onclick="requestMarketplaceReview()">Request Independent Marketplace Review</button>
-          </div>
-          <div id="reviewsList" style="margin-top:12px;"></div>
-        </div>
-      </section>
 
       <section id="debriefs" class="panel">
         <div class="card">
-          <h3>5. Win/Loss Debrief &amp; Outcomes</h3>
+          <h3>2. Win/Loss Debrief &amp; Outcomes</h3>
           <div class="form-grid">
             <input id="dbTitle" value="County Fleet Maintenance Bid" />
             <input id="dbBuyer" value="County Council" />
@@ -360,7 +286,7 @@ What is your incident response SLA?</textarea>
 
       <section id="clarifications" class="panel">
         <div class="card">
-          <h3>6. Clarification Question Service (Pack Reader)</h3>
+          <h3>3. Clarification Question Service (Pack Reader)</h3>
           <div class="form-grid">
             <input id="cqTitle" value="Riverbend Fleet Pack" />
             <textarea id="cqText" rows="3">The supplier shall maintain reasonable response times. Ancillary hardware, telematics, etc. shall be supplied as required. Go-live date is TBD.</textarea>
@@ -372,7 +298,7 @@ What is your incident response SLA?</textarea>
 
       <section id="pricing" class="panel">
         <div class="card">
-          <h3>7. Pricing Matrix &amp; Cost-Narrative Writing</h3>
+          <h3>4. Pricing Matrix &amp; Cost-Narrative Writing</h3>
           <div class="form-grid">
             <select id="pmTemplate"><option value="">Custom Lines (Riverbend Default)</option></select>
             <input id="pmTitle" value="Riverbend Fleet Mobilisation &amp; Support" />
@@ -385,7 +311,7 @@ What is your incident response SLA?</textarea>
 
       <section id="socialvalue" class="panel">
         <div class="card">
-          <h3>8. Social Value, Net Zero &amp; Real Living Wage Statements</h3>
+          <h3>5. Social Value, Net Zero &amp; Real Living Wage Statements</h3>
           <div class="form-grid">
             <input id="svTitle" value="Riverbend Fleet Decarbonisation Social Value" />
             <input id="svYear" type="number" value="2035" />
@@ -397,7 +323,7 @@ What is your incident response SLA?</textarea>
 
       <section id="alerts" class="panel">
         <div class="card">
-          <h3>9. Tender Alerts &amp; Weekly Digest</h3>
+          <h3>6. Tender Alerts &amp; Weekly Digest</h3>
           <div class="form-grid">
             <input id="alEmail" value="alerts@bidstudio.example" />
             <input id="alSector" value="CleanTech &amp; Transport" />
@@ -410,7 +336,7 @@ What is your incident response SLA?</textarea>
 
       <section id="intel" class="panel">
         <div class="card">
-          <h3>10. Competitor &amp; Buyer Intelligence Reports</h3>
+          <h3>7. Competitor &amp; Buyer Intelligence Reports</h3>
           <div class="form-grid">
             <input id="inBuyer" value="Riverbend Borough Council" />
             <button onclick="generateBuyerIntel()">Generate Buyer &amp; Competitor Report</button>
@@ -422,7 +348,7 @@ What is your incident response SLA?</textarea>
 
       <section id="frameworks" class="panel">
         <div class="card">
-          <h3>11. Framework &amp; DPS Onboarding</h3>
+          <h3>8. Framework &amp; DPS Onboarding</h3>
           <div class="form-grid">
             <select id="fwType"><option value="dps">DPS</option><option value="framework">Framework</option><option value="approved_supplier_list">Approved Supplier List</option></select>
             <input id="fwName" value="Crown Commercial Service Digital Specialists DPS" />
@@ -433,22 +359,10 @@ What is your incident response SLA?</textarea>
         </div>
       </section>
 
-      <section id="training" class="panel">
-        <div class="card">
-          <h3>12. Training &amp; Workshops (Riverbend Cohort + training_enrolment Orders)</h3>
-          <div id="cohortsList"></div>
-          <div class="form-grid" style="margin-top:12px;">
-            <input id="trName" value="Alex Learner" />
-            <input id="trEmail" value="alex@example.com" />
-            <button onclick="enrolCohort()">Enrol in Riverbend Cohort</button>
-          </div>
-          <div id="enrolmentsList"></div>
-        </div>
-      </section>
 
       <section id="whitelabel" class="panel">
         <div class="card">
-          <h3>13. White-Label Bid Consultancies &amp; Access Review</h3>
+          <h3>9. White-Label Bid Consultancies &amp; Access Review</h3>
           <div class="form-grid">
             <input id="wlBrand" placeholder="Brand Name" value="Consultancy Bid Portal" />
             <input id="wlDomain" placeholder="Custom Domain" value="bids.consultancy.example" />
@@ -482,18 +396,6 @@ What is your incident response SLA?</textarea>
         </div>
       </section>
 
-      <section id="publicsector" class="panel">
-        <div class="card">
-          <h3>14. Public Sector Buyer Side (Clarity &amp; Criteria Weight Validator)</h3>
-          <div class="form-grid">
-            <input id="psAuth" value="Riverbend Borough Council" />
-            <input id="psTitle" value="Civic Energy Efficiency Retrofit Procurement" />
-            <textarea id="psSpec" rows="2">Suppliers must deliver certified heat-pump installations across 14 municipal buildings with measurable 24-hour SLA response targets.</textarea>
-            <button onclick="createBuyerDraft()">Create &amp; Validate Tender Criteria (100% Check)</button>
-          </div>
-          <div id="buyerDraftsList"></div>
-        </div>
-      </section>
     </main>
   </div>
 
@@ -577,7 +479,7 @@ What is your incident response SLA?</textarea>
       if (q) noticeParams.set("q", q);
       if (nType) noticeParams.set("notice_type", nType);
 
-      const [summary, noticePage, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, pricingTemplates, matrices, svs, alertSubs, intelReports, frameworks, cohorts, enrolments, buyerDrafts, members] = await Promise.all([
+      const [summary, noticePage, grants, answers, evidence, orders, queue, deliveries, proposals, debriefs, clarifs, pricingTemplates, matrices, svs, alertSubs, intelReports, frameworks, members] = await Promise.all([
         api(`/api/v1/workspaces/${currentWsId}/summary`),
         apiNotices(`/api/v1/notices?${noticeParams.toString()}`),
         api(`/api/v1/grants/calls?workspace_id=${currentWsId}`),
@@ -587,11 +489,6 @@ What is your incident response SLA?</textarea>
         api(`/api/v1/quality-queue?workspace_id=${currentWsId}`),
         api(`/api/v1/deliveries?workspace_id=${currentWsId}`),
         api(`/api/v1/grants/proposals?workspace_id=${currentWsId}`),
-        api(`/api/v1/tech-docs?workspace_id=${currentWsId}`),
-        api(`/api/v1/compliance/packs?workspace_id=${currentWsId}`),
-        api(`/api/v1/bidder-assets?workspace_id=${currentWsId}`),
-        api("/api/v1/marketplace/reviewers"),
-        api(`/api/v1/marketplace/reviews?workspace_id=${currentWsId}`),
         api(`/api/v1/debriefs/outcomes?workspace_id=${currentWsId}`),
         api(`/api/v1/clarifications?workspace_id=${currentWsId}`),
         api("/api/v1/pricing/templates"),
@@ -600,9 +497,6 @@ What is your incident response SLA?</textarea>
         api(`/api/v1/alerts/subscriptions?workspace_id=${currentWsId}`),
         api(`/api/v1/intelligence/reports?workspace_id=${currentWsId}`),
         api(`/api/v1/frameworks?workspace_id=${currentWsId}`),
-        api("/api/v1/training/cohorts"),
-        api(`/api/v1/training/enrolments?workspace_id=${currentWsId}`),
-        api(`/api/v1/public-sector/drafts?workspace_id=${currentWsId}`),
         api(`/api/v1/workspaces/${currentWsId}/members`)
       ]);
 
@@ -683,42 +577,10 @@ What is your incident response SLA?</textarea>
         </div>
       </div>`).join("");
 
-      document.getElementById("techDocsList").innerHTML = techdocs.map(d => `<div class="row-item">
-        <strong>${d.title}</strong> (${d.doc_type}, ${d.currency} ${d.fixed_fee}) — Stage: <span class="badge">${d.pipeline_stage}</span>
-        <div class="inline-actions">
-          <button class="small secondary" onclick="submitTechDocQA(${d.id})">1. Submit to QA</button>
-          <button class="small secondary" onclick="approveTechDocQA(${d.id})">2. Approve QA</button>
-          <button class="small" onclick="deliverTechDoc(${d.id})">3. Deliver Email</button>
-          <button class="small secondary" onclick="exportTechDoc(${d.id})">Export Markdown</button>
-        </div>
-      </div>`).join("");
 
-      document.getElementById("complianceList").innerHTML = compliance.map(c => `<div class="row-item">
-        <strong>${c.title}</strong> (${c.pack_type}) — Status: <span class="badge">${c.status}</span> (${c.questionnaire_items.filter(q => q.status === 'matched').length}/${c.questionnaire_items.length} auto-matched)
-        <div class="inline-actions"><button class="small secondary" onclick="exportCompliancePack(${c.id})">Export Markdown</button></div>
-        ${c.questionnaire_items.map(q => `<div class="muted" style="margin-top:4px;">&bull; <strong>${q.id}</strong>: ${q.question} &rarr; <span class="badge">${q.status} (${Math.round((q.confidence || 0)*100)}%)</span> ${q.matched_answer_text || ""}</div>`).join("")}
-      </div>`).join("");
 
-      document.getElementById("assetsList").innerHTML = assets.map(a => `<div class="row-item">
-        <strong>${a.title}</strong> (${a.asset_type}) — <span class="badge">${a.status}</span> (Evidence ID: ${a.promoted_evidence_id || "-"})
-        <div class="inline-actions">
-          ${a.status !== 'promoted' ? `<button class="small" onclick="promoteBidderAsset(${a.id})">Promote to Evidence</button>` : ""}
-          <button class="small secondary" onclick="exportBidderAsset(${a.id})">Export Markdown</button>
-        </div>
-      </div>`).join("");
 
-      document.getElementById("reviewersList").innerHTML = reviewers.map(r => `<div class="row-item">
-        <strong>${r.full_name}</strong> (${r.specialisms.join(", ")}) — ${r.currency} ${r.flat_fee} ★ ${r.rating}
-      </div>`).join("");
 
-      document.getElementById("reviewsList").innerHTML = reviews.map(rv => `<div class="row-item">
-        Review: <strong>${rv.target_title}</strong> — <span class="badge">${rv.status}</span> Score: ${rv.overall_score ?? "Pending"}
-        <div class="inline-actions">
-          ${rv.status !== 'completed' ? `<button class="small" onclick="scoreMarketplaceReview(${rv.id})">Submit Reviewer Score (84%)</button>` : ""}
-          <button class="small secondary" onclick="exportMarketplaceReview(${rv.id})">Export Markdown</button>
-        </div>
-        ${rv.status === 'completed' ? `<div class="muted">${rv.feedback_summary}</div>` : ""}
-      </div>`).join("");
 
       document.getElementById("debriefsList").innerHTML = debriefs.map(d => `<div class="row-item">
         <strong>${d.bid_title}</strong> (${d.buyer_name}) — <span class="badge">${d.outcome}</span> | Internal ${d.internal_score} vs Buyer ${d.buyer_score} | Fixes: ${d.next_bid_fixes.length}
@@ -763,27 +625,8 @@ What is your incident response SLA?</textarea>
         </div>`).join("")}
       </div>`).join("");
 
-      document.getElementById("cohortsList").innerHTML = cohorts.map(c => `<div>
-        <strong>${c.title}</strong> — Pack: <em>${c.pack_name}</em> (${c.enrolled_count}/${c.max_seats} enrolled, ${c.currency} ${c.price})
-      </div>`).join("");
 
-      document.getElementById("enrolmentsList").innerHTML = enrolments.map(e => {
-        const cohort = cohorts.find(c => c.id === e.cohort_id);
-        const nextMod = cohort ? cohort.modules.find(m => !(e.completed_modules || []).includes(m)) : null;
-        return `<div class="row-item">
-          ${e.learner_name} (${e.learner_email}) — Order #${e.order_id} | Progress: <strong>${e.progress_pct}%</strong>
-          ${nextMod ? `<div class="inline-actions"><button class="small secondary" onclick="completeNextModule(${e.id}, ${JSON.stringify(nextMod).replace(/"/g, '&quot;')})">Complete: ${nextMod}</button></div>` : `<span class="badge">Completed</span>`}
-        </div>`;
-      }).join("");
 
-      document.getElementById("buyerDraftsList").innerHTML = buyerDrafts.map(b => `<div class="row-item">
-        <strong>${b.title}</strong> (${b.authority_name}) — Clarity: <strong>${b.clarity_score}%</strong> | Status: <span class="badge">${b.status}</span>
-        ${b.validation_issues.length ? `<div class="muted">Issues: ${b.validation_issues.join(" | ")}</div>` : `<div class="muted">All criteria weights sum to 100% and specification passed clarity checks.</div>`}
-        <div class="inline-actions">
-          <button class="small" onclick="revalidateBuyerDraft(${b.id})">Re-Validate</button>
-          <button class="small secondary" onclick="exportBuyerDraft(${b.id})">Export Tender Pack Markdown</button>
-        </div>
-      </div>`).join("");
 
       document.getElementById("membersList").innerHTML = members.map(m => `<div class="row-item">
         <strong>${m.full_name}</strong> (${m.email}) — <span class="badge">${m.role}</span> | Status: ${m.status}
@@ -846,29 +689,9 @@ What is your incident response SLA?</textarea>
       renderMarkdownExport("socialValueList", "svExportPreview", `social-value-${statementId}.md`, data.markdown);
     }
 
-    async function exportBuyerDraft(draftId) {
-      const data = await api(`/api/v1/public-sector/drafts/${draftId}/export-pack`);
-      renderMarkdownExport("buyerDraftsList", "psExportPreview", `tender-pack-${draftId}.md`, data.markdown);
-    }
-
-    async function revalidateBuyerDraft(draftId) {
-      await api(`/api/v1/public-sector/drafts/${draftId}/validate`, "POST");
-      refreshAll();
-    }
-
-    async function exportTechDoc(docId) {
-      const data = await api(`/api/v1/tech-docs/${docId}/export`);
-      renderMarkdownExport("techDocsList", "tdExportPreview", `tech-doc-${docId}.md`, data.markdown);
-    }
-
     async function exportDebrief(outcomeId) {
       const data = await api(`/api/v1/debriefs/outcomes/${outcomeId}/export`);
       renderMarkdownExport("debriefsList", "dbExportPreview", `debrief-${outcomeId}.md`, data.markdown);
-    }
-
-    async function exportCompliancePack(packId) {
-      const data = await api(`/api/v1/compliance/packs/${packId}/export`);
-      renderMarkdownExport("complianceList", "cpExportPreview", `compliance-pack-${packId}.md`, data.markdown);
     }
 
     async function exportClarificationPack(packId) {
@@ -890,16 +713,6 @@ What is your incident response SLA?</textarea>
         summary: document.getElementById("evSummary").value
       });
       refreshAll();
-    }
-
-    async function exportBidderAsset(assetId) {
-      const data = await api(`/api/v1/bidder-assets/${assetId}/export`);
-      renderMarkdownExport("assetsList", "baExportPreview", `bidder-asset-${assetId}.md`, data.markdown);
-    }
-
-    async function exportMarketplaceReview(reviewId) {
-      const data = await api(`/api/v1/marketplace/reviews/${reviewId}/export`);
-      renderMarkdownExport("reviewsList", "mrExportPreview", `marketplace-review-${reviewId}.md`, data.markdown);
     }
 
     async function exportIntelReport(reportId) {
@@ -938,11 +751,6 @@ What is your incident response SLA?</textarea>
       document.getElementById("gpNoticeId").value = String(noticeId);
       if (amount) document.getElementById("gpAmount").value = String(amount);
       await createGrantProposal();
-    }
-
-    async function promoteBidderAsset(assetId) {
-      await api(`/api/v1/bidder-assets/${assetId}/promote-to-evidence`, "POST");
-      refreshAll();
     }
 
     async function reviewQueueItem(itemId, status) {
@@ -993,86 +801,6 @@ What is your incident response SLA?</textarea>
         notice_id: Number(document.getElementById("gpNoticeId").value),
         applicant_org: document.getElementById("gpOrg").value,
         requested_amount: Number(document.getElementById("gpAmount").value)
-      });
-      refreshAll();
-    }
-
-    async function createTechDoc() {
-      await api("/api/v1/tech-docs", "POST", {
-        workspace_id: currentWsId,
-        doc_type: document.getElementById("tdType").value,
-        title: document.getElementById("tdTitle").value,
-        client_email: document.getElementById("tdEmail").value,
-        fixed_fee: Number(document.getElementById("tdFee").value)
-      });
-      refreshAll();
-    }
-
-    async function submitTechDocQA(docId) {
-      await api(`/api/v1/tech-docs/${docId}/submit-quality`, "POST");
-      refreshAll();
-    }
-
-    async function approveTechDocQA(docId) {
-      await api(`/api/v1/tech-docs/${docId}/review`, "POST", {
-        approved: true,
-        reviewer_notes: "Technical accuracy and formatting verified."
-      });
-      refreshAll();
-    }
-
-    async function deliverTechDoc(docId) {
-      await api(`/api/v1/tech-docs/${docId}/deliver`, "POST");
-      refreshAll();
-    }
-
-    async function createAndMatchCompliance() {
-      const qs = document.getElementById("cpQuestions").value.split("\n").map(s => s.trim()).filter(Boolean);
-      const pack = await api("/api/v1/compliance/packs", "POST", {
-        workspace_id: currentWsId,
-        pack_type: document.getElementById("cpType").value,
-        title: document.getElementById("cpTitle").value,
-        questions: qs
-      });
-      await api(`/api/v1/compliance/packs/${pack.id}/auto-match`, "POST");
-      refreshAll();
-    }
-
-    async function createAndPromoteAsset() {
-      const asset = await api("/api/v1/bidder-assets", "POST", {
-        workspace_id: currentWsId,
-        asset_type: document.getElementById("baType").value,
-        title: document.getElementById("baTitle").value,
-        subject_name: document.getElementById("baSubject").value,
-        content: document.getElementById("baContent").value
-      });
-      await api(`/api/v1/bidder-assets/${asset.id}/promote-to-evidence`, "POST");
-      refreshAll();
-    }
-
-    async function requestMarketplaceReview() {
-      const reviewers = await api("/api/v1/marketplace/reviewers");
-      if (!reviewers.length) return;
-      await api("/api/v1/marketplace/reviews", "POST", {
-        workspace_id: currentWsId,
-        reviewer_id: reviewers[0].id,
-        target_title: document.getElementById("mrTitle").value,
-        buyer_criteria: [
-          { name: "Technical Delivery", weight: 60 },
-          { name: "Social Value", weight: 40 }
-        ],
-        draft_excerpt: document.getElementById("mrExcerpt").value
-      });
-      refreshAll();
-    }
-
-    async function scoreMarketplaceReview(reviewId) {
-      await api(`/api/v1/marketplace/reviews/${reviewId}/score`, "POST", {
-        criterion_scores: [
-          { name: "Technical Delivery", weight: 60, score: 86, max_score: 100 },
-          { name: "Social Value", weight: 40, score: 81, max_score: 100 }
-        ],
-        feedback_summary: "Strong SLA evidence; add named depot commissioning milestones."
       });
       refreshAll();
     }
@@ -1176,24 +904,6 @@ What is your incident response SLA?</textarea>
       refreshAll();
     }
 
-    async function enrolCohort() {
-      const cohorts = await api("/api/v1/training/cohorts");
-      if (!cohorts.length) return;
-      await api(`/api/v1/training/cohorts/${cohorts[0].id}/enrol`, "POST", {
-        workspace_id: currentWsId,
-        learner_name: document.getElementById("trName").value,
-        learner_email: document.getElementById("trEmail").value
-      });
-      refreshAll();
-    }
-
-    async function completeNextModule(enrolmentId, moduleName) {
-      await api(`/api/v1/training/enrolments/${enrolmentId}/complete-module`, "POST", {
-        module_name: moduleName
-      });
-      refreshAll();
-    }
-
     async function saveWhiteLabel() {
       await api(`/api/v1/workspaces/${currentWsId}/white-label`, "PUT", {
         is_white_label: true,
@@ -1211,21 +921,6 @@ What is your incident response SLA?</textarea>
     async function runAccessReview() {
       const res = await api(`/api/v1/workspaces/${currentWsId}/access-review`);
       document.getElementById("accessReviewOutput").textContent = JSON.stringify(res, null, 2);
-    }
-
-    async function createBuyerDraft() {
-      await api("/api/v1/public-sector/drafts", "POST", {
-        workspace_id: currentWsId,
-        authority_name: document.getElementById("psAuth").value,
-        title: document.getElementById("psTitle").value,
-        specification_text: document.getElementById("psSpec").value,
-        evaluation_criteria: [
-          { name: "Technical Delivery", weight_pct: 50, max_score: 5, scoring_guidance: "0-5 scale" },
-          { name: "Social Value", weight_pct: 20, max_score: 5, scoring_guidance: "0-5 scale" },
-          { name: "Price", weight_pct: 30, max_score: 5, scoring_guidance: "Lowest price formula" }
-        ]
-      });
-      refreshAll();
     }
 
     loadWorkspaces().then(refreshAll);
