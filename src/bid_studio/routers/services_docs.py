@@ -10,6 +10,7 @@ from bid_studio.database import get_db
 from bid_studio.models import (
     AnswerLibraryItem,
     DocProject,
+    EvidenceItem,
     QualityQueueItem,
     Workspace,
 )
@@ -154,7 +155,10 @@ def _dict(p: DocProject) -> dict[str, Any]:
         "currency": p.currency, "status": p.status, "locked": p.status not in EDITABLE,
         "sections": p.sections, "items": p.items, "reviewer_notes": p.reviewer_notes,
         "delivered_at": p.delivered_at, "created_at": p.created_at, "stats": stats,
-        "readiness": readiness(p),
+        "readiness": readiness(p), "evidence_item_id": p.evidence_item_id,
+        "promotable": "evidence_type" in tpl.TYPES.get(p.doc_type, {}),
+        "can_promote": "evidence_type" in tpl.TYPES.get(p.doc_type, {})
+        and p.status in tpl.PROMOTABLE_STATUSES and p.evidence_item_id is None,
     }
 
 
@@ -286,6 +290,31 @@ def promote_answer(project_id: int, payload: PromoteIn, db: Session = Depends(ge
     db.add(lib)
     db.commit()
     return {"id": lib.id}
+
+
+@project_router.post("/promote-evidence", status_code=201)
+def promote_evidence(project_id: int, db: Session = Depends(get_db)):
+    """Save an approved CV, capability statement or case study into the evidence library."""
+    p = _get(db, project_id)
+    spec = tpl.TYPES.get(p.doc_type, {})
+    if "evidence_type" not in spec:
+        raise HTTPException(status_code=422, detail="Only CVs, capability statements and case studies can be saved as evidence")
+    if p.status not in tpl.PROMOTABLE_STATUSES:
+        raise HTTPException(status_code=409, detail="Evidence must be quality-approved before it is added to the library")
+    if p.evidence_item_id is not None:
+        raise HTTPException(status_code=409, detail=f"Already in the evidence library (#{p.evidence_item_id})")
+    by_id = {s["id"]: s["text"].strip() for s in p.sections}
+    summary = " ".join(by_id.get(sid, "") for sid in spec["summary_sections"]).strip()[:600]
+    metrics = tpl.parse_metrics(by_id.get(spec.get("metrics_section", ""), ""))
+    item = EvidenceItem(
+        workspace_id=p.workspace_id, evidence_type=spec["evidence_type"], title=p.title[:220],
+        summary=summary, buyer_format=p.client_name or "Standard", metrics=metrics,
+    )
+    db.add(item)
+    db.flush()
+    p.evidence_item_id = item.id
+    db.commit()
+    return {"evidence_item_id": item.id, "metrics": metrics}
 
 
 @project_router.post("/assistant")

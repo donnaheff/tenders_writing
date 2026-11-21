@@ -108,6 +108,49 @@ TYPES: dict[str, dict] = {
             ("improvement", "Nonconformity and continual improvement", "Corrective action, root-cause analysis and improvement activities."),
         ],
     },
+    # ---- bid assets: reusable proof for tenders and grants
+    "team_cv": {
+        "kind": "bidasset", "title": "Team member CV (buyer format)",
+        "description": "A tender-ready CV: relevant experience first, tailored to the evaluation criteria.",
+        "evidence_type": "cv", "summary_sections": ["profile"],
+        "sections": [
+            ("profile", "Profile and role in this bid", "Two or three sentences: who this person is, their seniority, and the role they will play on this contract."),
+            ("skills", "Key skills and expertise", "The skills the buyer is scoring, each backed by a concrete example rather than a bare claim."),
+            ("experience", "Relevant experience", "Most relevant roles first. For each: organisation, role, dates, and one or two measurable achievements."),
+            ("qualifications", "Qualifications, certifications and memberships", "Degrees, professional certifications and memberships, with the awarding body and year."),
+            ("tailoring", "Fit to the evaluation criteria", "How this person's experience answers each scored criterion in the tender or call."),
+            ("availability", "Availability and commitment", "Percentage of time committed, start date and any constraints."),
+        ],
+    },
+    "capability_statement": {
+        "kind": "bidasset", "title": "Capability statement",
+        "description": "A one- or two-page summary of what the organisation does best and can prove.",
+        "evidence_type": "capability_statement", "summary_sections": ["overview", "competencies"],
+        "sections": [
+            ("overview", "Company overview", "Who you are, what you do, who you serve, and how long you have been doing it."),
+            ("competencies", "Core competencies", "Three to six capabilities, each in one line with the outcome it delivers."),
+            ("differentiators", "What sets us apart", "Concrete differentiators a buyer can verify: methods, accreditations, speed, price model, track record."),
+            ("past_performance", "Past performance highlights", "Short examples of similar work: client, scope, value and result."),
+            ("accreditations", "Certifications and accreditations", "Standards held (for example ISO 9001/27001, Cyber Essentials Plus) with certificate details."),
+            ("company_data", "Company data", "Registration numbers, turnover band, headcount, locations, insurance and frameworks you are on."),
+            ("contact", "Contact", "Named contact, email, phone and website."),
+        ],
+    },
+    "case_study": {
+        "kind": "bidasset", "title": "Case study",
+        "description": "A proof point showing what you delivered, how, and what changed. Can be saved to the evidence library.",
+        "evidence_type": "case_study", "summary_sections": ["challenge", "results"], "metrics_section": "metrics",
+        "sections": [
+            ("context", "Client and context", "Who the client is (or an anonymised description), their sector and the situation."),
+            ("challenge", "The challenge", "The problem or goal, why it mattered, and any constraints such as budget, time or risk."),
+            ("solution", "Our approach and solution", "What you did and why, including the methods and people involved."),
+            ("delivery", "Delivery and timeline", "How the work was delivered, key milestones and how risks were managed."),
+            ("results", "Results and impact", "What changed, in the client's terms. Prefer measured outcomes over adjectives."),
+            ("metrics", "Key metrics", "One metric per line as 'Label: value', for example 'Mileage reduction: 24%'. These are saved with the case study."),
+            ("testimonial", "Client testimonial", "A short quote with the person's name and role, only if they have agreed to it."),
+            ("relevance", "Relevance to future bids", "Which kinds of tender or grant this case study supports, and which criteria it evidences."),
+        ],
+    },
     "security_questionnaire": {
         "kind": "compliance", "title": "Security questionnaire response",
         "description": "Answer a customer's security questionnaire, matched against your answer library.",
@@ -116,6 +159,20 @@ TYPES: dict[str, dict] = {
 }
 
 FINAL_STATUSES = ("quality_review", "approved", "delivered")
+PROMOTABLE_STATUSES = ("approved", "delivered")
+
+
+def parse_metrics(text: str) -> dict[str, str]:
+    """'Label: value' lines -> {label: value}. Ignores blanks and lines without a value."""
+    out: dict[str, str] = {}
+    for raw in (text or "").splitlines():
+        line = raw.strip().lstrip("-*\u2022 ").strip()
+        if ":" not in line:
+            continue
+        label, value = (part.strip() for part in line.split(":", 1))
+        if label and value and len(out) < 12:
+            out[label[:80]] = value[:120]
+    return out
 
 
 def instantiate_sections(doc_type: str) -> list[dict]:
@@ -128,6 +185,7 @@ def instantiate_sections(doc_type: str) -> list[dict]:
 def catalogue() -> list[dict]:
     return [
         {"key": k, "kind": v["kind"], "title": v["title"], "description": v["description"],
-         "questionnaire": k == "security_questionnaire", "sections": len(v["sections"])}
+         "questionnaire": k == "security_questionnaire", "sections": len(v["sections"]),
+         "promotable": "evidence_type" in v}
         for k, v in TYPES.items()
     ]

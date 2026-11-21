@@ -55,14 +55,14 @@ The app serves a public marketing site (`/`, `/features`, `/pricing`, `/about`, 
 
 ## Documentation & Compliance Writing
 
-A fixed-fee service line for technical documentation and compliance writing, alongside grants. Dashboard tab **Docs & Compliance Writing**; editor at `/app/docs/{project_id}`; API under `/api/v1/services`.
+A fixed-fee service line for technical documentation and compliance writing, alongside grants. Dashboard tab **Docs & Compliance Writing** (the marketplace has a matching *CVs, capability statements and case studies* job type); editor at `/app/docs/{project_id}`; API under `/api/v1/services`.
 
 - **Technical documentation templates:** user guide, API reference, standard operating procedure, release notes.
 - **Compliance and policy templates:** information security policy (ISO 27001 aligned), data protection policy (UK GDPR), incident response plan, quality manual (ISO 9001 aligned).
+- **Bid assets:** templates for a team CV (buyer format, with a "fit to the evaluation criteria" section), a capability statement, and a case study (context, challenge, solution, delivery, results, key metrics, testimonial, relevance). Once a project is quality-approved, **Save to evidence library** turns it into an evidence item: a summary from the key sections plus metrics parsed from `Label: value` lines in the case study's Key metrics section. Evidence items then appear in Grant Studio suggestions (Insert & cite) and in the editor's Library tab. Each asset can be saved once.
 - **Security questionnaires:** paste the customer's questions (one per line); each is matched against the workspace Answer Library by shared terms and marked *matched* (50%+ of the question's terms found) or *needs review* (25%+). Anything you have approved or answered by hand is never overwritten by re-matching. Approved answers can be saved back to the library. **Matching is keyword overlap, not verification:** a person must confirm every security claim is true before approving, and the app never marks an answer approved by itself.
 - **Pipeline:** drafting -> quality review (via the existing Quality Review Queue) -> approved -> delivered. Submitting is blocked until every section or answer is written and no `[TO CONFIRM]` placeholders remain. Reviewer notes reopen the project for edits; delivery emails the Markdown to the client through the same delivery log and mailer as digests (actually sent only if `SMTP_HOST` is set).
 - **AI assistant:** the same Claude-or-offline assistant drafts, improves, shortens and critiques sections or questionnaire answers, grounded in your closest library answer. Export any project as Markdown.
-- **Not built yet:** the CV / capability-statement / case-study templates.
 
 ---
 

@@ -11,6 +11,9 @@ JOB_TYPES: dict[str, dict] = {
         "label": "Security questionnaire response", "link": "doc",
         "doc_types": ("security_questionnaire",),
     },
+    "bid_assets": {
+        "label": "CVs, capability statements and case studies", "link": "doc", "kind": "bidasset",
+    },
     "other": {"label": "Other writing", "link": None},
 }
 

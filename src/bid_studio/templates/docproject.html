@@ -44,6 +44,7 @@
     <span id="status" class="badge"></span>
     <span id="saveState" role="status"></span>
     <button class="secondary" id="btnMatch" style="display:none">Auto-match library</button>
+    <button class="secondary" id="btnPromoteEv" style="display:none">Save to evidence library</button>
     <button class="secondary" id="btnExport">Export .md</button>
     <button id="btnAction">Submit for quality review</button>
   </div>
@@ -94,7 +95,7 @@
   const base = `/api/v1/services/projects/${PID}`;
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  let P = null, cur = 0, dirty = false, saving = false, timer = null, aiResult = null, library = [];
+  let P = null, cur = 0, dirty = false, saving = false, timer = null, aiResult = null, library = [], evidence = [];
   const words = t => (t.match(/\S+/g) || []).length;
 
   async function call(path, method = "GET", body = null) {
@@ -121,6 +122,11 @@
     a.style.display = ["drafting", "approved"].includes(P.status) ? "" : "none";
     a.textContent = P.status === "approved" ? "Deliver to client" : "Submit for quality review"; a.disabled = false;
     $("leftTitle").textContent = P.questionnaire ? "Questions" : "Sections";
+    const pe = $("btnPromoteEv");
+    pe.style.display = P.promotable ? "" : "none";
+    pe.disabled = !P.can_promote;
+    pe.textContent = P.evidence_item_id ? `In evidence library (#${P.evidence_item_id})` : "Save to evidence library";
+    pe.title = P.evidence_item_id ? "" : P.can_promote ? "Add this to the evidence library so proposals can cite it" : "Available once the project is quality-approved";
     renderReview();
   }
 
@@ -209,10 +215,20 @@
   $("aiAsk").onclick = () => runAi("ask"); $("aiQ").addEventListener("keydown", e => { if (e.key === "Enter") runAi("ask"); });
 
   // ---- library
-  async function loadLibrary() { try { library = await call(`/api/v1/answer-library?workspace_id=${WS}`); } catch (_) { library = []; } renderLib(); }
+  async function loadLibrary() {
+    try { library = await call(`/api/v1/answer-library?workspace_id=${WS}`); } catch (_) { library = []; }
+    try { evidence = await call(`/api/v1/evidence-library?workspace_id=${WS}`); } catch (_) { evidence = []; }
+    renderLib();
+  }
   function renderLib() {
     const q = $("libQ").value.toLowerCase(), hits = library.filter(a => !q || (a.question_pattern + " " + a.answer_text).toLowerCase().includes(q)).slice(0, 12);
-    $("libList").innerHTML = hits.map((a, i) => `<div class="item"><div class="h">${esc(a.question_pattern)}</div><div class="x">${esc(a.answer_text)}</div><button class="small" data-i="${i}" ${P && P.locked ? "disabled" : ""}>Insert</button></div>`).join("") || "No matching answers.";
+    const evHits = (P && P.questionnaire ? [] : evidence).filter(e => !q || (e.title + " " + e.summary).toLowerCase().includes(q)).slice(0, 8);
+    const evHtml = evHits.length ? `<div class="muted" style="margin:8px 0 6px">Evidence</div>` + evHits.map((e, i) => `<div class="item"><div class="h">${esc(e.title)} <span class="badge">${esc(e.evidence_type)}</span></div><div class="x">${esc(e.summary)}</div><button class="small" data-ev="${i}" ${P && P.locked ? "disabled" : ""}>Insert</button></div>`).join("") : "";
+    $("libList").innerHTML = hits.map((a, i) => `<div class="item"><div class="h">${esc(a.question_pattern)}</div><div class="x">${esc(a.answer_text)}</div><button class="small" data-i="${i}" ${P && P.locked ? "disabled" : ""}>Insert</button></div>`).join("") + evHtml || "No matching answers.";
+    $("libList").querySelectorAll("button[data-ev]").forEach(b => b.onclick = () => {
+      const x = list()[cur], e = evHits[Number(b.dataset.ev)]; if (!x || P.locked || P.questionnaire) return;
+      x.text = (x.text ? x.text + "\n\n" : "") + e.summary; touched(); select(cur);
+    });
     $("libList").querySelectorAll("button[data-i]").forEach(b => b.onclick = () => {
       const x = list()[cur], a = hits[Number(b.dataset.i)]; if (!x || P.locked) return;
       if (P.questionnaire) { x.answer = a.answer_text; x.source_answer_id = a.id; x.status = "needs_review"; x.confidence = 1; } else { x.text = (x.text ? x.text + "\n\n" : "") + a.answer_text; }
@@ -226,6 +242,10 @@
     $("tabs").querySelectorAll("button").forEach(x => x.classList.remove("active")); b.classList.add("active");
     document.querySelectorAll(".tabpane").forEach(p => p.classList.remove("active")); $("tab-" + b.dataset.tab).classList.add("active");
   });
+  $("btnPromoteEv").onclick = async () => {
+    try { const r = await call(`${base}/promote-evidence`, "POST"); adopt(await call(base)); setSave(`Saved to the evidence library (#${r.evidence_item_id})`); loadLibrary(); }
+    catch (e) { alert(e.message); }
+  };
   $("btnMatch").onclick = async () => { if (!(await save())) return; try { const r = await call(`${base}/auto-match`, "POST"); adopt(r.project); select(cur); setSave(`Matched ${r.changed} answer(s)`); } catch (e) { setSave(e.message, true); } };
   $("btnAddQ").onclick = async () => { if (!(await save())) return; try { adopt(await call(`${base}/questions`, "POST", { questions: $("newQ").value })); $("newQ").value = ""; select(cur); } catch (e) { setSave(e.message, true); } };
   $("btnExport").onclick = async () => {

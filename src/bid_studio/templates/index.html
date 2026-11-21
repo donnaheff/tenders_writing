@@ -934,7 +934,7 @@
       if (!dsTemplates.length) {
         dsTemplates = await api("/api/v1/services/templates");
         const group = (k, label) => `<optgroup label="${label}">${dsTemplates.filter(t => t.kind === k).map(t => `<option value="${t.key}">${esc(t.title)}</option>`).join("")}</optgroup>`;
-        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing");
+        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing") + group("bidasset", "Bid assets: CVs, capability & case studies");
       }
       dsTypeChanged();
       const [projects, stats] = await Promise.all([api(`/api/v1/services/projects?workspace_id=${currentWsId}`), api(`/api/v1/services/stats?workspace_id=${currentWsId}`)]);
