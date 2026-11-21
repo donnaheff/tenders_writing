@@ -3,7 +3,7 @@ def test_health_and_dashboard(client):
     assert health.status_code == 200
     assert health.json()["status"] == "ok"
 
-    home = client.get("/")
+    home = client.get("/app")
     assert home.status_code == 200
     assert "Bid Studio" in home.text
     assert "statWinRate" in home.text

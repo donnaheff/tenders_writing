@@ -1,0 +1,57 @@
+{% extends "site_base.html" %}
+{% block title %}Features{% endblock %}
+{% block description %}Grant proposal writing, tender tools, bid intelligence and white-label workspaces in one platform.{% endblock %}
+{% block content %}
+<section class="page-head"><div class="wrap"><h1>Features</h1><p>Everything in Bid Studio, grouped by what you are trying to do.</p></div></section>
+<section class="block">
+  <div class="wrap">
+    <div class="feature-row" id="grants">
+      <div><span class="tag">Primary</span><h2>Grant &amp; funding proposals</h2><p class="lead">The core product. Calls from EU, UKRI, World Bank and foundation funders become scored, reviewable proposals.</p></div>
+      <ul>
+        <li>Structured funding calls with value, currency, deadline and sector</li>
+        <li>Criteria and rubric extraction (<span class="endpoint">/api/v1/grants/calls/{id}/extract-criteria</span>)</li>
+        <li>Section drafting against criterion weights</li>
+        <li>Weighted score calculation and inline section editing</li>
+        <li>Submit to the quality review queue; export as Markdown</li>
+      </ul>
+    </div>
+    <div class="feature-row" id="feed">
+      <div><span class="tag">Core</span><h2>Opportunity feed &amp; libraries</h2><p class="lead">One feed for open tenders, awarded notices and funding calls, plus the content you reuse.</p></div>
+      <ul>
+        <li>Keyword search, notice-type filter and pagination with total counts</li>
+        <li>AI-style notice summaries</li>
+        <li>Answer library of verified responses</li>
+        <li>Evidence library of buyer-formatted case studies</li>
+        <li>Order tracking and email delivery log</li>
+      </ul>
+    </div>
+    <div class="feature-row" id="tenders">
+      <div><span class="tag">Tenders</span><h2>Tender writing support</h2><p class="lead">When the opportunity is a procurement rather than a grant.</p></div>
+      <ul>
+        <li><strong>Clarification questions:</strong> flags vague terms such as TBD, "reasonable" and unstated weightings, and drafts questions</li>
+        <li><strong>Pricing &amp; cost narrative:</strong> reusable templates, margin and contingency matrices</li>
+        <li><strong>Social value:</strong> Net Zero, Real Living Wage and measurable KPI statements</li>
+        <li><strong>Win/loss debriefs:</strong> internal vs buyer scores and prioritised fixes</li>
+      </ul>
+    </div>
+    <div class="feature-row" id="intelligence">
+      <div><span class="tag">Data</span><h2>Alerts &amp; intelligence</h2><p class="lead">Know what is coming and who wins it.</p></div>
+      <ul>
+        <li>Alert subscriptions by sector, notice type, value band and keyword, with weekly digests</li>
+        <li>Buyer and competitor reports: spend, repeat winners and win-share concentration</li>
+        <li>Framework and DPS onboarding checklists with live completion</li>
+      </ul>
+    </div>
+    <div class="feature-row" id="workspaces">
+      <div><span class="tag">Teams</span><h2>Workspaces &amp; white-label</h2><p class="lead">Built for consultancies serving several clients.</p></div>
+      <ul>
+        <li>Client-isolated workspaces</li>
+        <li>Roles: owner, admin, writer, reviewer, client</li>
+        <li>Custom brand name, colours and domain per consultancy</li>
+        <li>Timestamped access reviews</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="cta"><div class="wrap"><h2>Try it</h2><p>Everything above is live in the dashboard.</p><a class="btn" href="/app">Open the dashboard</a></div></section>
+{% endblock %}

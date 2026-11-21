@@ -224,3 +224,11 @@ class FrameworkChecklistToggle(BaseModel):
     item_id: str
     completed: bool
     notes: str = ""
+
+
+class ContactRequestCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=200)
+    organisation: str = Field(default="", max_length=200)
+    plan: Literal["general", "starter", "team", "consultancy"] = "general"
+    message: str = Field(min_length=1, max_length=4000)

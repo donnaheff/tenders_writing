@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bid-studio"
 version = "0.1.0"
-description = "Bid Studio — Tender, Grant Proposal, Compliance, Intelligence & Public-Sector Procurement Writing Platform"
+description = "Bid Studio — Grant application and tender writing platform"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -28,6 +28,9 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+bid_studio = ["templates/*.html", "static/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

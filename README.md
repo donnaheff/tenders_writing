@@ -4,6 +4,12 @@ Bid Studio is a Python + FastAPI platform focused on grant and funding applicati
 
 ---
 
+## Public Website
+
+The app serves a public marketing site (`/`, `/features`, `/pricing`, `/about`, `/contact`) with the dashboard at `/app`. The contact form posts to `POST /api/v1/contact` and stores requests in the `contact_requests` table. Pricing figures on `/pricing` are placeholders; edit `src/bid_studio/templates/site_pricing.html`.
+
+---
+
 ## Core Platform & Implemented Modules
 
 ### Core Infrastructure
@@ -52,7 +58,8 @@ Bid Studio is a Python + FastAPI platform focused on grant and funding applicati
 │   ├── seed.py                   # Idempotent seed data (Riverbend, grants, awards)
 │   ├── routers/                  # Modular API routers
 │   ├── services/domain_logic.py  # Pure domain & scoring/matching engines
-│   └── templates/index.html      # Interactive Bid Studio web dashboard
+│   ├── static/site.css           # Public website styles
+│   └── templates/                # index.html (dashboard at /app) and site_*.html (public pages)
 └── tests/                        # Pytest integration & unit test suite
 ```
 

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -15,10 +16,12 @@ from bid_studio.routers import (
     core,
     grants,
     intelligence,
+    site,
 )
 from bid_studio.seed import seed_database
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
@@ -46,12 +49,15 @@ def create_app() -> FastAPI:
             content={"detail": "Invalid reference or duplicate constraint violation."},
         )
 
+    app.state.templates = templates
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    app.include_router(site.router)
     app.include_router(core.router)
     app.include_router(grants.router)
     app.include_router(bid_enhancements.router)
     app.include_router(intelligence.router)
 
-    @app.get("/", response_class=HTMLResponse)
+    @app.get("/app", response_class=HTMLResponse, include_in_schema=False)
     def dashboard(request: Request, workspace_id: int | None = None, db: Session = Depends(get_db)):
         ws = (
             db.get(Workspace, workspace_id)

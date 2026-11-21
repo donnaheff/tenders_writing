@@ -1,0 +1,43 @@
+{% extends "site_base.html" %}
+{% block title %}Contact{% endblock %}
+{% block content %}
+<section class="page-head"><div class="wrap"><h1>Contact us</h1><p>Tell us about your team and what you want to win.</p></div></section>
+<section class="block">
+  <div class="wrap">
+    <form class="contact" id="contactForm" onsubmit="return sendContact(event)">
+      <label>Name <input name="name" required maxlength="160" /></label>
+      <label>Email <input name="email" type="email" required maxlength="200" /></label>
+      <label>Organisation <input name="organisation" maxlength="200" /></label>
+      <label>Interested in
+        <select name="plan" id="plan">
+          <option value="general">General enquiry</option>
+          <option value="starter">Starter</option>
+          <option value="team">Team</option>
+          <option value="consultancy">Consultancy</option>
+        </select>
+      </label>
+      <label>Message <textarea name="message" required maxlength="4000"></textarea></label>
+      <button class="btn" type="submit">Send message</button>
+      <div id="formMsg" role="status"></div>
+    </form>
+  </div>
+</section>
+<script>
+  const qp = new URLSearchParams(location.search).get("plan");
+  if (qp) document.getElementById("plan").value = qp;
+  async function sendContact(e) {
+    e.preventDefault();
+    const f = e.target, msg = document.getElementById("formMsg");
+    msg.className = ""; msg.textContent = "Sending...";
+    try {
+      const res = await fetch("/api/v1/contact", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Object.fromEntries(new FormData(f)))
+      });
+      if (!res.ok) throw new Error();
+      f.reset(); msg.className = "ok"; msg.textContent = "Thanks. We have your message and will reply by email.";
+    } catch (_) { msg.className = "err"; msg.textContent = "Something went wrong. Please check the form and try again."; }
+    return false;
+  }
+</script>
+{% endblock %}

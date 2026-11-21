@@ -1,0 +1,40 @@
+{% extends "site_base.html" %}
+{% block title %}Pricing{% endblock %}
+{% block content %}
+<section class="page-head"><div class="wrap"><h1>Pricing</h1><p>Simple plans for individual writers, growing teams and consultancies.</p></div></section>
+<section class="block">
+  <div class="wrap">
+    <div class="tiers">
+      <div class="card tier">
+        <h3>Starter</h3><div class="price">£49<small> / month</small></div>
+        <p>For a single writer or small charity.</p>
+        <ul><li>1 workspace, up to 3 members</li><li>Funding call feed and criteria extraction</li><li>Grant proposals with weighted scoring</li><li>Answer and evidence libraries</li><li>Markdown export</li></ul>
+        <a class="btn ghost" href="/contact?plan=starter">Get started</a>
+      </div>
+      <div class="card tier featured">
+        <span class="tag">Most popular</span>
+        <h3>Team</h3><div class="price">£149<small> / month</small></div>
+        <p>For bid and fundraising teams.</p>
+        <ul><li>Everything in Starter</li><li>Up to 15 members with roles</li><li>Quality review queue</li><li>Tender toolkit: clarifications, pricing, social value, debriefs</li><li>Alerts, weekly digests and buyer intelligence</li></ul>
+        <a class="btn" href="/contact?plan=team">Get started</a>
+      </div>
+      <div class="card tier">
+        <h3>Consultancy</h3><div class="price">Custom</div>
+        <p>For bid consultancies serving clients.</p>
+        <ul><li>Everything in Team</li><li>Unlimited client-isolated workspaces</li><li>White-label branding and custom domain</li><li>Access reviews</li><li>Priority support</li></ul>
+        <a class="btn ghost" href="/contact?plan=consultancy">Talk to us</a>
+      </div>
+    </div>
+    <p class="note">Prices shown are indicative and in GBP excluding VAT. Final pricing is confirmed on contact.</p>
+  </div>
+</section>
+<section class="block alt">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <details><summary>Does Bid Studio write the application for me?</summary><p>It drafts sections against each criterion and scores them, but your team reviews and owns the final text. Quality review is built in.</p></details>
+    <details><summary>Which funders are supported?</summary><p>Calls are modelled for Horizon Europe, UKRI, World Bank and foundation funders. Any call can be added to the feed with its criteria.</p></details>
+    <details><summary>Is client data kept separate?</summary><p>Yes. Each client workspace is isolated, with role-based members and access reviews.</p></details>
+    <details><summary>Can I try it first?</summary><p>The dashboard opens with demo data. <a href="/app">Open it</a> and try criteria extraction and scoring.</p></details>
+  </div>
+</section>
+{% endblock %}

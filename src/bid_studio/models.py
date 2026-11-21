@@ -298,3 +298,15 @@ class FrameworkOnboarding(Base):
     completion_pct: Mapped[float] = mapped_column(Float, default=0.0)
     readiness_status: Mapped[str] = mapped_column(String(40), default="in_progress")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ContactRequest(Base):
+    __tablename__ = "contact_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    email: Mapped[str] = mapped_column(String(200))
+    organisation: Mapped[str] = mapped_column(String(200), default="")
+    plan: Mapped[str] = mapped_column(String(40), default="general")
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
