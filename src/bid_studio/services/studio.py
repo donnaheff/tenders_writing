@@ -1,12 +1,18 @@
 """Grant Studio logic: word counts, submission readiness and library suggestions."""
 
 import re
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from bid_studio.models import AnswerLibraryItem, EvidenceItem, GrantProposal, ProposalVersion
+from bid_studio.models import (
+    AnswerLibraryItem,
+    EvidenceItem,
+    GrantProposal,
+    ProposalPlan,
+    ProposalVersion,
+)
 from bid_studio.services.domain_logic import compute_proposal_weighted_score, tokenize
 
 PLACEHOLDER_PREFIX = "Draft response for"
@@ -42,7 +48,11 @@ def enrich_sections(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def readiness(
-    proposal: GrantProposal, deadline: date | None, today: date
+    proposal: GrantProposal,
+    deadline: date | None,
+    today: date,
+    plan_analysis: dict[str, Any] | None = None,
+    has_plan: bool = False,
 ) -> dict[str, Any]:
     secs = enrich_sections(proposal.sections or [])
     checks: list[dict[str, Any]] = []
@@ -110,6 +120,26 @@ def readiness(
         proposal.total_weighted_score >= 60,
         f"Currently {proposal.total_weighted_score:g}%",
     )
+    if plan_analysis is not None:
+        add(
+            "plan_wp",
+            "Work packages are defined",
+            "warning",
+            has_plan,
+            "" if has_plan else "Add work packages under the Work packages tab",
+        )
+        errors = [c["message"] for c in plan_analysis["checks"] if c["level"] == "error"]
+        add("plan_consistent", "Plan has no consistency errors", "warning", not errors, " ".join(errors[:3]))
+        budget = plan_analysis["budget"]
+        has_budget = bool(budget["total"])
+        within = proposal.requested_amount <= 0 or abs(budget["variance"]) <= max(1.0, proposal.requested_amount * 0.01)
+        add(
+            "plan_budget",
+            "Budget matches the requested amount",
+            "warning",
+            has_budget and within,
+            "" if has_budget and within else f"Budget requests {budget['requested']:,.2f}; proposal requests {proposal.requested_amount:,.2f}",
+        )
     ready = all(c["ok"] for c in checks if c["severity"] == "blocker")
     return {"ready": ready, "checks": checks}
 
@@ -180,6 +210,29 @@ def snapshot_of(proposal: GrantProposal) -> dict[str, Any]:
     }
 
 
+def core_snapshot(snap: dict[str, Any]) -> dict[str, Any]:
+    """A snapshot without the plan, so section-only comparisons ignore plan changes."""
+    return {k: v for k, v in snap.items() if k != "plan"}
+
+
+def maybe_snapshot(db: Session, proposal: GrantProposal) -> ProposalVersion | None:
+    """Snapshot when none exists yet, or the last one is old and the content has changed."""
+    last = (
+        db.query(ProposalVersion)
+        .filter(ProposalVersion.proposal_id == proposal.id)
+        .order_by(ProposalVersion.version_no.desc())
+        .first()
+    )
+    if last is None:
+        return take_snapshot(db, proposal)
+    created = last.created_at if last.created_at.tzinfo else last.created_at.replace(tzinfo=UTC)
+    if datetime.now(UTC) - created < timedelta(minutes=AUTOSNAPSHOT_MINUTES):
+        return None
+    row = db.query(ProposalPlan).filter(ProposalPlan.proposal_id == proposal.id).first()
+    current = {**snapshot_of(proposal), **({"plan": row.data} if row else {})}
+    return take_snapshot(db, proposal) if current != last.snapshot else None
+
+
 def take_snapshot(db: Session, proposal: GrantProposal, label: str = "") -> ProposalVersion:
     last_no = (
         db.query(ProposalVersion.version_no)
@@ -193,7 +246,7 @@ def take_snapshot(db: Session, proposal: GrantProposal, label: str = "") -> Prop
         proposal_id=proposal.id,
         version_no=last_no + 1,
         label=label,
-        snapshot=snapshot_of(proposal),
+        snapshot=_with_plan(db, proposal),
     )
     db.add(version)
     db.flush()
@@ -209,6 +262,14 @@ def take_snapshot(db: Session, proposal: GrantProposal, label: str = "") -> Prop
         if not old.label:
             db.delete(old)
     return version
+
+
+def _with_plan(db: Session, proposal: GrantProposal) -> dict[str, Any]:
+    snap = snapshot_of(proposal)
+    row = db.query(ProposalPlan).filter(ProposalPlan.proposal_id == proposal.id).first()
+    if row:
+        snap["plan"] = row.data
+    return snap
 
 
 def rescore(sections: list[dict[str, Any]]) -> float:

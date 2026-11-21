@@ -306,6 +306,10 @@ def test_studio_access_is_restricted_while_a_job_is_live(people, client):
     assert p["anon"].get(studio).status_code == 401
     assert p["anon"].put(f"{studio}/save", json={"sections": []}).status_code == 401
     assert p["anon"].get(f"/api/v1/grants/proposals/{pid}/export").status_code == 401
+    assert p["anon"].get(f"/api/v1/grants/proposals/{pid}/plan").status_code == 401
+    assert p["anon"].put(f"/api/v1/grants/proposals/{pid}/plan", json={}).status_code == 401
+    assert p["writer"].get(f"/api/v1/grants/proposals/{pid}/plan").status_code == 200
+    assert p["other_writer"].get(f"/api/v1/grants/proposals/{pid}/plan").status_code == 403
     assert p["anon"].post(f"/api/v1/grants/proposals/{pid}/submit-review").status_code == 401
     assert p["other_writer"].get(studio).status_code == 403
     assert p["other_client"].get(studio).status_code == 403

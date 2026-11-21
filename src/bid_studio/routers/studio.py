@@ -9,16 +9,19 @@ from bid_studio.models import (
     FeedItemLink,
     GrantProposal,
     OpportunityNotice,
+    ProposalPlan,
     ProposalVersion,
     Workspace,
 )
 from bid_studio.schemas import AssistantRequestIn, StudioSave, VersionCreate
 from bid_studio.services import assistant as ai
+from bid_studio.services import plan as planlib
 from bid_studio.services.access import proposal_guard
 from bid_studio.services.feed_sources import parse_iso
 from bid_studio.services.pipeline import queue_for_review
 from bid_studio.services.studio import (
     AUTOSNAPSHOT_MINUTES,
+    core_snapshot,
     enrich_sections,
     readiness,
     rescore,
@@ -47,6 +50,13 @@ def _get(db: Session, proposal_id: int) -> GrantProposal:
 
 def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+def _readiness(db: Session, proposal: GrantProposal, deadline, today) -> dict:
+    row = db.query(ProposalPlan).filter(ProposalPlan.proposal_id == proposal.id).first()
+    plan = planlib.Plan.model_validate(row.data) if row and row.data else planlib.Plan()
+    analysis = planlib.analyze(plan, proposal.requested_amount or 0.0)
+    return readiness(proposal, deadline, today, analysis, has_plan=bool(plan.work_packages))
 
 
 def _payload(db: Session, proposal: GrantProposal) -> dict:
@@ -83,7 +93,7 @@ def _payload(db: Session, proposal: GrantProposal) -> dict:
             "summary": notice.ai_summary if notice else "",
             "url": link.url if link and link.url else None,
         },
-        "readiness": readiness(proposal, deadline, today),
+        "readiness": _readiness(db, proposal, deadline, today),
         "versions_count": versions,
         "locked": proposal.status not in EDITABLE_STATUSES,
         "branding": {
@@ -133,7 +143,7 @@ def save_studio(proposal_id: int, payload: StudioSave, db: Session = Depends(get
         or bool(payload.label)
         or (
             changed
-            and snapshot_of(proposal) != last.snapshot
+            and snapshot_of(proposal) != core_snapshot(last.snapshot)
             and datetime.now(UTC) - _aware(last.created_at) >= timedelta(minutes=AUTOSNAPSHOT_MINUTES)
         )
     )
@@ -243,6 +253,12 @@ def restore_version(proposal_id: int, version_no: int, db: Session = Depends(get
     proposal.currency = snap.get("currency", proposal.currency)
     proposal.sections = snap.get("sections", proposal.sections)
     proposal.total_weighted_score = rescore(proposal.sections)
+    if "plan" in snap:
+        row = db.query(ProposalPlan).filter(ProposalPlan.proposal_id == proposal.id).first()
+        if row:
+            row.data = snap["plan"]
+        else:
+            db.add(ProposalPlan(proposal_id=proposal.id, data=snap["plan"]))
     db.commit()
     db.refresh(proposal)
     return _payload(db, proposal)

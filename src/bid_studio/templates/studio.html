@@ -72,7 +72,44 @@
     #preview { white-space: pre-wrap; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: .84rem; max-height: 300px; overflow: auto; margin-top: 8px; display: none; }
     .search { display: flex; gap: 6px; margin-bottom: 10px; } .search input { flex: 1; min-width: 0; }
     .muted { color: var(--muted); font-size: .85rem; }
-    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+
+    .modes { display: flex; gap: 4px; padding: 10px 20px 0; flex-wrap: wrap; }
+    .modes button { background: #e2e8f0; color: #0f172a; border-radius: 8px 8px 0 0; padding: 8px 16px; }
+    .modes button.on { background: var(--accent); color: #fff; }
+    .layout.wide { grid-template-columns: minmax(0, 1fr) 340px; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+    .toolbar label { display: grid; gap: 3px; font-size: .82rem; color: var(--muted); }
+    .wp { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fcfdff; }
+    .wp h4 { margin: 0 0 8px; font-size: .98rem; }
+    .grid4 { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+    .grid4 label { display: grid; gap: 3px; font-size: .78rem; color: var(--muted); }
+    .grid4 input, .grid4 select, .grid4 textarea, table.t input, table.t select { width: 100%; }
+    table.t { width: 100%; border-collapse: collapse; font-size: .84rem; margin: 6px 0; }
+    table.t th { text-align: left; color: var(--muted); font-weight: 600; padding: 2px 4px; }
+    table.t td { padding: 2px 3px; vertical-align: top; }
+    table.t input, table.t select, table.t textarea { padding: 4px 6px; font-size: .84rem; }
+    .sub { font-size: .8rem; font-weight: 700; color: var(--muted); margin-top: 10px; text-transform: uppercase; letter-spacing: .04em; }
+    .gantt { border: 1px solid var(--border); border-radius: 10px; padding: 10px; overflow-x: auto; }
+    .grow { display: grid; grid-template-columns: 150px minmax(420px, 1fr); gap: 8px; align-items: center; margin: 3px 0; font-size: .8rem; }
+    .grow .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .track { position: relative; height: 18px; background: repeating-linear-gradient(90deg, #f1f5f9 0 1px, transparent 1px calc(100% / var(--n))); border-radius: 3px; }
+    .bar { position: absolute; top: 2px; height: 14px; border-radius: 3px; background: var(--accent); opacity: .85; }
+    .bar.task { background: #93c5fd; top: 4px; height: 10px; }
+    .mk { position: absolute; top: 0; font-size: .8rem; line-height: 18px; transform: translateX(-50%); }
+    .axis { font-size: .72rem; color: var(--muted); }
+    .chk { padding: 4px 0; font-size: .85rem; border-bottom: 1px solid #f1f5f9; }
+    .chk.error { color: var(--bad); } .chk.warning { color: var(--warn); } .chk.okc { color: var(--ok); }
+    .sumbox { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: .88rem; margin-top: 12px; }
+    .sumbox .r { display: flex; justify-content: space-between; padding: 2px 0; }
+    .sumbox .r.tot { font-weight: 800; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 6px; }
+    .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; background: #e2e8f0; }
+    .chip.high { background: #fee2e2; color: #991b1b; } .chip.medium { background: #fef3c7; color: #92400e; } .chip.low { background: #dcfce7; color: #166534; }
+    .docbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+    .docbar button.sel { background: var(--accent); color: #fff; } .docbar button { background: #e2e8f0; color: #0f172a; }
+    .docsecs { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 14px; }
+    @media (max-width: 800px) { .docsecs { grid-template-columns: 1fr; } }
+    .link { background: none; color: var(--bad); padding: 0 4px; font-size: 1rem; }
+    @media (max-width: 1100px) { .layout, .layout.wide { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -91,8 +128,15 @@
   </div>
   <div class="banner" id="lockBanner">This proposal is in review or approved and is read-only. If a reviewer requests changes it reopens for editing.</div>
 
-  <div class="layout">
-    <aside class="panel">
+  <div class="modes" id="modes">
+    <button data-mode="sections" class="on">Sections</button>
+    <button data-mode="wp">Work packages</button>
+    <button data-mode="budget">Budget</button>
+    <button data-mode="docs">Documents</button>
+  </div>
+
+  <div class="layout" id="layout">
+    <aside class="panel" id="leftPanel">
       <h3>Sections</h3>
       <div id="secList"></div>
       <h3 style="margin-top:14px;">Proposal details</h3>
@@ -117,6 +161,8 @@
         <textarea id="secNotes" style="width:100%; min-height:70px;"></textarea>
       </label>
     </section>
+
+    <section class="panel" id="planPanel" style="display:none"></section>
 
     <aside class="panel">
       <div class="callbox" id="callBox"></div>
@@ -169,7 +215,9 @@
   function setSave(msg, err = false) { const el = $("saveState"); el.textContent = msg; el.className = err ? "err" : ""; }
 
   function applyState(s) {
+    const wasLocked = locked;
     state = s; locked = s.locked;
+    if (wasLocked !== locked && mode !== "sections" && plan) setTimeout(renderPlan, 0);
     if (!dirty) sections = s.sections.map(x => ({ ...x }));
     $("pTitle").value = s.proposal.title; $("pOrg").value = s.proposal.applicant_org || "";
     $("pAmount").value = s.proposal.requested_amount; $("pCur").value = s.proposal.currency;
@@ -268,6 +316,7 @@
   }
 
   async function loadSuggestions(q = "") {
+    if (mode === "docs" && !q) { const t = aiTarget(); if (t) q = t.title; }
     const el = $("libList"); el.textContent = "Loading suggestions...";
     try {
       const d = await call(`${base}/studio/suggestions?section=${cur}&q=${encodeURIComponent(q)}`);
@@ -280,12 +329,13 @@
   }
 
   function insertItem(kind, item) {
-    const ta = $("secText"), start = ta.selectionStart ?? ta.value.length, end = ta.selectionEnd ?? start;
+    const t = aiTarget(); if (!t) return;
+    const ta = t.textEl, start = ta.selectionStart ?? ta.value.length, end = ta.selectionEnd ?? start;
     const before = ta.value.slice(0, start), after = ta.value.slice(end);
     const sep = before && !before.endsWith("\n") ? "\n\n" : "";
     ta.value = before + sep + item.text + after;
-    if (kind === "e") { const refs = sections[cur].evidence_refs || (sections[cur].evidence_refs = []); if (!refs.includes(String(item.id))) refs.push(String(item.id)); renderRefs(); }
-    touched(); ta.focus();
+    if (kind === "e" && t.kind === "section") { const refs = sections[cur].evidence_refs || (sections[cur].evidence_refs = []); if (!refs.includes(String(item.id))) refs.push(String(item.id)); renderRefs(); }
+    t.apply(); ta.focus();
   }
 
   async function loadVersions() {
@@ -306,11 +356,12 @@
   async function restoreVersion(n) {
     if (!confirm(`Restore version ${n}? Your current text is saved as a version first.`)) return;
     await save();
-    try { dirty = false; const s = await call(`${base}/versions/${n}/restore`, "POST"); sections = s.sections.map(x => ({ ...x })); applyState(s); selectSection(Math.min(cur, sections.length - 1)); setSave("Restored v" + n); loadVersions(); }
+    try { dirty = false; const s = await call(`${base}/versions/${n}/restore`, "POST"); sections = s.sections.map(x => ({ ...x })); planLoaded = false; planDirty = false; applyState(s); if (mode !== "sections") ensurePlan().then(renderPlan); selectSection(Math.min(cur, sections.length - 1)); setSave("Restored v" + n); loadVersions(); }
     catch (e) { alert(e.message); }
   }
 
   async function submitReview() {
+    if (planDirty) await savePlan();
     await save();
     if (dirty) return;
     try {
@@ -342,8 +393,245 @@
   $("libQ").addEventListener("keydown", e => { if (e.key === "Enter") loadSuggestions($("libQ").value); });
   $("btnVersion").onclick = async () => { const l = prompt("Name this version (optional):", ""); if (l === null) return; await save(l || "Manual snapshot"); };
   $("btnSubmit").onclick = submitReview; $("btnExport").onclick = exportMd;
-  window.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); save(); } });
-  window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+  window.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); save(); if (planDirty) savePlan(); } });
+  window.addEventListener("beforeunload", e => { if (dirty || planDirty) { e.preventDefault(); e.returnValue = ""; } });
+
+  // ================= plan: work packages, budget, documents =================
+  let mode = "sections", plan = null, planAnalysis = null, planTemplates = [], planCurrency = "", planLoaded = false;
+  let planDirty = false, planTimer = null, docSel = { di: 0, si: 0 };
+  const CATS = ["personnel", "travel", "equipment", "subcontracting", "other"];
+  const nextId = (prefix, list) => { let n = list.length + 1; while (list.some(x => x.id === prefix + n)) n++; return prefix + n; };
+  const num = v => (v === "" || isNaN(Number(v)) ? 0 : Number(v));
+  const fmt = v => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function aiTarget() {
+    if (mode === "sections") {
+      return { kind: "section", textEl: $("secText"), title: "", apply: touched, url: `${base}/assistant`,
+        body: a => { readFields(); const s = sections[cur]; return { action: a, section_index: cur, instruction: $("aiQ").value, text: s.draft_text, word_limit: s.word_limit || null }; } };
+    }
+    const d = plan && plan.documents[docSel.di], sec = d && d.sections && d.sections[docSel.si];
+    if (mode === "docs" && d && sec && $("docText")) {
+      return { kind: "doc", textEl: $("docText"), title: `${sec.title} ${sec.prompt}`, url: `${base}/plan/documents/${d.key}/assistant`,
+        apply: () => $("docText").dispatchEvent(new Event("input", { bubbles: true })),
+        body: a => ({ action: a, section_id: sec.id, text: $("docText").value, instruction: $("aiQ").value }) };
+    }
+    return null;
+  }
+
+  async function ensurePlan() {
+    if (planLoaded) return;
+    const d = await call(`${base}/plan`);
+    plan = d.plan; planAnalysis = d.analysis; planTemplates = d.templates; planCurrency = d.currency; planLoaded = true;
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+    const secs = m === "sections";
+    $("leftPanel").style.display = secs ? "" : "none";
+    $("editorPanel").style.display = secs ? "" : "none";
+    $("planPanel").style.display = secs ? "none" : "";
+    $("layout").classList.toggle("wide", !secs);
+    if (!secs) ensurePlan().then(renderPlan).catch(e => { $("planPanel").textContent = "Could not load the plan: " + e.message; });
+    else loadSuggestions();
+  }
+
+  function getPath(obj, path) { return path === "" ? obj : path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj); }
+  function setPath(obj, path, val) { const ks = path.split("."), last = ks.pop(); getPath(obj, ks.join("."))[last] = val; }
+  const P = (path, attrs = "") => `data-path="${path}" ${attrs}`;
+  const inp = (path, type = "text", attrs = "") => `<input ${P(path)} type="${type}" value="${esc(getPath(plan, path))}" ${attrs} />`;
+
+  function renderPlan() {
+    if (!plan) return;
+    ({ wp: renderWP, budget: renderBudget, docs: renderDocs })[mode]();
+    if (locked) $("planPanel").querySelectorAll("input,select,textarea,[data-act]").forEach(el => { el.disabled = true; });
+    updateDerived();
+  }
+
+  // ---- work packages
+  function wpCard(w, i) {
+    const tasks = w.tasks.map((t, j) => `<tr><td style="width:70px">${esc(t.id)}</td><td>${inp(`work_packages.${i}.tasks.${j}.title`)}</td><td style="width:70px">${inp(`work_packages.${i}.tasks.${j}.start_month`, "number", 'min="1"')}</td><td style="width:70px">${inp(`work_packages.${i}.tasks.${j}.end_month`, "number", 'min="1"')}</td><td style="width:24px"><button class="link" data-act="rmTask:${i}:${j}" aria-label="Remove task">×</button></td></tr>`).join("");
+    const dels = w.deliverables.map((d, j) => `<tr><td style="width:70px">${esc(d.id)}</td><td>${inp(`work_packages.${i}.deliverables.${j}.title`)}</td><td style="width:100px">${inp(`work_packages.${i}.deliverables.${j}.type`)}</td><td style="width:70px">${inp(`work_packages.${i}.deliverables.${j}.month`, "number", 'min="1"')}</td><td style="width:24px"><button class="link" data-act="rmDel:${i}:${j}" aria-label="Remove deliverable">×</button></td></tr>`).join("");
+    const mss = w.milestones.map((m, j) => `<tr><td style="width:70px">${esc(m.id)}</td><td>${inp(`work_packages.${i}.milestones.${j}.title`)}</td><td style="width:70px">${inp(`work_packages.${i}.milestones.${j}.month`, "number", 'min="1"')}</td><td style="width:24px"><button class="link" data-act="rmMs:${i}:${j}" aria-label="Remove milestone">×</button></td></tr>`).join("");
+    return `<div class="wp"><div style="display:flex; justify-content:space-between"><h4>${esc(w.id)}</h4><button class="small secondary" data-act="rmWp:${i}">Remove</button></div>
+      <div class="grid4"><label style="grid-column: span 2">Title${inp(`work_packages.${i}.title`)}</label><label>Lead organisation${inp(`work_packages.${i}.lead`)}</label>
+        <label>Start month${inp(`work_packages.${i}.start_month`, "number", 'min="1"')}</label><label>End month${inp(`work_packages.${i}.end_month`, "number", 'min="1"')}</label></div>
+      <label class="muted" style="display:block; margin-top:8px">Objectives<textarea ${P(`work_packages.${i}.objectives`)} style="width:100%; min-height:60px">${esc(w.objectives)}</textarea></label>
+      <div class="sub">Tasks</div><table class="t"><tbody>${tasks}</tbody></table><button class="small secondary" data-act="addTask:${i}">+ Task</button>
+      <div class="sub">Deliverables</div><table class="t"><tbody>${dels}</tbody></table><button class="small secondary" data-act="addDel:${i}">+ Deliverable</button>
+      <div class="sub">Milestones</div><table class="t"><tbody>${mss}</tbody></table><button class="small secondary" data-act="addMs:${i}">+ Milestone</button></div>`;
+  }
+  function renderWP() {
+    $("planPanel").innerHTML = `<h3>Work packages</h3>
+      <div class="toolbar"><label>Project duration (months)${inp("duration_months", "number", 'min="1" max="120" style="width:110px"')}</label>
+        <button class="small" data-act="addWp">+ Work package</button><button class="small secondary" id="expPlan">Export plan .md</button></div>
+      ${plan.work_packages.map(wpCard).join("") || `<p class="muted">No work packages yet. Add one to describe how the project is organised.</p>`}
+      <h3 style="margin-top:16px">Timeline</h3><div class="gantt" id="gantt"></div>
+      <h3 style="margin-top:16px">Checks</h3><div id="planChecks"></div>`;
+    $("expPlan").onclick = exportPlan;
+  }
+  function renderGantt() {
+    const g = $("gantt"); if (!g) return;
+    const N = Math.max(1, plan.duration_months);
+    const pct = m => ((m - 1) / N) * 100, span = (a, b) => (Math.max(1, b - a + 1) / N) * 100;
+    const ticks = []; for (let m = 1; m <= N; m += N > 36 ? 12 : N > 18 ? 6 : 3) ticks.push(`<span style="position:absolute; left:${pct(m)}%">${m}</span>`);
+    let html = `<div class="grow"><div class="axis">Month</div><div class="axis" style="position:relative; height:14px">${ticks.join("")}</div></div>`;
+    plan.work_packages.forEach(w => {
+      html += `<div class="grow"><div class="lab"><strong>${esc(w.id)}</strong> ${esc(w.title)}</div><div class="track" style="--n:${N}"><div class="bar" style="left:${pct(w.start_month)}%; width:${span(w.start_month, w.end_month)}%"></div>
+        ${w.deliverables.map(d => `<span class="mk" title="${esc(d.id + " " + d.title)}" style="left:${(d.month - 0.5) / N * 100}%; color:#b45309">▲</span>`).join("")}
+        ${w.milestones.map(m => `<span class="mk" title="${esc(m.id + " " + m.title)}" style="left:${(m.month - 0.5) / N * 100}%; color:#7c3aed">◆</span>`).join("")}</div></div>`;
+      w.tasks.forEach(t => { html += `<div class="grow"><div class="lab muted">&nbsp;&nbsp;${esc(t.id)} ${esc(t.title)}</div><div class="track" style="--n:${N}"><div class="bar task" style="left:${pct(t.start_month)}%; width:${span(t.start_month, t.end_month)}%"></div></div></div>`; });
+    });
+    g.innerHTML = html + `<div class="muted" style="margin-top:6px">▲ deliverable &nbsp; ◆ milestone</div>`;
+  }
+
+  // ---- budget
+  function budgetCalc() {
+    const b = plan.budget; let direct = 0, sub = 0; const byWp = {}, byCat = Object.fromEntries(CATS.map(c => [c, 0]));
+    b.lines.forEach(l => { const t = Math.round(num(l.quantity) * num(l.unit_cost) * 100) / 100; l._t = t; direct += t; if (l.category === "subcontracting") sub += t;
+      const k = l.wp || "(unassigned)"; byWp[k] = (byWp[k] || 0) + t; byCat[l.category] += t; });
+    const base0 = b.indirect_base === "excl_subcontracting" ? direct - sub : direct;
+    const indirect = Math.round(base0 * num(b.indirect_pct)) / 100, total = direct + indirect, requested = Math.max(total - num(b.match_funding), 0);
+    return { direct, indirect, total, requested, byWp, byCat };
+  }
+  function renderBudget() {
+    const b = plan.budget, wpOpts = sel => `<option value="">(none)</option>` + plan.work_packages.map(w => `<option value="${esc(w.id)}" ${w.id === sel ? "selected" : ""}>${esc(w.id)}</option>`).join("");
+    const rows = b.lines.map((l, i) => `<tr><td style="width:70px">${esc(l.id)}</td>
+      <td style="width:90px"><select ${P(`budget.lines.${i}.wp`)}>${wpOpts(l.wp)}</select></td>
+      <td style="width:120px"><select ${P(`budget.lines.${i}.category`)}>${CATS.map(c => `<option ${c === l.category ? "selected" : ""}>${c}</option>`).join("")}</select></td>
+      <td>${inp(`budget.lines.${i}.description`)}</td><td style="width:70px">${inp(`budget.lines.${i}.quantity`, "number", 'min="0" step="any"')}</td>
+      <td style="width:110px">${inp(`budget.lines.${i}.unit`)}</td><td style="width:100px">${inp(`budget.lines.${i}.unit_cost`, "number", 'min="0" step="any"')}</td>
+      <td style="width:100px; text-align:right" id="lt-${i}"></td><td style="width:24px"><button class="link" data-act="rmLine:${i}" aria-label="Remove line">×</button></td></tr>`).join("");
+    $("planPanel").innerHTML = `<h3>Budget (${esc(planCurrency)})</h3>
+      <div class="toolbar"><label>Indirect costs %${inp("budget.indirect_pct", "number", 'min="0" max="100" step="any" style="width:100px"')}</label>
+        <label>Indirect applies to<select ${P("budget.indirect_base")}><option value="all" ${b.indirect_base === "all" ? "selected" : ""}>All direct costs</option><option value="excl_subcontracting" ${b.indirect_base === "excl_subcontracting" ? "selected" : ""}>Direct costs excl. subcontracting</option></select></label>
+        <label>Match funding${inp("budget.match_funding", "number", 'min="0" step="any" style="width:140px"')}</label>
+        <button class="small" data-act="addLine">+ Budget line</button><button class="small secondary" id="expPlan">Export plan .md</button></div>
+      <table class="t"><thead><tr><th>Line</th><th>WP</th><th>Category</th><th>Description</th><th>Qty</th><th>Unit</th><th>Unit cost</th><th style="text-align:right">Total</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      ${b.lines.length ? "" : `<p class="muted">No budget lines yet. Add personnel, travel, equipment and other costs per work package.</p>`}
+      <div class="sumbox" id="budSummary"></div><h3 style="margin-top:16px">Checks</h3><div id="planChecks"></div>`;
+    $("expPlan").onclick = exportPlan;
+  }
+  function renderBudgetSummary() {
+    const el = $("budSummary"); if (!el) return;
+    const c = budgetCalc(); plan.budget.lines.forEach((l, i) => { const t = $("lt-" + i); if (t) t.textContent = fmt(l._t); });
+    const reqd = (state && state.proposal.requested_amount) || 0, diff = Math.round((c.requested - reqd) * 100) / 100;
+    el.innerHTML = `<div class="sub" style="margin-top:0">By work package</div>${Object.entries(c.byWp).map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join("") || "<div class='muted'>-</div>"}
+      <div class="sub">By category</div>${CATS.map(k => `<div class="r"><span>${k}</span><span>${fmt(c.byCat[k])}</span></div>`).join("")}
+      <div class="r tot"><span>Direct costs</span><span>${fmt(c.direct)}</span></div><div class="r"><span>Indirect costs</span><span>${fmt(c.indirect)}</span></div>
+      <div class="r tot"><span>Total cost</span><span>${fmt(c.total)}</span></div><div class="r"><span>Match funding</span><span>− ${fmt(plan.budget.match_funding)}</span></div>
+      <div class="r tot"><span>Funding requested by this budget</span><span>${fmt(c.requested)}</span></div><div class="r"><span>Requested in the proposal</span><span>${fmt(reqd)}</span></div>
+      ${Math.abs(diff) > Math.max(1, reqd * 0.01) ? `<div class="r" style="color:var(--warn)"><span>Difference</span><span>${diff > 0 ? "+" : ""}${fmt(diff)}</span></div>
+        <button class="small" data-act="syncAmount" style="margin-top:6px" ${locked ? "disabled" : ""}>Set the proposal's requested amount to ${fmt(c.requested)}</button>` : `<div class="r" style="color:var(--ok)"><span>Matches the proposal</span><span>✓</span></div>`}`;
+  }
+
+  // ---- documents
+  function renderDocs() {
+    const have = new Set(plan.documents.map(d => d.key));
+    if (docSel.di >= plan.documents.length) docSel = { di: 0, si: 0 };
+    const addable = planTemplates.filter(t => !have.has(t.key));
+    $("planPanel").innerHTML = `<h3>Supporting documents</h3>
+      <div class="docbar">${plan.documents.map((d, i) => `<button class="small ${i === docSel.di ? "sel" : ""}" data-act="selDoc:${i}">${esc(d.title)}</button>`).join("")}
+        ${addable.length ? `<select id="addDocSel"><option value="">+ Add document...</option>${addable.map(t => `<option value="${t.key}">${esc(t.title)}</option>`).join("")}</select>` : ""}</div>
+      <div id="docBody">${plan.documents.length ? "" : `<p class="muted">Add a data management plan, ethics statement, impact plan or risk register from the menu above. Each comes with prompts and works with the assistant.</p>`}</div>
+      <h3 style="margin-top:16px">Checks</h3><div id="planChecks"></div>`;
+    const sel = $("addDocSel"); if (sel) sel.onchange = async () => {
+      if (!sel.value) return;
+      try { const d = await call(`${base}/plan/documents/${sel.value}`, "POST"); adopt(d); docSel = { di: plan.documents.length - 1, si: 0 }; renderPlan(); }
+      catch (e) { setSave(e.message, true); }
+    };
+    const d = plan.documents[docSel.di]; if (!d) return;
+    const body = $("docBody");
+    if (d.key === "risk_register") {
+      const rows = d.rows.map((r, j) => `<tr><td style="width:60px">${esc(r.id)}</td><td>${inp(`documents.${docSel.di}.rows.${j}.description`)}</td>
+        <td style="width:110px"><select ${P(`documents.${docSel.di}.rows.${j}.category`)}>${["technical", "delivery", "financial", "legal", "ethical", "partnership", "other"].map(c => `<option ${c === r.category ? "selected" : ""}>${c}</option>`).join("")}</select></td>
+        <td style="width:46px">${inp(`documents.${docSel.di}.rows.${j}.likelihood`, "number", 'min="1" max="5"')}</td><td style="width:46px">${inp(`documents.${docSel.di}.rows.${j}.impact`, "number", 'min="1" max="5"')}</td>
+        <td style="width:80px" id="rs-${j}"></td><td>${inp(`documents.${docSel.di}.rows.${j}.mitigation`)}</td><td style="width:100px">${inp(`documents.${docSel.di}.rows.${j}.owner`)}</td>
+        <td style="width:24px"><button class="link" data-act="rmRisk:${j}" aria-label="Remove risk">×</button></td></tr>`).join("");
+      body.innerHTML = `<p class="muted">Likelihood and impact are scored 1-5; the score is likelihood × impact (15+ high, 8+ medium).</p>
+        <table class="t"><thead><tr><th>ID</th><th>Risk</th><th>Category</th><th>L</th><th>I</th><th>Score</th><th>Mitigation</th><th>Owner</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+        <button class="small secondary" data-act="addRisk">+ Risk</button> <button class="small secondary" data-act="rmDoc:${d.key}" style="margin-left:8px">Remove document</button>`;
+    } else {
+      const sec = d.sections[Math.min(docSel.si, d.sections.length - 1)] || { text: "", prompt: "", title: "" };
+      const si = Math.min(docSel.si, d.sections.length - 1);
+      body.innerHTML = `<div class="docsecs"><div>${d.sections.map((x, j) => `<button class="sec-item ${j === si ? "active" : ""}" data-act="selSec:${j}"><div class="row"><span class="t">${esc(x.title)}</span><span class="dot ${x.text.trim() ? "written" : ""}"></span></div></button>`).join("")}
+        <button class="small secondary" data-act="rmDoc:${d.key}" style="margin-top:6px">Remove document</button></div>
+        <div><h3 style="margin-top:0">${esc(sec.title)}</h3><div class="guidance">${esc(sec.prompt)}</div>
+          <textarea id="docText" ${P(`documents.${docSel.di}.sections.${si}.text`)} style="width:100%; min-height:300px" aria-label="Document text">${esc(sec.text)}</textarea>
+          <div class="muted"><span id="docWc">0</span> words</div></div></div>`;
+      docSel.si = si; loadSuggestions();
+    }
+  }
+  function updateDocBits() {
+    const d = plan.documents[docSel.di];
+    if (d && d.key === "risk_register") d.rows.forEach((r, j) => { const el = $("rs-" + j), sc = num(r.likelihood) * num(r.impact); if (el) el.innerHTML = `<span class="chip ${sc >= 15 ? "high" : sc >= 8 ? "medium" : "low"}">${sc}</span>`; });
+    const t = $("docText"), w = $("docWc"); if (t && w) w.textContent = (t.value.match(/\S+/g) || []).length;
+  }
+
+  // ---- shared plumbing
+  function renderChecks() {
+    const el = $("planChecks"); if (!el || !planAnalysis) return;
+    const cs = planAnalysis.checks;
+    el.innerHTML = cs.map(c => `<div class="chk ${c.level}">${c.level === "error" ? "✕" : "!"} ${esc(c.message)}</div>`).join("") || `<div class="chk okc">✓ No issues found.</div>`;
+  }
+  function updateDerived() { if (mode === "wp") renderGantt(); if (mode === "budget") renderBudgetSummary(); if (mode === "docs") updateDocBits(); renderChecks(); }
+  function adopt(d) { plan = d.plan; planAnalysis = d.analysis; planLoaded = true; planDirty = false; refreshReadiness(); }
+  async function refreshReadiness() { try { renderReady((await call(`${base}/studio`)).readiness); } catch (_) {} }
+
+  function planTouched() {
+    if (locked) return;
+    planDirty = true; setSave("Unsaved changes..."); updateDerived();
+    clearTimeout(planTimer); planTimer = setTimeout(savePlan, 1500);
+  }
+  async function savePlan() {
+    if (locked || !planDirty) return;
+    clearTimeout(planTimer); setSave("Saving...");
+    const body = JSON.parse(JSON.stringify(plan, (k, v) => (k === "_t" ? undefined : v)));
+    try {
+      planDirty = false;
+      const d = await call(`${base}/plan`, "PUT", body);
+      planAnalysis = d.analysis; renderChecks(); setSave("Saved " + new Date().toLocaleTimeString()); refreshReadiness();
+    } catch (e) { planDirty = true; setSave(e.status === 409 ? "Locked" : "Save failed: " + e.message, true); }
+  }
+  async function exportPlan() {
+    if (planDirty) await savePlan();
+    const d = await call(`${base}/plan/export`);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([d.markdown], { type: "text/markdown" }));
+    a.download = "project-plan.md"; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  $("planPanel").addEventListener("input", e => {
+    const path = e.target.dataset.path; if (!path || locked) return;
+    const v = e.target.type === "number" ? num(e.target.value) : e.target.value;
+    setPath(plan, path, v); planTouched();
+  });
+  $("planPanel").addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b || locked) return;
+    const [kind, ...a] = b.dataset.act.split(":"), n = a.map(Number);
+    const wps = plan.work_packages, dur = plan.duration_months;
+    const acts = {
+      addWp: () => wps.push({ id: nextId("WP", wps), title: "", lead: "", start_month: 1, end_month: dur, objectives: "", tasks: [], deliverables: [], milestones: [] }),
+      rmWp: () => wps.splice(n[0], 1),
+      addTask: () => { const w = wps[n[0]]; w.tasks.push({ id: nextId("T" + w.id.replace("WP", "") + ".", w.tasks), title: "", start_month: w.start_month, end_month: w.end_month }); },
+      rmTask: () => wps[n[0]].tasks.splice(n[1], 1),
+      addDel: () => { const w = wps[n[0]]; w.deliverables.push({ id: nextId("D" + w.id.replace("WP", "") + ".", w.deliverables), title: "", month: w.end_month, type: "report" }); },
+      rmDel: () => wps[n[0]].deliverables.splice(n[1], 1),
+      addMs: () => { const w = wps[n[0]]; w.milestones.push({ id: nextId("M", w.milestones), title: "", month: w.end_month }); },
+      rmMs: () => wps[n[0]].milestones.splice(n[1], 1),
+      addLine: () => plan.budget.lines.push({ id: nextId("B", plan.budget.lines), wp: wps[0] ? wps[0].id : "", category: "personnel", description: "", quantity: 0, unit: "person-months", unit_cost: 0 }),
+      rmLine: () => plan.budget.lines.splice(n[0], 1),
+      syncAmount: () => { $("pAmount").value = Math.round(budgetCalc().requested * 100) / 100; touched(); },
+      selDoc: () => { docSel = { di: n[0], si: 0 }; },
+      selSec: () => { docSel.si = n[0]; },
+      addRisk: () => { const d = plan.documents[docSel.di]; d.rows.push({ id: nextId("R", d.rows), description: "", category: "other", likelihood: 3, impact: 3, mitigation: "", owner: "" }); },
+      rmRisk: () => plan.documents[docSel.di].rows.splice(n[0], 1),
+    };
+    if (kind === "rmDoc") { const key = a[0]; if (!confirm("Remove this document and its text?")) return; plan.documents = plan.documents.filter(d => d.key !== key); docSel = { di: 0, si: 0 }; }
+    else if (acts[kind]) acts[kind]();
+    if (kind !== "selDoc" && kind !== "selSec") planTouched();
+    renderPlan();
+  });
+  $("modes").querySelectorAll("button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
 
   // --- AI assistant ---
   let aiResult = null;
@@ -360,11 +648,9 @@
     const out = $("aiOut"); out.className = "muted"; out.textContent = "Working...";
     document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = true);
     try {
-      readFields();
-      const s = sections[cur];
-      aiResult = await call(`${base}/assistant`, "POST", {
-        action, section_index: cur, instruction: $("aiQ").value, text: s.draft_text, word_limit: s.word_limit || null
-      });
+      const t = aiTarget();
+      if (!t) { out.textContent = "Open Sections, or a document section, to use the assistant."; return; }
+      aiResult = await call(t.url, "POST", t.body(action));
       renderAi(action);
     } catch (e) { out.className = "muted"; out.textContent = "Assistant error: " + e.message; }
     finally { document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = false); }
@@ -378,7 +664,7 @@
     out.className = "";
     out.innerHTML = `${badge}
       ${isText ? `<div class="item" style="margin-top:8px; white-space:pre-wrap; max-height:260px; overflow:auto;">${esc(r.text)}</div>` : `<div style="margin:8px 0">${esc(r.text)}</div>`}
-      ${r.suggested_score != null ? `<div><strong>Suggested score:</strong> ${r.suggested_score} / ${sections[cur].max_score}</div>` : ""}
+      ${r.suggested_score != null ? `<div><strong>Suggested score:</strong> ${r.suggested_score} / ${sections[cur] ? sections[cur].max_score : ""}</div>` : ""}
       ${list("Strengths", r.strengths)}${list("Gaps", r.gaps)}${list("Notes", r.notes)}
       <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
         ${isText && action !== "ask" ? `<button class="small" id="aiReplace" ${locked ? "disabled" : ""}>Replace section</button>` : ""}
@@ -387,7 +673,7 @@
       </div>
       <div class="muted" style="margin-top:8px;">AI output can contain mistakes. Check every fact, and replace any [TO CONFIRM] placeholders before submitting.</div>`;
     const bind = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
-    bind("aiReplace", () => { $("secText").value = aiResult.text; touched(); });
+    bind("aiReplace", () => { const t = aiTarget(); if (t) { t.textEl.value = aiResult.text; t.apply(); } });
     bind("aiInsert", () => insertItem("a", { text: aiResult.text }));
     bind("aiScore", () => { $("secScore").value = aiResult.suggested_score; touched(); });
   }

@@ -496,3 +496,16 @@ class JobReview(Base):
     rating: Mapped[int] = mapped_column(Integer)
     comment: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ProposalPlan(Base):
+    """Structured plan for a proposal: work packages, budget and supporting documents."""
+
+    __tablename__ = "proposal_plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    proposal_id: Mapped[int] = mapped_column(
+        ForeignKey("grant_proposals.id"), unique=True, index=True
+    )
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

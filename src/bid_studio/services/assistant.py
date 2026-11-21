@@ -93,8 +93,12 @@ def build_prompt(req: AssistantRequest) -> str:
         f"Call: {req.call_title}",
         f"Call summary: {req.call_summary}",
         f"Applicant: {req.applicant or '[TO CONFIRM: applicant organisation]'}",
-        f"Criterion: {sec.get('title')} (weight {sec.get('weight')}%, scored out of {sec.get('max_score')})",
-        f"Funder guidance for this criterion: {req.guidance or 'none provided'}",
+        (
+            f"Document: {sec.get('doc_title')}; section: {sec.get('title')}"
+            if sec.get("is_doc")
+            else f"Criterion: {sec.get('title')} (weight {sec.get('weight')}%, scored out of {sec.get('max_score')})"
+        ),
+        f"Guidance for this {'section' if sec.get('is_doc') else 'criterion'}: {req.guidance or 'none provided'}",
         f"Word limit: {limit if limit else 'none'}",
     ]
     if req.material:
@@ -168,10 +172,14 @@ def _offline_draft(req: AssistantRequest) -> AssistantResult:
     sec = req.section
     guidance_points = [g.strip() for g in re.split(r"[;.]|,\s*(?=[a-z])", req.guidance) if g.strip()]
     applicant = req.applicant or "[TO CONFIRM: applicant organisation]"
-    paras = [
-        f"{applicant} proposes to address {sec.get('title', 'this criterion').lower()} for "
-        f"{req.call_title or 'this call'} as follows. [TO CONFIRM: one-sentence summary of the project aim]"
-    ]
+    paras = (
+        []
+        if sec.get("is_doc")
+        else [
+            f"{applicant} proposes to address {sec.get('title', 'this criterion').lower()} for "
+            f"{req.call_title or 'this call'} as follows. [TO CONFIRM: one-sentence summary of the project aim]"
+        ]
+    )
     for point in guidance_points[:4]:
         paras.append(f"{point[0].upper() + point[1:]}: [TO CONFIRM: your specific approach, with numbers and dates].")
     for m in req.material[:2]:
@@ -266,7 +274,7 @@ def _offline_critique(req: AssistantRequest) -> AssistantResult:
             "This is a keyword-based estimate, not a reviewer's judgement."
         ),
         provider="offline",
-        suggested_score=round(max_score * ratio * 2) / 2,
+        suggested_score=None if sec.get("is_doc") else round(max_score * ratio * 2) / 2,
         strengths=strengths,
         gaps=gaps,
         notes=["Add an Anthropic API key for a reviewer-style critique."],
