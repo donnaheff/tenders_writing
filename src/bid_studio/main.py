@@ -15,6 +15,7 @@ from bid_studio.routers import (
     automation,
     bid_enhancements,
     core,
+    feed,
     grants,
     intelligence,
     site,
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(site.router)
     app.include_router(core.router)
     app.include_router(automation.router)
+    app.include_router(feed.router)
     app.include_router(grants.router)
     app.include_router(bid_enhancements.router)
     app.include_router(intelligence.router)

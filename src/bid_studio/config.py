@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     seed_on_startup: bool = True
     contact_notify_email: str = "team@bidstudio.example"
     cron_secret: str = ""
+    # Comma-separated feed sources to refresh on each scheduled run: grants_gov, eu_funding
+    feed_sources: str = ""
+    feed_sync_limit: int = 50
     auto_process_grants: bool = False
     reminder_window_days: int = 14
     smtp_host: str = ""

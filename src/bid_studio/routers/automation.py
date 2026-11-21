@@ -13,6 +13,7 @@ from bid_studio.models import (
     Workspace,
 )
 from bid_studio.routers.intelligence import build_digest
+from bid_studio.services.feed_sources import SOURCES, sync_source
 from bid_studio.services.mailer import deliver
 from bid_studio.services.pipeline import auto_process_call
 
@@ -116,10 +117,21 @@ def auto_process_default_workspace(db: Session) -> int:
     return created
 
 
+def sync_configured_feeds(db: Session) -> dict:
+    names = [n.strip() for n in settings.feed_sources.split(",") if n.strip() in SOURCES]
+    return {
+        name: {"status": run.status, "created": run.created, "updated": run.updated}
+        for name in names
+        for run in [sync_source(db, name, limit=settings.feed_sync_limit)]
+    }
+
+
 def run_all(db: Session) -> dict:
     now = datetime.now(UTC)
+    feed_result = sync_configured_feeds(db)  # first, so new calls reach digests and auto-process
     return {
         "ran_at": now.isoformat(),
+        "feed_sync": feed_result,
         "proposals_auto_created": auto_process_default_workspace(db),
         "digests_sent": send_due_digests(db, now),
         "deadline_reminders_sent": send_deadline_reminders(db, now),

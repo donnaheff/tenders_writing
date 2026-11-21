@@ -158,6 +158,7 @@
     <nav id="sidebar">
       <div class="nav-group">Core &amp; Primary</div>
       <button class="active" onclick="showTab('overview', this)">Overview, Feed &amp; QA</button>
+      <button onclick="showTab('grantsfeed', this)">Grants Feed</button>
       <button onclick="showTab('grants', this)">1. Grant &amp; Funding Calls</button>
 
       <div class="nav-group">Closest to Bid Studio</div>
@@ -247,6 +248,38 @@
           <div id="ordersList"></div>
           <h4 style="margin-top:14px;">Recent Email Deliveries</h4>
           <div id="deliveriesList"></div>
+        </div>
+      </section>
+
+      <section id="grantsfeed" class="panel">
+        <div class="card">
+          <h3>Grants Feed</h3>
+          <div class="inline-actions" style="margin-bottom:10px;">
+            <button onclick="gfSync()" id="gfSyncBtn">Sync from Grants.gov &amp; EU Funding</button>
+            <span class="muted" id="gfSyncStatus">Loading sync status...</span>
+          </div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));">
+            <input id="gfQ" placeholder="Search title, funder, topic..." oninput="gfDebounce()" />
+            <select id="gfFunder" onchange="gfReset()"><option value="">All funders</option></select>
+            <select id="gfRegion" onchange="gfReset()"><option value="">All regions</option></select>
+            <select id="gfSource" onchange="gfReset()"><option value="">All sources</option></select>
+            <input id="gfMin" type="number" min="0" placeholder="Min value" onchange="gfReset()" />
+            <select id="gfClosing" onchange="gfReset()">
+              <option value="">Any deadline</option><option value="14">Closing in 14 days</option>
+              <option value="30">Closing in 30 days</option><option value="90">Closing in 90 days</option>
+            </select>
+            <select id="gfSort" onchange="gfReset()">
+              <option value="deadline">Soonest deadline</option><option value="value">Highest value</option>
+              <option value="newest">Newest added</option>
+            </select>
+            <label class="muted"><input id="gfSaved" type="checkbox" onchange="gfReset()" style="width:auto;" /> Saved only</label>
+          </div>
+          <div class="inline-actions" style="margin-bottom:8px;">
+            <button class="small secondary" onclick="gfPage(-1)">&larr; Prev</button>
+            <span class="muted" id="gfPageInfo"></span>
+            <button class="small secondary" onclick="gfPage(1)">Next &rarr;</button>
+          </div>
+          <div id="gfList"></div>
         </div>
       </section>
 
@@ -433,11 +466,16 @@
       return { items, total: totalHeader ? Number(totalHeader) : items.length };
     }
 
+    function esc(v) {
+      return String(v ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+    }
+
     function showTab(id, btn) {
       document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
       document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
       document.getElementById(id).classList.add("active");
       btn.classList.add("active");
+      if (id === "grantsfeed") gfInit();
       refreshAll();
     }
 
@@ -450,6 +488,7 @@
     async function switchWorkspace() {
       currentWsId = Number(document.getElementById("wsSelect").value);
       noticeOffset = 0;
+      gfReady = false; gfOffset = 0;
       const list = await api("/api/v1/workspaces");
       const ws = list.find(w => w.id === currentWsId);
       if (ws) {
@@ -525,8 +564,8 @@
       document.getElementById("btnNextNotices").disabled = noticeOffset + noticeLimit >= totalNotices;
 
       document.getElementById("feedList").innerHTML = notices.map(n => `<div class="row-item">
-        <span class="badge">${n.notice_type}</span> <strong>#${n.id} ${n.title}</strong> — ${n.funder_or_buyer} (${n.currency} ${n.contract_value.toLocaleString()})
-        <div class="muted">${n.ai_summary}</div>
+        <span class="badge">${n.notice_type}</span> <strong>#${n.id} ${esc(n.title)}</strong> — ${esc(n.funder_or_buyer)} (${n.currency} ${n.contract_value.toLocaleString()})
+        <div class="muted">${esc(n.ai_summary)}</div>
       </div>`).join("") || `<div class="muted">No matching notices on this page.</div>`;
 
       document.getElementById("answerLibraryList").innerHTML = answers.slice(0, 5).map(a => `<div class="row-item">
@@ -556,7 +595,7 @@
       </div>`).join("") || `<div class="muted">No deliveries sent yet.</div>`;
 
       document.getElementById("grantCallsList").innerHTML = grants.map(g => `<div class="row-item">
-        <span class="badge">${g.source_portal}</span> <strong>#${g.id} ${g.title}</strong> (${g.currency} ${g.contract_value.toLocaleString()})
+        <span class="badge">${esc(g.source_portal)}</span> <strong>#${g.id} ${esc(g.title)}</strong> (${g.currency} ${g.contract_value.toLocaleString()})
         <div class="inline-actions">
           <button class="small" onclick="extractGrantCriteria(${g.id})">Extract Criteria (${g.structured_criteria.length})</button>
           <button class="small secondary" onclick="draftProposalForCall(${g.id}, ${g.contract_value})">Draft Proposal</button>
@@ -566,7 +605,7 @@
 
       window.__grantProposals = proposals;
       document.getElementById("grantProposalsList").innerHTML = proposals.map(p => `<div class="row-item">
-        <strong>${p.title}</strong> — ${p.funder_type} | Weighted Score: <strong>${p.total_weighted_score}%</strong> | Status: <span class="badge">${p.status}</span>
+        <strong>${esc(p.title)}</strong> — ${p.funder_type} | Weighted Score: <strong>${p.total_weighted_score}%</strong> | Status: <span class="badge">${p.status}</span>
         <div class="inline-actions">
           <button class="small" onclick="submitGrantReview(${p.id})">Submit to Quality Queue</button>
           <button class="small secondary" onclick="toggleEditProposal(${p.id})">Edit Sections</button>
@@ -636,6 +675,8 @@
       document.getElementById("membersList").innerHTML = members.map(m => `<div class="row-item">
         <strong>${m.full_name}</strong> (${m.email}) — <span class="badge">${m.role}</span> | Status: ${m.status}
       </div>`).join("") || `<div class="muted">No members added to this workspace yet.</div>`;
+
+      if (document.getElementById("grantsfeed").classList.contains("active")) { gfInit(); }
     }
 
     async function addAnswerItem() {
@@ -750,6 +791,103 @@
       });
       document.getElementById("accessReviewOutput").textContent = JSON.stringify(member, null, 2);
       refreshAll();
+    }
+
+    // --- Grants feed ---
+    const gfLimit = 10;
+    let gfOffset = 0, gfTotal = 0, gfTimer = null, gfReady = false;
+
+    function gfDebounce() { clearTimeout(gfTimer); gfTimer = setTimeout(gfReset, 300); }
+    function gfReset() { gfOffset = 0; gfRefresh(); }
+    function gfPage(dir) {
+      const next = gfOffset + dir * gfLimit;
+      if (next < 0 || next >= gfTotal) return;
+      gfOffset = next;
+      gfRefresh();
+    }
+
+    async function gfInit() {
+      if (!gfReady) {
+        const f = await api(`/api/v1/grants/feed/facets?workspace_id=${currentWsId}`);
+        const fill = (id, list) => {
+          document.getElementById(id).innerHTML = document.getElementById(id).options[0].outerHTML +
+            list.map(o => `<option value="${esc(o.value)}">${esc(o.value)} (${o.count})</option>`).join("");
+        };
+        fill("gfFunder", f.funders); fill("gfRegion", f.regions); fill("gfSource", f.sources);
+        gfReady = true;
+      }
+      gfRefresh();
+      gfSyncStatus();
+    }
+
+    async function gfSyncStatus() {
+      const runs = await api("/api/v1/grants/feed/sync/runs?limit=6");
+      const el = document.getElementById("gfSyncStatus");
+      if (!runs.length) { el.textContent = "Never synced. Click Sync to pull live opportunities."; return; }
+      const last = {};
+      runs.forEach(r => { if (!last[r.source]) last[r.source] = r; });
+      el.textContent = Object.values(last).map(r =>
+        `${r.source}: ${r.status === "ok" ? `${r.fetched} fetched, ${r.created} new` : "failed"} (${new Date(r.finished_at || r.started_at).toLocaleString()})`
+      ).join(" | ");
+    }
+
+    async function gfSync() {
+      const btn = document.getElementById("gfSyncBtn");
+      btn.disabled = true; btn.textContent = "Syncing...";
+      try {
+        const runs = await api("/api/v1/grants/feed/sync?source=all&limit=50", "POST");
+        const failed = runs.filter(r => r.status !== "ok");
+        if (failed.length) alert("Some sources failed: " + failed.map(r => `${r.source} (${r.error})`).join("; "));
+        gfReady = false;
+        await gfInit();
+      } finally {
+        btn.disabled = false; btn.textContent = "Sync from Grants.gov & EU Funding";
+      }
+    }
+
+    async function gfRefresh() {
+      const el = document.getElementById("gfList");
+      if (!el) return;
+      const g = id => document.getElementById(id).value;
+      const p = new URLSearchParams({
+        workspace_id: String(currentWsId), limit: String(gfLimit), offset: String(gfOffset), sort: g("gfSort")
+      });
+      if (g("gfQ")) p.set("q", g("gfQ"));
+      if (g("gfFunder")) p.set("funder", g("gfFunder"));
+      if (g("gfRegion")) p.set("region", g("gfRegion"));
+      if (g("gfSource")) p.set("source", g("gfSource"));
+      if (g("gfMin")) p.set("min_value", g("gfMin"));
+      if (g("gfClosing")) p.set("closing_within_days", g("gfClosing"));
+      if (document.getElementById("gfSaved").checked) p.set("saved_only", "true");
+      const page = await apiNotices(`/api/v1/grants/feed?${p.toString()}`);
+      gfTotal = page.total;
+      const pages = Math.max(1, Math.ceil(gfTotal / gfLimit));
+      document.getElementById("gfPageInfo").textContent = `Page ${Math.floor(gfOffset / gfLimit) + 1} of ${pages} (${gfTotal} grants)`;
+      el.innerHTML = page.items.map(i => {
+        const due = i.deadline ? `${esc(i.deadline)} (${i.days_left} day${i.days_left === 1 ? "" : "s"} left)` : "Rolling / no deadline";
+        const urgent = i.days_left !== null && i.days_left <= 14 ? ` style="background:#fee2e2;color:#991b1b;"` : "";
+        return `<div class="row-item">
+          <span class="badge">${esc(i.source)}</span> <span class="badge"${urgent}>${due}</span>
+          <strong>${esc(i.title)}</strong>
+          <div class="muted">${esc(i.funder)} | ${esc(i.region)} | ${i.value > 0 ? `${esc(i.currency)} ${i.value.toLocaleString()}` : "Value not stated"}</div>
+          <div class="muted">${esc(i.summary)}</div>
+          <div class="inline-actions">
+            <button class="small secondary" onclick="gfToggleSave(${i.id}, ${i.saved})">${i.saved ? "★ Saved" : "☆ Save"}</button>
+            ${i.has_proposal ? `<span class="badge">Proposal started</span>` : `<button class="small" onclick="gfAutoProcess(${i.id})">Auto-process</button>`}
+            ${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">View original</a>` : ""}
+          </div>
+        </div>`;
+      }).join("") || `<div class="muted">No grants match these filters. Try Sync to pull the latest opportunities.</div>`;
+    }
+
+    async function gfToggleSave(id, saved) {
+      await api(`/api/v1/grants/feed/${id}/save?workspace_id=${currentWsId}`, saved ? "DELETE" : "POST");
+      gfRefresh();
+    }
+
+    async function gfAutoProcess(id) {
+      await api(`/api/v1/grants/calls/${id}/auto-process?workspace_id=${currentWsId}`, "POST");
+      await refreshAll();
     }
 
     async function autoProcessCall(noticeId) {

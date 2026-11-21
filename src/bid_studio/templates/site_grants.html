@@ -1,0 +1,98 @@
+{% extends "site_base.html" %}
+{% block title %}Open grants{% endblock %}
+{% block description %}Browse open grant and funding opportunities from Horizon Europe, UKRI, World Bank, Grants.gov and foundations.{% endblock %}
+{% block content %}
+<section class="page-head"><div class="wrap"><h1>Open grants</h1><p>Live funding opportunities from public sources, searchable by funder, region and deadline.</p></div></section>
+<section class="block">
+  <div class="wrap">
+    <div class="filters">
+      <input id="q" placeholder="Search title, funder or topic" aria-label="Search" />
+      <select id="region" aria-label="Region"><option value="">All regions</option></select>
+      <select id="source" aria-label="Source"><option value="">All sources</option></select>
+      <select id="closing" aria-label="Deadline">
+        <option value="">Any deadline</option><option value="14">Closing in 14 days</option>
+        <option value="30">Closing in 30 days</option><option value="90">Closing in 90 days</option>
+      </select>
+      <select id="sort" aria-label="Sort">
+        <option value="deadline">Soonest deadline</option><option value="value">Highest value</option>
+        <option value="newest">Newest added</option>
+      </select>
+    </div>
+    <p class="note" id="count" role="status"></p>
+    <div id="list" class="grant-list"></div>
+    <div class="pager">
+      <button class="btn small ghost" id="prev">&larr; Previous</button>
+      <span id="pageInfo" class="note"></span>
+      <button class="btn small ghost" id="next">Next &rarr;</button>
+    </div>
+  </div>
+</section>
+<section class="cta"><div class="wrap"><h2>Turn a call into a scored draft</h2><p>Open the dashboard to extract criteria, draft each section and track your weighted score.</p><a class="btn" href="/app">Open the dashboard</a></div></section>
+<style>
+  .filters { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .filters input, .filters select { font: inherit; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+  .grant-list { display: grid; gap: 14px; margin-top: 10px; }
+  .grant { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+  .grant h3 { margin: 6px 0 4px; font-size: 1.05rem; }
+  .grant .meta { color: var(--muted); font-size: .9rem; }
+  .grant p { margin: 8px 0 0; color: var(--muted); font-size: .92rem; }
+  .urgent { background: #fee2e2; color: #991b1b; }
+  .pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
+  .pager button:disabled { opacity: .4; cursor: default; }
+</style>
+<script>
+  const LIMIT = 10;
+  let offset = 0, total = 0, timer = null;
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  async function loadFacets() {
+    try {
+      const f = await (await fetch("/api/v1/grants/feed/facets")).json();
+      for (const [id, key] of [["region", "regions"], ["source", "sources"]]) {
+        $(id).insertAdjacentHTML("beforeend", f[key].map(o => `<option value="${esc(o.value)}">${esc(o.value)} (${o.count})</option>`).join(""));
+      }
+    } catch (_) {}
+  }
+
+  async function load() {
+    const p = new URLSearchParams({ limit: LIMIT, offset, sort: $("sort").value });
+    if ($("q").value) p.set("q", $("q").value);
+    if ($("region").value) p.set("region", $("region").value);
+    if ($("source").value) p.set("source", $("source").value);
+    if ($("closing").value) p.set("closing_within_days", $("closing").value);
+    let items = [];
+    try {
+      const res = await fetch("/api/v1/grants/feed?" + p);
+      if (!res.ok) throw new Error();
+      total = Number(res.headers.get("X-Total-Count") || 0);
+      items = await res.json();
+    } catch (_) {
+      $("count").textContent = "Could not load grants. Please try again.";
+      return;
+    }
+    $("count").textContent = total + " open grant" + (total === 1 ? "" : "s");
+    $("list").innerHTML = items.map(i => {
+      const due = i.deadline ? `Closes ${esc(i.deadline)} (${i.days_left} day${i.days_left === 1 ? "" : "s"} left)` : "Rolling / no deadline";
+      const urgent = i.days_left !== null && i.days_left <= 14 ? " urgent" : "";
+      const value = i.value > 0 ? `${esc(i.currency)} ${i.value.toLocaleString()}` : "Value not stated";
+      return `<article class="grant">
+        <span class="tag">${esc(i.source)}</span> <span class="tag${urgent}">${due}</span>
+        <h3>${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.title)}</a>` : esc(i.title)}</h3>
+        <div class="meta">${esc(i.funder)} &middot; ${esc(i.region)} &middot; ${value}</div>
+        <p>${esc(i.summary)}</p>
+      </article>`;
+    }).join("") || `<p class="note">No grants match these filters.</p>`;
+    $("pageInfo").textContent = `Page ${Math.floor(offset / LIMIT) + 1} of ${Math.max(1, Math.ceil(total / LIMIT))}`;
+    $("prev").disabled = offset === 0;
+    $("next").disabled = offset + LIMIT >= total;
+  }
+
+  const reset = () => { offset = 0; load(); };
+  $("q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(reset, 300); });
+  for (const id of ["region", "source", "closing", "sort"]) $(id).addEventListener("change", reset);
+  $("prev").addEventListener("click", () => { offset = Math.max(0, offset - LIMIT); load(); });
+  $("next").addEventListener("click", () => { offset += LIMIT; load(); });
+  loadFacets(); load();
+</script>
+{% endblock %}

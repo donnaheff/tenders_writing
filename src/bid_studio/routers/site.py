@@ -12,6 +12,7 @@ router = APIRouter()
 
 PAGES = {
     "/": ("site_home.html", "home"),
+    "/grants": ("site_grants.html", "grants"),
     "/features": ("site_features.html", "features"),
     "/pricing": ("site_pricing.html", "pricing"),
     "/about": ("site_about.html", "about"),

@@ -1,7 +1,17 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from bid_studio.database import Base
@@ -309,4 +319,43 @@ class ContactRequest(Base):
     organisation: Mapped[str] = mapped_column(String(200), default="")
     plan: Mapped[str] = mapped_column(String(40), default="general")
     message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class FeedItemLink(Base):
+    """Maps an external feed record to the grant call it created, for de-duplication."""
+
+    __tablename__ = "feed_item_links"
+    __table_args__ = (UniqueConstraint("source", "external_id", name="uq_feed_source_external"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    source: Mapped[str] = mapped_column(String(60), index=True)
+    external_id: Mapped[str] = mapped_column(String(120), index=True)
+    notice_id: Mapped[int] = mapped_column(ForeignKey("opportunity_notices.id"), index=True)
+    url: Mapped[str] = mapped_column(String(500), default="")
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class FeedSyncRun(Base):
+    __tablename__ = "feed_sync_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    source: Mapped[str] = mapped_column(String(60), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="ok")
+    fetched: Mapped[int] = mapped_column(Integer, default=0)
+    created: Mapped[int] = mapped_column(Integer, default=0)
+    updated: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(Text, default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SavedGrant(Base):
+    __tablename__ = "saved_grants"
+    __table_args__ = (UniqueConstraint("workspace_id", "notice_id", name="uq_saved_grant"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    notice_id: Mapped[int] = mapped_column(ForeignKey("opportunity_notices.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

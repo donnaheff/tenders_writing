@@ -5,6 +5,7 @@ import pytest
     "path,text",
     [
         ("/", "grant and funding applications"),
+        ("/grants", "Open grants"),
         ("/features", "Grant &amp; funding proposals"),
         ("/pricing", "Consultancy"),
         ("/about", "About Bid Studio"),

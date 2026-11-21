@@ -10,6 +10,19 @@ The app serves a public marketing site (`/`, `/features`, `/pricing`, `/about`, 
 
 ---
 
+## Grants Feed
+
+A grants-only feed built from the seeded calls plus live public sources.
+
+- **Sources:** Grants.gov (`api.grants.gov`) and the EU Funding & Tenders Portal (`api.tech.ec.europa.eu`), ingested as global grant calls and de-duplicated by `(source, external_id)`, so re-syncing updates changed records instead of duplicating them. Failed syncs are recorded and never break the app.
+- **Sync:** `POST /api/v1/grants/feed/sync?source=all|grants_gov|eu_funding` (also the Sync button on the dashboard's Grants Feed tab). To refresh on the daily cron, set `FEED_SOURCES="grants_gov,eu_funding"`. History is at `GET /api/v1/grants/feed/sync/runs`.
+- **Browse:** `GET /api/v1/grants/feed` filters by `q`, `funder`, `sector`, `region`, `source`, `min_value`, `max_value`, `closing_within_days`, `saved_only`, sorts by `deadline` (rolling last), `value` or `newest`, and paginates with `limit`/`offset` and `X-Total-Count`. Expired calls are hidden unless `include_expired=true`. `GET /api/v1/grants/feed/facets` returns filter options with counts.
+- **Save and act:** `POST|DELETE /api/v1/grants/feed/{id}/save?workspace_id=` bookmarks a grant; each feed item has an Auto-process button for the grant workflow.
+- **Where to see it:** the Grants Feed tab in the dashboard (workspace-aware) and the public `/grants` page (global calls only, so one workspace's private calls never appear).
+- **Note:** upstream records give a title, funder, dates and a link rather than full call text or scoring weights, so criteria for ingested calls come from the funder-type presets. Grants.gov does not state award values in search results.
+
+---
+
 ## Automation
 
 - **Grant workflow in one step:** `POST /api/v1/grants/calls/{id}/auto-process` extracts criteria, drafts and scores a proposal, and queues it for QA. `POST /api/v1/grants/auto-process` does the same for every open call without a proposal. Both are idempotent and have buttons on the Grants tab.
