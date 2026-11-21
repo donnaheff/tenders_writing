@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documentation project | {{ brand_name }}</title>
+  <style>
+    :root { --primary: {{ primary_color }}; --accent: {{ accent_color }}; --bg: #f8fafc; --card: #fff; --border: #e2e8f0; --text: #0f172a; --muted: #475569; --ok: #15803d; --warn: #b45309; --bad: #b91c1c; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.45; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; border: 0; border-radius: 6px; padding: 7px 12px; background: var(--accent); color: #fff; font-weight: 600; }
+    button.secondary { background: #e2e8f0; color: #0f172a; } button.small { padding: 4px 9px; font-size: .8rem; } button:disabled { opacity: .5; cursor: default; }
+    input, select, textarea { border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; background: #fff; }
+    .topbar { background: var(--primary); color: #fff; padding: 10px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .topbar a { color: #cbd5e1; text-decoration: none; font-size: .9rem; } .topbar .title { flex: 1; min-width: 220px; }
+    .topbar .title input { width: 100%; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); color: #fff; font-weight: 700; font-size: 1.05rem; }
+    .badge { display: inline-block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border-radius: 999px; padding: 3px 10px; background: #e2e8f0; color: #334155; }
+    .badge.drafting { background: #dbeafe; color: #1e40af; } .badge.quality_review { background: #fef3c7; color: #92400e; } .badge.approved { background: #dcfce7; color: #166534; } .badge.delivered { background: #ede9fe; color: #5b21b6; }
+    #saveState { font-size: .82rem; color: #cbd5e1; min-width: 110px; } #saveState.err { color: #fca5a5; }
+    .banner { padding: 9px 20px; font-size: .9rem; display: none; } .banner.show { display: block; } .banner.lock { background: #fef3c7; color: #92400e; } .banner.note { background: #fee2e2; color: #7f1d1d; }
+    .layout { display: grid; grid-template-columns: 280px minmax(0, 1fr) 340px; gap: 16px; padding: 16px 20px; align-items: start; }
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; } .panel h3 { margin: 0 0 10px; font-size: .95rem; }
+    .it { display: block; width: 100%; text-align: left; background: #fff; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 7px; font-weight: 500; }
+    .it.active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+    .it .t { font-weight: 700; font-size: .86rem; } .it .m { font-size: .76rem; color: var(--muted); margin-top: 2px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: #cbd5e1; margin-right: 6px; } .dot.approved, .dot.written { background: var(--ok); } .dot.matched { background: var(--accent); } .dot.needs_review { background: #f59e0b; }
+    .editor textarea.big { width: 100%; min-height: 360px; resize: vertical; line-height: 1.55; }
+    .guidance { background: #eff6ff; border-radius: 8px; padding: 9px 12px; font-size: .88rem; color: #1e3a8a; margin: 8px 0 12px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 10px 0; font-size: .88rem; } .muted { color: var(--muted); font-size: .85rem; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; } .tabs button { background: #f1f5f9; color: #334155; } .tabs button.active { background: var(--accent); color: #fff; }
+    .tabpane { display: none; } .tabpane.active { display: block; }
+    .item { border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; margin-bottom: 8px; font-size: .88rem; } .item .h { font-weight: 700; margin-bottom: 3px; } .item .x { color: var(--muted); font-size: .84rem; margin-bottom: 6px; max-height: 5.4em; overflow: hidden; }
+    .search { display: flex; gap: 6px; margin-bottom: 10px; } .search input { flex: 1; min-width: 0; }
+    label.f { display: grid; gap: 3px; font-size: .82rem; color: var(--muted); margin-bottom: 8px; } label.f input, label.f textarea, label.f select { width: 100%; color: var(--text); }
+    .chk { display: flex; gap: 8px; padding: 5px 0; font-size: .86rem; border-bottom: 1px solid #f1f5f9; } .chk .ic { font-weight: 800; width: 16px; } .chk.bad .ic { color: var(--bad); } .chk.warn .ic { color: var(--warn); } .chk.ok .ic { color: var(--ok); }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="/app">&larr; Dashboard</a>
+    <div class="title"><input id="pTitle" aria-label="Project title" /></div>
+    <span id="status" class="badge"></span>
+    <span id="saveState" role="status"></span>
+    <button class="secondary" id="btnMatch" style="display:none">Auto-match library</button>
+    <button class="secondary" id="btnExport">Export .md</button>
+    <button id="btnAction">Submit for quality review</button>
+  </div>
+  <div class="banner lock" id="lockBanner"></div>
+  <div class="banner note" id="noteBanner"></div>
+
+  <div class="layout">
+    <aside class="panel">
+      <h3 id="leftTitle">Sections</h3>
+      <div id="list"></div>
+      <div id="addQ" style="display:none; margin-top:10px">
+        <label class="f">Add questions (one per line)<textarea id="newQ" rows="4"></textarea></label>
+        <button class="small secondary" id="btnAddQ">Add and auto-match</button>
+      </div>
+    </aside>
+
+    <section class="panel editor" id="editor"><h3>Loading...</h3></section>
+
+    <aside class="panel">
+      <div class="tabs" id="tabs">
+        <button data-tab="ai" class="active">Assistant</button><button data-tab="lib">Library</button>
+        <button data-tab="proj">Project</button><button data-tab="rev">Review</button>
+      </div>
+      <div class="tabpane active" id="tab-ai">
+        <div class="muted" id="aiStatus" style="margin-bottom:8px">Checking assistant...</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px">
+          <button class="small" data-ai="draft">Draft</button><button class="small" data-ai="improve">Improve</button>
+          <button class="small" data-ai="shorten">Shorten</button><button class="small" data-ai="critique">Critique</button>
+        </div>
+        <div class="search"><input id="aiQ" placeholder="Ask or instruct" maxlength="1500" /><button class="small" id="aiAsk">Ask</button></div>
+        <div id="aiOut" class="muted">Pick an action. It works on the section or question you are editing.</div>
+      </div>
+      <div class="tabpane" id="tab-lib">
+        <div class="search"><input id="libQ" placeholder="Search the answer library" /><button class="small" id="libGo">Search</button></div>
+        <div id="libList" class="muted">Loading...</div>
+      </div>
+      <div class="tabpane" id="tab-proj">
+        <label class="f">Client name<input id="cName" /></label><label class="f">Client email<input id="cEmail" type="email" /></label>
+        <label class="f">Fixed fee<input id="cFee" type="number" min="0" /></label><label class="f">Currency<input id="cCur" maxlength="10" /></label>
+        <label class="f">Brief (what the client asked for)<textarea id="cBrief" rows="6"></textarea></label>
+      </div>
+      <div class="tabpane" id="tab-rev"><div id="revBox"></div></div>
+    </aside>
+  </div>
+
+<script>
+  const PID = {{ project_id }}, WS = {{ workspace_id }};
+  const base = `/api/v1/services/projects/${PID}`;
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  let P = null, cur = 0, dirty = false, saving = false, timer = null, aiResult = null, library = [];
+  const words = t => (t.match(/\S+/g) || []).length;
+
+  async function call(path, method = "GET", body = null) {
+    const res = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : null });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { const d = data.detail; const e = new Error(typeof d === "string" ? d : (d && d.message) || "Request failed"); e.status = res.status; e.data = data; throw e; }
+    return data;
+  }
+  const setSave = (m, err = false) => { const el = $("saveState"); el.textContent = m; el.className = err ? "err" : ""; };
+  const list = () => (P.questionnaire ? P.items : P.sections);
+
+  function adopt(d, keepEdits = false) {
+    const prev = P; P = d;
+    if (keepEdits && prev && dirty) { P.sections = prev.sections; P.items = prev.items; }
+    $("status").textContent = P.status.replace("_", " "); $("status").className = "badge " + P.status;
+    $("pTitle").value = P.title; $("cName").value = P.client_name; $("cEmail").value = P.client_email; $("cFee").value = P.fixed_fee; $("cCur").value = P.currency; $("cBrief").value = P.brief;
+    const lock = $("lockBanner"); lock.classList.toggle("show", P.locked);
+    lock.textContent = P.status === "delivered" ? "Delivered. This project is read-only." : "In quality review or approved: read-only. It reopens if the reviewer requests changes.";
+    const note = $("noteBanner"); const show = P.status === "drafting" && P.reviewer_notes; note.classList.toggle("show", !!show); note.textContent = show ? "Reviewer notes: " + P.reviewer_notes : "";
+    for (const id of ["pTitle", "cName", "cEmail", "cFee", "cCur", "cBrief"]) $(id).disabled = P.locked;
+    $("btnMatch").style.display = P.questionnaire ? "" : "none"; $("btnMatch").disabled = P.locked;
+    $("addQ").style.display = P.questionnaire && !P.locked ? "" : "none";
+    const a = $("btnAction");
+    a.style.display = ["drafting", "approved"].includes(P.status) ? "" : "none";
+    a.textContent = P.status === "approved" ? "Deliver to client" : "Submit for quality review"; a.disabled = false;
+    $("leftTitle").textContent = P.questionnaire ? "Questions" : "Sections";
+    renderReview();
+  }
+
+  function renderList() {
+    $("list").innerHTML = list().map((x, i) => {
+      const dot = P.questionnaire ? x.status : (x.text.trim() ? "written" : "");
+      const label = P.questionnaire ? `${x.id}: ${x.question}` : x.title;
+      const meta = P.questionnaire ? `${x.status.replace("_", " ")}${x.confidence ? " · " + Math.round(x.confidence * 100) + "% match" : ""}` : `${words(x.text)} words`;
+      return `<button class="it ${i === cur ? "active" : ""}" data-i="${i}"><div class="t"><span class="dot ${dot}"></span>${esc(label.length > 90 ? label.slice(0, 90) + "…" : label)}</div><div class="m">${esc(meta)}</div></button>`;
+    }).join("") || `<div class="muted">Nothing here yet.</div>`;
+    document.querySelectorAll("#list .it").forEach(b => b.onclick = () => select(Number(b.dataset.i)));
+  }
+
+  function select(i) {
+    cur = Math.max(0, Math.min(i, list().length - 1)); const x = list()[cur]; const L = P.locked;
+    if (!x) { $("editor").innerHTML = "<h3>Nothing to edit</h3>"; renderList(); return; }
+    if (P.questionnaire) {
+      $("editor").innerHTML = `<h3>${esc(x.id)}</h3><div class="guidance" style="font-size:.98rem"><strong>${esc(x.question)}</strong></div>
+        <textarea class="big" id="ans" style="min-height:240px" ${L ? "disabled" : ""} aria-label="Answer">${esc(x.answer)}</textarea>
+        <div class="meta"><label>Status <select id="stat" ${L ? "disabled" : ""}>${["unanswered", "matched", "needs_review", "approved"].map(s => `<option ${s === x.status ? "selected" : ""} value="${s}">${s.replace("_", " ")}</option>`).join("")}</select></label>
+          ${x.source_answer_id ? `<span class="muted">From library answer #${x.source_answer_id} (${Math.round(x.confidence * 100)}% match)</span>` : ""}
+          <button class="small secondary" id="btnApprove" ${L ? "disabled" : ""}>Approve</button>
+          <button class="small secondary" id="btnPromote" ${L || x.status !== "approved" ? "disabled" : ""} title="Only approved answers can be saved">Save to answer library</button></div>`;
+      $("ans").oninput = () => { x.answer = $("ans").value; if (x.status === "unanswered" && x.answer.trim()) x.status = "needs_review"; touched(); };
+      $("stat").onchange = () => { x.status = $("stat").value; touched(); select(cur); };
+      $("btnApprove").onclick = () => { x.status = "approved"; touched(); select(cur); };
+      $("btnPromote").onclick = async () => { try { await call(`${base}/promote-answer`, "POST", { item_id: x.id }); setSave("Saved to library"); loadLibrary(); } catch (e) { setSave(e.message, true); } };
+    } else {
+      $("editor").innerHTML = `<h3>${esc(x.title)}</h3><div class="guidance">${esc(x.prompt)}</div>
+        <textarea class="big" id="sec" ${L ? "disabled" : ""} aria-label="Section text">${esc(x.text)}</textarea>
+        <div class="meta"><span><strong id="wc">${words(x.text)}</strong> words</span></div>`;
+      $("sec").oninput = () => { x.text = $("sec").value; $("wc").textContent = words(x.text); touched(); };
+    }
+    renderList();
+  }
+
+  function touched() { if (P.locked) return; dirty = true; setSave("Unsaved changes..."); renderList(); clearTimeout(timer); timer = setTimeout(save, 1500); }
+  for (const id of ["pTitle", "cName", "cEmail", "cFee", "cCur", "cBrief"]) $(id).addEventListener("input", touched);
+
+  async function save() {
+    if (P.locked || saving || !dirty) return true;
+    clearTimeout(timer); saving = true; setSave("Saving...");
+    const body = { title: $("pTitle").value.trim() || undefined, client_name: $("cName").value, client_email: $("cEmail").value, brief: $("cBrief").value, fixed_fee: Number($("cFee").value) || 0, currency: $("cCur").value.trim() || undefined };
+    if (P.questionnaire) body.items = P.items; else body.sections = P.sections.map(({ id, title, prompt, text }) => ({ id, title, prompt, text }));
+    try { dirty = false; const d = await call(base, "PUT", body); adopt(d); setSave("Saved " + new Date().toLocaleTimeString()); renderList(); return true; }
+    catch (e) { dirty = true; setSave(e.status === 409 ? "Locked" : "Save failed: " + e.message, true); return false; }
+    finally { saving = false; }
+  }
+
+  function renderReview() {
+    const r = P.readiness, row = (cls, ic, t) => `<div class="chk ${cls}"><span class="ic">${ic}</span><div>${esc(t)}</div></div>`;
+    const s = P.stats, prog = P.questionnaire ? `${s.answered}/${s.total} answered · ${s.approved} approved` : `${s.written}/${s.total} sections written · ${s.words} words`;
+    $("revBox").innerHTML = `<div class="muted" style="margin-bottom:8px">${esc(prog)}</div>
+      ${r.blockers.map(b => row("bad", "✕", b)).join("")}${r.warnings.map(w => row("warn", "!", w)).join("")}
+      ${r.ready ? row("ok", "✓", "Ready for quality review") : ""}
+      ${P.reviewer_notes ? `<div class="item" style="margin-top:10px"><div class="h">Reviewer notes</div>${esc(P.reviewer_notes)}</div>` : ""}
+      <div class="muted" style="margin-top:10px">Flow: drafting → quality review → approved → delivered. Reviewers act from the dashboard's Quality Review Queue.</div>`;
+  }
+
+  // ---- assistant
+  async function loadAiStatus() {
+    try {
+      const st = await call("/api/v1/services/assistant-status");
+      $("aiStatus").textContent = st.provider === "claude" ? `Powered by Claude (${st.model}). Text is sent to the AI provider.` : "Offline helper: rule-based, not an AI model. Set ANTHROPIC_API_KEY for full AI drafting.";
+    } catch (_) { $("aiStatus").textContent = "Assistant unavailable."; }
+  }
+  async function runAi(action) {
+    const out = $("aiOut"), x = list()[cur]; if (!x) return;
+    out.className = "muted"; out.textContent = "Working...";
+    document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = true);
+    try {
+      const text = P.questionnaire ? x.answer : x.text;
+      aiResult = await call(`${base}/assistant`, "POST", { action, target_id: x.id, text, instruction: $("aiQ").value });
+      const badge = `<span class="badge">${aiResult.provider === "claude" ? "Claude" : "Offline helper"}</span>`;
+      const ul = (t, a) => a && a.length ? `<div style="margin-top:8px"><strong>${t}</strong><ul style="margin:4px 0 0 18px; padding:0">${a.map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>` : "";
+      const isText = action !== "critique";
+      out.className = "";
+      out.innerHTML = `${badge}${isText ? `<div class="item" style="margin-top:8px; white-space:pre-wrap; max-height:260px; overflow:auto">${esc(aiResult.text)}</div>` : `<div style="margin:8px 0">${esc(aiResult.text)}</div>`}${ul("Strengths", aiResult.strengths)}${ul("Gaps", aiResult.gaps)}${ul("Notes", aiResult.notes)}
+        ${isText && action !== "ask" ? `<div style="margin-top:10px"><button class="small" id="aiReplace" ${P.locked ? "disabled" : ""}>Replace ${P.questionnaire ? "answer" : "section"}</button></div>` : ""}
+        <div class="muted" style="margin-top:8px">AI output can contain mistakes. Check every statement, especially security claims, and replace any [TO CONFIRM] before delivery.</div>`;
+      const r = $("aiReplace"); if (r) r.onclick = () => { x[P.questionnaire ? "answer" : "text"] = aiResult.text; if (P.questionnaire) x.status = "needs_review"; touched(); select(cur); };
+    } catch (e) { out.textContent = "Assistant error: " + e.message; }
+    finally { document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = false); }
+  }
+  document.querySelectorAll("[data-ai]").forEach(b => b.onclick = () => runAi(b.dataset.ai));
+  $("aiAsk").onclick = () => runAi("ask"); $("aiQ").addEventListener("keydown", e => { if (e.key === "Enter") runAi("ask"); });
+
+  // ---- library
+  async function loadLibrary() { try { library = await call(`/api/v1/answer-library?workspace_id=${WS}`); } catch (_) { library = []; } renderLib(); }
+  function renderLib() {
+    const q = $("libQ").value.toLowerCase(), hits = library.filter(a => !q || (a.question_pattern + " " + a.answer_text).toLowerCase().includes(q)).slice(0, 12);
+    $("libList").innerHTML = hits.map((a, i) => `<div class="item"><div class="h">${esc(a.question_pattern)}</div><div class="x">${esc(a.answer_text)}</div><button class="small" data-i="${i}" ${P && P.locked ? "disabled" : ""}>Insert</button></div>`).join("") || "No matching answers.";
+    $("libList").querySelectorAll("button[data-i]").forEach(b => b.onclick = () => {
+      const x = list()[cur], a = hits[Number(b.dataset.i)]; if (!x || P.locked) return;
+      if (P.questionnaire) { x.answer = a.answer_text; x.source_answer_id = a.id; x.status = "needs_review"; x.confidence = 1; } else { x.text = (x.text ? x.text + "\n\n" : "") + a.answer_text; }
+      touched(); select(cur);
+    });
+  }
+  $("libGo").onclick = renderLib; $("libQ").addEventListener("input", renderLib);
+
+  // ---- actions
+  $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => {
+    $("tabs").querySelectorAll("button").forEach(x => x.classList.remove("active")); b.classList.add("active");
+    document.querySelectorAll(".tabpane").forEach(p => p.classList.remove("active")); $("tab-" + b.dataset.tab).classList.add("active");
+  });
+  $("btnMatch").onclick = async () => { if (!(await save())) return; try { const r = await call(`${base}/auto-match`, "POST"); adopt(r.project); select(cur); setSave(`Matched ${r.changed} answer(s)`); } catch (e) { setSave(e.message, true); } };
+  $("btnAddQ").onclick = async () => { if (!(await save())) return; try { adopt(await call(`${base}/questions`, "POST", { questions: $("newQ").value })); $("newQ").value = ""; select(cur); } catch (e) { setSave(e.message, true); } };
+  $("btnExport").onclick = async () => {
+    await save(); const d = await call(`${base}/export`), a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([d.markdown], { type: "text/markdown" })); a.download = (d.title || "document").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".md"; a.click(); URL.revokeObjectURL(a.href);
+  };
+  $("btnAction").onclick = async () => {
+    if (!(await save())) return;
+    try {
+      if (P.status === "approved") { const r = await call(`${base}/deliver`, "POST"); adopt(r); setSave(r.emailed ? "Delivered and emailed to the client" : "Delivered (no client email on file)"); }
+      else { await call(`${base}/submit-quality`, "POST"); adopt(await call(base)); setSave("Submitted for quality review"); }
+      select(cur);
+    } catch (e) {
+      if (e.status === 422 && e.data.detail && e.data.detail.blockers) { document.querySelector('[data-tab="rev"]').click(); alert("Not ready:\n- " + e.data.detail.blockers.join("\n- ")); } else alert(e.message);
+    }
+  };
+  window.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); save(); } });
+  window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+  (async () => {
+    try { adopt(await call(base)); renderList(); select(0); loadLibrary(); loadAiStatus(); }
+    catch (e) { $("editor").innerHTML = "<h3>Could not load this project: " + esc(e.message) + "</h3>"; }
+  })();
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from bid_studio.config import settings
 from bid_studio.database import Base, SessionLocal, engine, get_db
-from bid_studio.models import GrantProposal, Workspace
+from bid_studio.models import DocProject, GrantProposal, Workspace
 from bid_studio.routers import (
     automation,
     bid_enhancements,
@@ -21,6 +21,7 @@ from bid_studio.routers import (
     license,
     market,
     plan,
+    services_docs,
     site,
     studio,
 )
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(grants.router)
     app.include_router(studio.router)
     app.include_router(plan.router)
+    app.include_router(services_docs.router)
     app.include_router(bid_enhancements.router)
     app.include_router(intelligence.router)
 
@@ -106,6 +108,24 @@ def create_app() -> FastAPI:
     @app.get("/app/license", response_class=HTMLResponse, include_in_schema=False)
     def license_page(request: Request):
         return templates.TemplateResponse(request=request, name="license.html", context={})
+
+    @app.get("/app/docs/{project_id}", response_class=HTMLResponse, include_in_schema=False)
+    def doc_project_page(project_id: int, request: Request, db: Session = Depends(get_db)):
+        project = db.get(DocProject, project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        ws = db.get(Workspace, project.workspace_id)
+        return templates.TemplateResponse(
+            request=request,
+            name="docproject.html",
+            context={
+                "project_id": project.id,
+                "workspace_id": project.workspace_id,
+                "brand_name": ws.brand_name if ws else settings.app_name,
+                "primary_color": ws.primary_color if ws else "#0f172a",
+                "accent_color": ws.accent_color if ws else "#2563eb",
+            },
+        )
 
     @app.get("/app/studio/{proposal_id}", response_class=HTMLResponse, include_in_schema=False)
     def grant_studio(proposal_id: int, request: Request, db: Session = Depends(get_db)):

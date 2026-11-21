@@ -8,6 +8,7 @@ from bid_studio.database import get_db
 from bid_studio.models import (
     AnswerLibraryItem,
     BidOutcome,
+    DocProject,
     EmailDeliveryLog,
     EvidenceItem,
     GrantProposal,
@@ -360,6 +361,15 @@ def review_quality_queue_item(
                 proposal.status = "approved"
             elif payload.status == "changes_requested":
                 proposal.status = "draft"
+    elif item.item_type == "doc_project" and item.reference_id:
+        project = db.get(DocProject, item.reference_id)
+        if project:
+            if payload.status == "approved":
+                project.status = "approved"
+                project.reviewer_notes = payload.review_notes
+            elif payload.status == "changes_requested":
+                project.status = "drafting"
+                project.reviewer_notes = payload.review_notes
 
     db.commit()
     db.refresh(item)

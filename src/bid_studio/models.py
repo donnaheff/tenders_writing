@@ -509,3 +509,28 @@ class ProposalPlan(Base):
     )
     data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class DocProject(Base):
+    """A fixed-fee documentation or compliance writing project for a client."""
+
+    __tablename__ = "doc_projects"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20), index=True)  # techdoc | compliance
+    doc_type: Mapped[str] = mapped_column(String(40), index=True)
+    title: Mapped[str] = mapped_column(String(240))
+    client_name: Mapped[str] = mapped_column(String(200), default="")
+    client_email: Mapped[str] = mapped_column(String(200), default="")
+    brief: Mapped[str] = mapped_column(Text, default="")
+    fixed_fee: Mapped[float] = mapped_column(Float, default=0.0)
+    currency: Mapped[str] = mapped_column(String(10), default="GBP")
+    status: Mapped[str] = mapped_column(String(30), default="drafting", index=True)
+    sections: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    items: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    quality_queue_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reviewer_notes: Mapped[str] = mapped_column(Text, default="")
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

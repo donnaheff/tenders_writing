@@ -161,6 +161,7 @@
       <div class="nav-group">Core &amp; Primary</div>
       <button class="active" onclick="showTab('overview', this)">Overview, Feed &amp; QA</button>
       <button onclick="showTab('grantsfeed', this)">Grants Feed</button>
+      <button onclick="showTab('docsvc', this)">Docs &amp; Compliance Writing</button>
       <button onclick="showTab('grants', this)">1. Grant &amp; Funding Calls</button>
 
       <div class="nav-group">Closest to Bid Studio</div>
@@ -283,6 +284,25 @@
           </div>
           <div id="gfList"></div>
         </div>
+      </section>
+
+      <section id="docsvc" class="panel">
+        <div class="card">
+          <h3>Technical Documentation &amp; Compliance Writing</h3>
+          <p class="muted" id="dsStats">Loading...</p>
+          <h4>New project</h4>
+          <div class="form-grid">
+            <select id="dsType" onchange="dsTypeChanged()"></select>
+            <input id="dsTitle" placeholder="Project title, e.g. Acme API reference" />
+            <input id="dsClient" placeholder="Client name" />
+            <input id="dsEmail" type="email" placeholder="Client email (for delivery)" />
+            <input id="dsFee" type="number" min="0" placeholder="Fixed fee" />
+            <textarea id="dsBrief" rows="2" placeholder="Brief: what the client asked for"></textarea>
+            <textarea id="dsQuestions" rows="5" style="display:none" placeholder="Paste the questionnaire questions, one per line"></textarea>
+            <button onclick="dsCreate()">Create and open editor</button>
+          </div>
+        </div>
+        <div class="card"><h4>Projects</h4><div id="dsList"></div></div>
       </section>
 
       <section id="grants" class="panel">
@@ -491,6 +511,7 @@
       document.getElementById(id).classList.add("active");
       btn.classList.add("active");
       if (id === "grantsfeed") gfInit();
+      if (id === "docsvc") dsInit();
       refreshAll();
     }
 
@@ -693,6 +714,7 @@
       </div>`).join("") || `<div class="muted">No members added to this workspace yet.</div>`;
 
       if (document.getElementById("grantsfeed").classList.contains("active")) { gfInit(); }
+      if (document.getElementById("docsvc").classList.contains("active")) { dsInit(); }
     }
 
     async function addAnswerItem() {
@@ -904,6 +926,32 @@
     async function gfAutoProcess(id) {
       const res = await api(`/api/v1/grants/calls/${id}/auto-process?workspace_id=${currentWsId}&submit_for_review=false`, "POST");
       window.location.href = `/app/studio/${res.proposal.id}`;
+    }
+
+    // --- Documentation & compliance services ---
+    let dsTemplates = [];
+    async function dsInit() {
+      if (!dsTemplates.length) {
+        dsTemplates = await api("/api/v1/services/templates");
+        const group = (k, label) => `<optgroup label="${label}">${dsTemplates.filter(t => t.kind === k).map(t => `<option value="${t.key}">${esc(t.title)}</option>`).join("")}</optgroup>`;
+        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing");
+      }
+      dsTypeChanged();
+      const [projects, stats] = await Promise.all([api(`/api/v1/services/projects?workspace_id=${currentWsId}`), api(`/api/v1/services/stats?workspace_id=${currentWsId}`)]);
+      document.getElementById("dsStats").textContent = `${stats.projects} project(s): ${stats.by_status.drafting} drafting, ${stats.by_status.quality_review} in review, ${stats.by_status.approved} approved, ${stats.by_status.delivered} delivered. Delivered fees: ${stats.fees_delivered.toLocaleString()}.`;
+      document.getElementById("dsList").innerHTML = projects.map(p => `<div class="row-item">
+        <span class="badge">${esc(p.status.replace("_", " "))}</span> <strong>${esc(p.title)}</strong> <span class="muted">${esc(p.type_title)}${p.client_name ? " · " + esc(p.client_name) : ""}${p.fixed_fee ? " · " + esc(p.currency) + " " + p.fixed_fee.toLocaleString() : ""}</span>
+        <div class="muted">${p.stats.answered !== undefined ? `${p.stats.answered}/${p.stats.total} answered` : `${p.stats.written}/${p.stats.total} sections written`}</div>
+        <div class="inline-actions"><a href="/app/docs/${p.id}"><button class="small">Open editor</button></a></div></div>`).join("") || `<div class="muted">No projects yet.</div>`;
+    }
+    function dsTypeChanged() {
+      const t = dsTemplates.find(x => x.key === document.getElementById("dsType").value);
+      document.getElementById("dsQuestions").style.display = t && t.questionnaire ? "" : "none";
+    }
+    async function dsCreate() {
+      const g = id => document.getElementById(id).value;
+      const p = await api("/api/v1/services/projects", "POST", { workspace_id: currentWsId, doc_type: g("dsType"), title: g("dsTitle"), client_name: g("dsClient"), client_email: g("dsEmail"), fixed_fee: Number(g("dsFee")) || 0, brief: g("dsBrief"), questions: g("dsQuestions") });
+      window.location.href = `/app/docs/${p.id}`;
     }
 
     async function autoProcessCall(noticeId) {
