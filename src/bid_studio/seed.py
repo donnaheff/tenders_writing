@@ -207,7 +207,29 @@ def seed_database(db: Session) -> None:
                 "Foundation grant. Mission Alignment & Theory of Change (40%), "
                 "Evidence & Measurement Plan (30%), Delivery Readiness & Budget Realism (30%)."
             ),
-            "structured_criteria": [],
+            "structured_criteria": [
+                {
+                    "criterion_id": "FOUND-1",
+                    "title": "Mission Alignment & Theory of Change",
+                    "weight": 40.0,
+                    "max_score": 5.0,
+                    "guidance": "Clear link between the project, the foundation's climate mission, and a credible theory of change.",
+                },
+                {
+                    "criterion_id": "FOUND-2",
+                    "title": "Evidence & Measurement Plan",
+                    "weight": 30.0,
+                    "max_score": 5.0,
+                    "guidance": "Baseline evidence, measurable outcomes, and a realistic monitoring and evaluation approach.",
+                },
+                {
+                    "criterion_id": "FOUND-3",
+                    "title": "Delivery Readiness & Budget Realism",
+                    "weight": 30.0,
+                    "max_score": 5.0,
+                    "guidance": "Deliverable workplan, named partners, risk management, and a costed, proportionate budget.",
+                },
+            ],
         },
         # Open Tenders (including Riverbend pack)
         {
