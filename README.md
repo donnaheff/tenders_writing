@@ -4,6 +4,43 @@ Bid Studio is a Python + FastAPI platform focused on grant and funding applicati
 
 ---
 
+## Licence keys
+
+Bid Studio can require a signed licence key. Keys are verified **offline** with Ed25519: the app holds only your *public* key, so it can check keys but never create them.
+
+**Vendor setup (once, on your own machine, not on a customer deployment):**
+
+```bash
+python -m bid_studio.tools.license_admin keygen --out license-private.pem
+```
+
+This writes the private key (mode 600; `*.pem` is git-ignored) and prints `LICENSE_PUBLIC_KEY=...`. **Back the private key up and keep it secret:** if it is lost you cannot issue keys, and if it leaks anyone can mint them. Never commit it.
+
+**Issue a key for a customer:**
+
+```bash
+python -m bid_studio.tools.license_admin issue --private-key license-private.pem \
+  --licensee "Acme Ltd" --plan team --days 365
+```
+
+Plans: `starter` (1 workspace, 3 members per workspace), `team` (1, 15), `consultancy` (unlimited). Override with `--workspaces` / `--members`, or use `--perpetual`. `inspect KEY --public-key ...` verifies a key.
+
+**Deployment settings:**
+
+| Variable | Meaning |
+| --- | --- |
+| `LICENSE_ENFORCEMENT` | `off` (default, no checks), `warn` (banner only), `on` (block until a valid key is installed) |
+| `LICENSE_PUBLIC_KEY` | your public key from `keygen` (required for `warn`/`on`) |
+| `LICENSE_KEY` | the customer's key; overrides any key activated in the app |
+| `LICENSE_GRACE_DAYS` | days the app keeps working after expiry (default 14) |
+| `LICENSE_REVOKED_IDS` | comma-separated key ids to refuse |
+
+Customers can also paste a key at `/app/license`. With enforcement `on`, the dashboard, Studio and API return 402 (or redirect to `/app/license`) until a valid key is installed. The public website, `/grants`, the contact form, health check, API docs and the public feed read endpoints stay open. Plan limits are enforced when creating workspaces and members.
+
+**Limits you should know about:** this is a licence-compliance mechanism, not copy protection. The code is Python, so a determined user with the source can remove the check. Keys cannot be revoked remotely; revocation needs `LICENSE_REVOKED_IDS` to be updated on each deployment, so prefer short-lived keys (for example one year) for tighter control.
+
+---
+
 ## Public Website
 
 The app serves a public marketing site (`/`, `/features`, `/pricing`, `/about`, `/contact`) with the dashboard at `/app`. The contact form posts to `POST /api/v1/contact` and stores requests in the `contact_requests` table. Pricing figures on `/pricing` are placeholders; edit `src/bid_studio/templates/site_pricing.html`.

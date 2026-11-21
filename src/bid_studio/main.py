@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
@@ -18,10 +18,12 @@ from bid_studio.routers import (
     feed,
     grants,
     intelligence,
+    license,
     site,
     studio,
 )
 from bid_studio.seed import seed_database
+from bid_studio.services import licensing
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -45,6 +47,21 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    @app.middleware("http")
+    async def enforce_license(request: Request, call_next):
+        path = request.url.path
+        if licensing.needs_license(path, request.method):
+            with SessionLocal() as db:
+                status = licensing.current_status(db)
+            if not status.allowed:
+                if path.startswith("/app"):
+                    return RedirectResponse("/app/license", status_code=307)
+                return JSONResponse(
+                    status_code=402,
+                    content={"detail": f"Licence required: {status.message}", "state": status.state},
+                )
+        return await call_next(request)
+
     @app.exception_handler(IntegrityError)
     def handle_integrity_error(_request: Request, _exc: IntegrityError) -> JSONResponse:
         return JSONResponse(
@@ -55,6 +72,7 @@ def create_app() -> FastAPI:
     app.state.templates = templates
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.include_router(site.router)
+    app.include_router(license.router)
     app.include_router(core.router)
     app.include_router(automation.router)
     app.include_router(feed.router)
@@ -80,6 +98,10 @@ def create_app() -> FastAPI:
                 "accent_color": ws.accent_color if ws else "#2563eb",
             },
         )
+
+    @app.get("/app/license", response_class=HTMLResponse, include_in_schema=False)
+    def license_page(request: Request):
+        return templates.TemplateResponse(request=request, name="license.html", context={})
 
     @app.get("/app/studio/{proposal_id}", response_class=HTMLResponse, include_in_schema=False)
     def grant_studio(proposal_id: int, request: Request, db: Session = Depends(get_db)):

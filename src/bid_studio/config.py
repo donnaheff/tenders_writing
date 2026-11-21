@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     assistant_model: str = "claude-sonnet-5-5"
     assistant_timeout: float = 60.0
+    # Licensing: "off" (default), "warn" (banner only) or "on" (block until a valid key is installed)
+    license_enforcement: str = "off"
+    license_key: str = ""
+    license_public_key: str = ""
+    license_grace_days: int = 14
+    license_revoked_ids: str = ""
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""

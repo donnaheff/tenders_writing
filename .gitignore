@@ -46,3 +46,8 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Licence signing keys must never be committed
+*.pem
+license-private*
+license_private*

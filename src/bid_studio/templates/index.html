@@ -154,6 +154,8 @@
     </div>
   </header>
 
+  <div id="licBanner" style="display:none; padding:9px 24px; font-size:.9rem;"></div>
+
   <div class="layout">
     <nav id="sidebar">
       <div class="nav-group">Core &amp; Primary</div>
@@ -464,6 +466,19 @@
       const totalHeader = res.headers.get("X-Total-Count");
       const items = await res.json();
       return { items, total: totalHeader ? Number(totalHeader) : items.length };
+    }
+
+    async function loadLicenseBanner() {
+      try {
+        const s = await (await fetch("/api/v1/license")).json();
+        const soon = s.state === "valid" && s.days_left !== null && s.days_left <= 30;
+        if (["disabled", "valid"].includes(s.state) && !soon) return;
+        const el = document.getElementById("licBanner");
+        el.style.display = "block";
+        el.style.background = ["grace", "missing", "invalid", "expired", "revoked"].includes(s.state) ? "#fee2e2" : "#fef3c7";
+        el.style.color = "#7c2d12";
+        el.innerHTML = `${esc(soon ? `Your licence expires in ${s.days_left} day(s).` : s.message)} <a href="/app/license">Manage licence</a>`;
+      } catch (_) {}
     }
 
     function esc(v) {
@@ -1078,6 +1093,7 @@
       document.getElementById("accessReviewOutput").textContent = JSON.stringify(res, null, 2);
     }
 
+    loadLicenseBanner();
     loadWorkspaces().then(refreshAll);
   </script>
 </body>

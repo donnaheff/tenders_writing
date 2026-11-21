@@ -371,3 +371,16 @@ class ProposalVersion(Base):
     label: Mapped[str] = mapped_column(String(120), default="")
     snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class LicenseRecord(Base):
+    """Keys activated through the app; the newest row wins. LICENSE_KEY env overrides."""
+
+    __tablename__ = "license_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    key: Mapped[str] = mapped_column(Text)
+    key_id: Mapped[str] = mapped_column(String(40), index=True)
+    licensee: Mapped[str] = mapped_column(String(200))
+    plan: Mapped[str] = mapped_column(String(40))
+    activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

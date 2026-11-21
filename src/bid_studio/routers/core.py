@@ -28,6 +28,7 @@ from bid_studio.schemas import (
     WorkspaceMemberCreate,
     WorkspaceRead,
 )
+from bid_studio.services import licensing
 from bid_studio.services.domain_logic import summarize_notice
 
 router = APIRouter(prefix="/api/v1", tags=["core"])
@@ -39,6 +40,13 @@ def health_check() -> dict[str, str]:
 
 
 # --- Workspaces, White-Label & Access Review ---
+def _enforce_limit(db: Session, kind: str, workspace_id: int | None = None) -> None:
+    try:
+        licensing.check_limit(db, kind, workspace_id)
+    except licensing.LicenseError as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
+
+
 @router.get("/workspaces", response_model=list[WorkspaceRead])
 def list_workspaces(db: Session = Depends(get_db)):
     return db.query(Workspace).order_by(Workspace.id).all()
@@ -48,6 +56,7 @@ def list_workspaces(db: Session = Depends(get_db)):
 def create_workspace(payload: WorkspaceCreate, db: Session = Depends(get_db)):
     if db.query(Workspace).filter(Workspace.slug == payload.slug).first():
         raise HTTPException(status_code=409, detail="Workspace slug already exists")
+    _enforce_limit(db, "workspace")
     ws = Workspace(**payload.model_dump())
     db.add(ws)
     db.commit()
@@ -90,6 +99,7 @@ def add_workspace_member(
     )
     if existing:
         raise HTTPException(status_code=409, detail="Member email already exists in workspace")
+    _enforce_limit(db, "member", workspace_id)
     member = WorkspaceMember(workspace_id=workspace_id, **payload.model_dump())
     db.add(member)
     db.commit()
