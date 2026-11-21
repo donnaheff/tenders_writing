@@ -1,21 +1,42 @@
-MIT License
+PROPRIETARY SOFTWARE LICENSE
 
-Copyright (c) 2026 donnaheff
+Copyright (c) 2026 donnaheff. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and its associated files, including source code, documentation,
+templates, data and design assets (the "Software"), are the proprietary and
+confidential property of the copyright holder. The Software is not open source.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+No licence or right is granted to any person to use, copy, modify, merge,
+publish, distribute, sublicense, sell, host, or create derivative works of the
+Software, in whole or in part, except under a separate written agreement signed
+by the copyright holder, or as expressly permitted below.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Permitted without a separate agreement: the copyright holder, and people the
+copyright holder has authorised in writing, may use and modify the Software
+for the copyright holder's own business purposes.
+
+Restrictions. Without prior written permission you must not: (a) reverse
+engineer, decompile or attempt to extract the source code of any non-source
+form of the Software; (b) remove or alter this notice or any proprietary
+markings; (c) use the Software to build a competing product or service;
+(d) disclose the Software to any third party.
+
+Third-party components. The Software depends on third-party open-source
+components (for example FastAPI, SQLAlchemy, Pydantic, Jinja2 and httpx). Those
+components remain the property of their respective owners and are licensed under
+their own terms, which are not changed by this licence.
+
+No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+Unauthorised use of the Software may result in civil and criminal liability.
+
+Earlier versions. Copies of earlier versions of the Software that were
+published under the MIT License remain available under that licence to those
+who received them. This licence applies to all versions published from the
+date of this change onward.
+
+For licensing enquiries, contact the copyright holder.

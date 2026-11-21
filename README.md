@@ -80,7 +80,7 @@ A grants-only feed built from the seeded calls plus live public sources.
 ├── .github/workflows/ci.yml      # CI: ruff + pytest on every push and PR
 ├── .env.example                  # Sample environment variables
 ├── .gitignore
-├── LICENSE                       # MIT License
+├── LICENSE                       # Proprietary licence (all rights reserved)
 ├── pyproject.toml                # Package metadata, pytest & ruff config
 ├── requirements.txt              # Serverless / pip dependency manifest (incl. psycopg[binary])
 ├── vercel.json                   # Vercel serverless routing configuration
@@ -146,3 +146,9 @@ See `.env.example`:
 | `DIGEST_SENDER_EMAIL` | `digest@bidstudio.example` | Outbound digest sender address |
 | `DELIVERY_SENDER_EMAIL` | `delivery@bidstudio.example` | Outbound delivery sender address |
 | `SEED_ON_STARTUP` | `true` | Seed sample notices, grants, Riverbend pack, and templates on empty DB |
+
+---
+
+## Licence
+
+Proprietary. Copyright (c) 2026 donnaheff. All rights reserved. See `LICENSE`. Third-party dependencies keep their own open-source licences.

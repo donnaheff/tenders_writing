@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "Bid Studio — Grant application and tender writing platform"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn>=0.30.0",
