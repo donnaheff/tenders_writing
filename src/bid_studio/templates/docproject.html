@@ -59,6 +59,11 @@
       <h3 id="leftTitle">Sections</h3>
       <input id="rowFilter" placeholder="Filter rows" style="display:none; width:100%; margin-bottom:8px" aria-label="Filter rows" />
       <div id="list" style="max-height:70vh; overflow:auto"></div>
+      <div id="impBox" style="display:none; margin-top:14px; border-top:1px solid var(--border); padding-top:10px">
+        <div class="muted" style="margin-bottom:6px">Import from Word: headings that match section titles are filled in. Nothing changes until you apply.</div>
+        <input type="file" id="impFile" accept=".docx" style="width:100%" aria-label="Word file" />
+        <div id="impOut" style="margin-top:8px"></div>
+      </div>
       <button class="small secondary" id="btnAddRow" style="display:none; margin-top:8px">+ Add row</button>
       <div id="addQ" style="display:none; margin-top:10px">
         <label class="f" id="addQLabel">Add questions (one per line)<textarea id="newQ" rows="4"></textarea></label>
@@ -156,6 +161,7 @@
     $("noticeBanner").classList.toggle("show", !!P.notice); $("noticeBanner").textContent = P.notice || "";
     const fixedRows = P.table && (P.table_spec.fixed_rows || []).length > 0;
     $("btnAddRow").style.display = P.table && !fixedRows && !P.locked ? "" : "none";
+    $("impBox").style.display = !hasItems() && P.sections.length && !P.locked ? "" : "none";
     $("rowFilter").style.display = P.table && P.items.length > 12 ? "" : "none";
     $("tabRefsBtn").style.display = P.references_enabled ? "" : "none";
     if (P.references_enabled && !refDirty) { refs = JSON.parse(JSON.stringify(P.refs)); renderRefs(); }
@@ -459,6 +465,37 @@
       try { localStorage.setItem("bs_comment_name", name); } catch (_) {}
       $("cmtBody").value = ""; await loadComments(); adopt(await call(base), true);
     } catch (e) { setSave(e.message, true); }
+  };
+
+  // ---- Word import (preview first, then apply)
+  let impData = null;
+  async function importCall(dry, overwrite) {
+    const res = await fetch(`${base}/import?dry_run=${dry}&overwrite=${overwrite}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: impData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Import failed");
+    return data;
+  }
+  function showImport(r, overwrite) {
+    const rows = r.sections.map(x => `<div class="chk ${x.skipped ? "warn" : "ok"}"><span class="ic">${x.skipped ? "!" : "✓"}</span><div>${esc(x.heading)} → <strong>${esc(x.title)}</strong> (${x.words} words)${x.skipped ? ` <span class="muted">${esc(x.skipped)}</span>` : x.replaces_text ? ` <span class="muted">replaces existing text</span>` : ""}</div></div>`).join("");
+    const un = r.unmatched.length ? `<div class="muted" style="margin-top:6px">Not matched, so left out: ${r.unmatched.map(u => esc(u.heading)).join(", ")}</div>` : "";
+    const none = !r.sections.length ? `<div class="muted">No headings in the file match this document's sections.</div>` : "";
+    $("impOut").innerHTML = `${rows}${none}${un}
+      <label class="muted" style="display:flex; gap:6px; align-items:center; margin:8px 0"><input type="checkbox" id="impOver" style="width:auto" ${overwrite ? "checked" : ""} /> Replace sections that already have text</label>
+      <button class="small" id="impApply" ${r.sections.some(x => !x.skipped) ? "" : "disabled"}>Apply import</button>`;
+    $("impOver").onchange = async () => { try { showImport(await importCall(true, $("impOver").checked), $("impOver").checked); } catch (e) { setSave(e.message, true); } };
+    $("impApply").onclick = async () => {
+      if (!(await save())) return;
+      try {
+        const done = await importCall(false, $("impOver").checked);
+        adopt(await call(base)); select(cur); $("impOut").innerHTML = `<div class="chk ok"><span class="ic">✓</span><div>Imported ${done.applied} section(s).</div></div>`; $("impFile").value = "";
+      } catch (e) { setSave(e.message, true); }
+    };
+  }
+  $("impFile").onchange = async () => {
+    const f = $("impFile").files[0]; if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { $("impOut").textContent = "That file is larger than 5 MB."; return; }
+    impData = await f.arrayBuffer();
+    try { showImport(await importCall(true, false), false); } catch (e) { $("impOut").textContent = e.message; }
   };
 
   // ---- actions

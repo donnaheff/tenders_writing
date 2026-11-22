@@ -18,7 +18,7 @@ from bid_studio.models import (
     Workspace,
 )
 from bid_studio.services import assistant as ai
-from bid_studio.services import checklists, render, report_prefill, ux_copy
+from bid_studio.services import checklists, docx_import, render, report_prefill, ux_copy
 from bid_studio.services import packs as packs_lib
 from bid_studio.services import questionnaire as qn
 from bid_studio.services import references as refs_lib
@@ -796,6 +796,46 @@ def _markdown(p: DocProject) -> str:
 def export_project(project_id: int, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     return {"project_id": p.id, "title": p.title, "markdown": _markdown(p)}
+
+
+@project_router.post("/import")
+async def import_docx(project_id: int, request: Request, dry_run: bool = True, overwrite: bool = False,
+                      db: Session = Depends(get_db)):
+    """Map a .docx's headings onto this project's sections. The raw .docx is the request body."""
+    p = _get(db, project_id)
+    if _items_kind(p) is not None or not p.sections:
+        raise HTTPException(status_code=422, detail="Word import works for section-based documents only")
+    if not dry_run:
+        _editable(p)
+    if int(request.headers.get("content-length") or 0) > docx_import.MAX_BYTES:
+        raise HTTPException(status_code=413, detail="The file is larger than 5 MB")
+    data = await request.body()
+    try:
+        mapped = docx_import.map_to_sections(docx_import.outline(data), p.sections)
+    except docx_import.DocxImportError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    current = {s["id"]: s for s in p.sections}
+    plan = []
+    for m in mapped["matched"]:
+        existing = current[m["section_id"]]["text"].strip()
+        skip = ""
+        if len(m["text"]) > docx_import.MAX_SECTION_CHARS:
+            skip = "Too long for one section"
+        elif not m["text"].strip():
+            skip = "The heading has no text under it"
+        elif existing and not overwrite:
+            skip = "Section already has text (tick overwrite to replace it)"
+        plan.append({**{k: m[k] for k in ("section_id", "title", "heading", "words")},
+                     "replaces_text": bool(existing), "skipped": skip})
+    result: dict[str, Any] = {"dry_run": dry_run, "sections": plan, "unmatched": mapped["unmatched"], "applied": 0}
+    if not dry_run:
+        by_id = {m["section_id"]: m["text"] for m in mapped["matched"]}
+        todo = {x["section_id"] for x in plan if not x["skipped"]}
+        p.sections = [{**sec, "text": by_id[sec["id"]]} if sec["id"] in todo else sec for sec in p.sections]
+        p.updated_at = datetime.now(UTC)
+        db.commit()
+        result["applied"] = len(todo)
+    return result
 
 
 @project_router.get("/export.docx")
