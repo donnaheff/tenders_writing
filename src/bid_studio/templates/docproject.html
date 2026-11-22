@@ -72,6 +72,7 @@
       <div class="tabs" id="tabs">
         <button data-tab="ai" class="active">Assistant</button><button data-tab="lib">Library</button>
         <button data-tab="refs" id="tabRefsBtn" style="display:none">References</button>
+        <button data-tab="cmt" id="tabCmtBtn">Comments</button>
         <button data-tab="proj">Project</button><button data-tab="rev">Review</button>
       </div>
       <div class="tabpane active" id="tab-ai">
@@ -100,6 +101,15 @@
         <label class="f">Client name<input id="cName" /></label><label class="f">Client email<input id="cEmail" type="email" /></label>
         <label class="f">Fixed fee<input id="cFee" type="number" min="0" /></label><label class="f">Currency<input id="cCur" maxlength="10" /></label>
         <label class="f">Brief (what the client asked for)<textarea id="cBrief" rows="6"></textarea></label>
+      </div>
+      <div class="tabpane" id="tab-cmt">
+        <div class="muted" id="cmtHint" style="margin-bottom:8px"></div>
+        <label class="f">Your name<input id="cmtName" maxlength="160" /></label>
+        <label class="f">Comment<textarea id="cmtBody" rows="3" maxlength="2000"></textarea></label>
+        <label class="muted" style="display:flex; gap:6px; align-items:center; margin-bottom:8px"><input type="checkbox" id="cmtPin" checked style="width:auto" /> Pin to the item I am editing</label>
+        <button class="small" id="cmtAdd">Add comment</button>
+        <label class="muted" style="display:flex; gap:6px; align-items:center; margin:10px 0"><input type="checkbox" id="cmtShowResolved" style="width:auto" /> Show resolved</label>
+        <div id="cmtList"></div>
       </div>
       <div class="tabpane" id="tab-rev"><div id="revBox"></div></div>
     </aside>
@@ -172,7 +182,7 @@
       const meta = k === "row" ? (rowDone(x) ? "complete" : "incomplete") : k === "review" ? x.status : k === "check" ? `${x.section} · ${x.reported}` : k === "q" ? `${x.status.replace("_", " ")}${x.confidence ? " · " + Math.round(x.confidence * 100) + "% match" : ""}`
         : k === "copy" ? `${x.screen || "No screen"} · ${x.element.replace("_", " ")}${lintN ? ` · ${lintN} warning${lintN > 1 ? "s" : ""}` : ""}` : `${P.copydeck ? "Style guide · " : ""}${words(x.text)} words`;
       const sep = (P.copydeck || P.reviews) && i === P.sections.length ? `<div class="muted" style="margin:10px 0 6px">${P.reviews ? "Comments" : "Strings"}</div>` : "";
-      return `${sep}<button class="it ${i === cur ? "active" : ""}" data-i="${i}"><div class="t"><span class="dot ${dot}"></span>${esc(label.length > 90 ? label.slice(0, 90) + "…" : label)}</div><div class="m">${esc(meta)}</div></button>`;
+      return `${sep}<button class="it ${i === cur ? "active" : ""}" data-i="${i}"><div class="t"><span class="dot ${dot}"></span>${esc(label.length > 90 ? label.slice(0, 90) + "…" : label)}</div><div class="m">${esc(meta)}${openCount(x.id) ? ` · ${openCount(x.id)} comment${openCount(x.id) > 1 ? "s" : ""}` : ""}</div></button>`;
     }).join("") || `<div class="muted">Nothing here yet.</div>`;
     document.querySelectorAll("#list .it").forEach(b => b.onclick = () => select(Number(b.dataset.i)));
   }
@@ -257,7 +267,7 @@
         <div class="meta"><span><strong id="wc">${words(x.text)}</strong> words</span></div>`;
       $("sec").oninput = () => { x.text = $("sec").value; $("wc").textContent = words(x.text); touched(); };
     }
-    renderList();
+    renderList(); renderComments();
   }
 
   // Style warnings come from the server after each save; update the open string without re-rendering its inputs
@@ -419,6 +429,38 @@
     finally { $("doiGo").disabled = false; }
   };
 
+  // ---- comments (allowed even while the project is locked for review)
+  let comments = [];
+  const openCount = id => comments.filter(c => c.target === id && !c.resolved).length;
+  async function loadComments() { try { comments = await call(`${base}/comments`); } catch (_) { comments = []; } renderComments(); if (P) renderList(); }
+  function renderComments() {
+    const x = P && list()[cur], showAll = $("cmtShowResolved").checked;
+    const n = comments.filter(c => !c.resolved).length;
+    $("tabCmtBtn").textContent = n ? `Comments (${n})` : "Comments";
+    $("cmtHint").textContent = x ? `Editing ${x.id}. Comments pinned to it are listed first.` : "";
+    const vis = comments.filter(c => showAll || !c.resolved).sort((a, b) => (b.target === (x && x.id)) - (a.target === (x && x.id)) || a.id - b.id);
+    $("cmtList").innerHTML = vis.map(c => `<div class="item" ${c.resolved ? 'style="opacity:.6"' : ""}>
+      <div class="h">${esc(c.author_name)} <span class="muted">${esc(new Date(c.created_at).toLocaleString())}</span></div>
+      <div style="white-space:pre-wrap">${esc(c.body)}</div>
+      <div class="meta" style="margin:6px 0 0">${c.target ? `<button class="small secondary" data-goto="${esc(c.target)}">On ${esc(c.target)}</button>` : `<span class="muted">Whole document</span>`}
+        <button class="small secondary" data-res="${c.id}">${c.resolved ? "Reopen" : "Resolve"}</button>
+        <button class="small secondary" data-del="${c.id}">Delete</button></div></div>`).join("") || `<div class="muted">No comments.</div>`;
+    $("cmtList").querySelectorAll("[data-goto]").forEach(b => b.onclick = () => { const i = list().findIndex(y => y.id === b.dataset.goto); if (i >= 0) select(i); });
+    $("cmtList").querySelectorAll("[data-res]").forEach(b => b.onclick = async () => { const c = comments.find(y => y.id === Number(b.dataset.res)); try { await call(`${base}/comments/${c.id}`, "PATCH", { resolved: !c.resolved }); await loadComments(); adopt(await call(base), true); } catch (e) { setSave(e.message, true); } });
+    $("cmtList").querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { if (!confirm("Delete this comment?")) return; try { await call(`${base}/comments/${b.dataset.del}`, "DELETE"); await loadComments(); adopt(await call(base), true); } catch (e) { setSave(e.message, true); } });
+  }
+  try { $("cmtName").value = localStorage.getItem("bs_comment_name") || ""; } catch (_) {}
+  $("cmtShowResolved").onchange = renderComments;
+  $("cmtAdd").onclick = async () => {
+    const x = list()[cur], name = $("cmtName").value.trim(), body = $("cmtBody").value.trim();
+    if (!body) return;
+    try {
+      await call(`${base}/comments`, "POST", { body, author_name: name, target: $("cmtPin").checked && x ? x.id : "" });
+      try { localStorage.setItem("bs_comment_name", name); } catch (_) {}
+      $("cmtBody").value = ""; await loadComments(); adopt(await call(base), true);
+    } catch (e) { setSave(e.message, true); }
+  };
+
   // ---- actions
   $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => {
     $("tabs").querySelectorAll("button").forEach(x => x.classList.remove("active")); b.classList.add("active");
@@ -460,7 +502,7 @@
   window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
 
   (async () => {
-    try { adopt(await call(base)); renderList(); select(0); loadLibrary(); loadAiStatus(); }
+    try { adopt(await call(base)); renderList(); select(0); loadLibrary(); loadAiStatus(); loadComments(); }
     catch (e) { $("editor").innerHTML = "<h3>Could not load this project: " + esc(e.message) + "</h3>"; }
   })();
 </script>

@@ -106,6 +106,23 @@ class EvidenceItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class DocComment(Base):
+    """A comment on a documentation project, optionally pinned to one section or row."""
+
+    __tablename__ = "doc_comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("doc_projects.id"), index=True)
+    target: Mapped[str] = mapped_column(String(40), default="")  # section or row id; "" = whole document
+    body: Mapped[str] = mapped_column(Text)
+    author_name: Mapped[str] = mapped_column(String(160))
+    author_account_id: Mapped[int | None] = mapped_column(ForeignKey("market_accounts.id"), nullable=True)
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+    resolved_by: Mapped[str] = mapped_column(String(160), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class QualityQueueItem(Base):
     __tablename__ = "quality_queue_items"
 

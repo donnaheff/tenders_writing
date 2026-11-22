@@ -2,13 +2,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from bid_studio.database import get_db
 from bid_studio.models import (
     AnswerLibraryItem,
+    DocComment,
     DocProject,
     EvidenceItem,
     GrantProposal,
@@ -25,6 +26,7 @@ from bid_studio.services import reviews as reviews_lib
 from bid_studio.services import service_templates as tpl
 from bid_studio.services import tables as tbl
 from bid_studio.services.access import doc_project_guard
+from bid_studio.services.auth import account_from_request, check_origin
 from bid_studio.services.domain_logic import tokenize
 from bid_studio.services.mailer import deliver
 
@@ -196,6 +198,13 @@ def _words(text: str) -> int:
     return len(text.split())
 
 
+def _open_comments(p: DocProject) -> int:
+    session = object_session(p)
+    if session is None or p.id is None:
+        return 0
+    return session.query(DocComment).filter(DocComment.project_id == p.id, DocComment.resolved.is_(False)).count()
+
+
 def readiness(p: DocProject) -> dict[str, Any]:
     blockers, warnings = [], []
     if _is_checklist(p):
@@ -275,6 +284,9 @@ def readiness(p: DocProject) -> dict[str, Any]:
         unverified = [c["id"] for c in checks if "Not yet verified" in c["message"]]
         if unverified:
             warnings.append(f"{len(unverified)} reference(s) are not verified or checked by the author")
+    open_comments = _open_comments(p)
+    if open_comments:
+        warnings.append(f"{open_comments} unresolved comment(s)")
     if not p.client_email:
         warnings.append("No client email, so it cannot be emailed on delivery")
     return {"ready": not blockers, "blockers": blockers, "warnings": warnings}
@@ -325,7 +337,7 @@ def _dict(p: DocProject) -> dict[str, Any]:
         "currency": p.currency, "status": p.status, "locked": p.status not in EDITABLE,
         "sections": p.sections, "items": p.items, "reviewer_notes": p.reviewer_notes,
         "delivered_at": p.delivered_at, "created_at": p.created_at, "stats": stats,
-        "readiness": readiness(p), "evidence_item_id": p.evidence_item_id,
+        "readiness": readiness(p), "open_comments": _open_comments(p), "evidence_item_id": p.evidence_item_id,
         "proposal_id": p.proposal_id, "notice_id": p.notice_id,
         "promotable": "evidence_type" in tpl.TYPES.get(p.doc_type, {}),
         "can_promote": "evidence_type" in tpl.TYPES.get(p.doc_type, {})
@@ -796,6 +808,88 @@ def export_docx(project_id: int, db: Session = Depends(get_db)):
 def export_pdf(project_id: int, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     return render.file_response("pdf", _markdown(p), p.title)
+
+
+class CommentIn(BaseModel):
+    target: str = Field(default="", max_length=40)
+    body: str = Field(min_length=1, max_length=2000)
+    author_name: str = Field(default="", max_length=160)
+
+
+class CommentPatch(BaseModel):
+    resolved: bool
+
+
+def _comment_dict(c: DocComment) -> dict[str, Any]:
+    return {"id": c.id, "target": c.target, "body": c.body, "author_name": c.author_name,
+            "resolved": c.resolved, "resolved_by": c.resolved_by, "created_at": c.created_at,
+            "resolved_at": c.resolved_at}
+
+
+def _targets(p: DocProject) -> set[str]:
+    return {s["id"] for s in p.sections} | {i["id"] for i in p.items}
+
+
+@project_router.get("/comments")
+def list_comments(project_id: int, db: Session = Depends(get_db)):
+    _get(db, project_id)
+    rows = db.query(DocComment).filter(DocComment.project_id == project_id).order_by(DocComment.id).all()
+    return [_comment_dict(c) for c in rows]
+
+
+@project_router.post("/comments", status_code=201)
+def add_comment(project_id: int, payload: CommentIn, request: Request, db: Session = Depends(get_db)):
+    p = _get(db, project_id)  # comments are allowed while the project is locked for review
+    account = account_from_request(db, request)
+    if account:
+        check_origin(request)
+    name = account.name if account else payload.author_name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Say who is commenting")
+    if payload.target and payload.target not in _targets(p):
+        raise HTTPException(status_code=422, detail="That section or row does not exist")
+    if not payload.body.strip():
+        raise HTTPException(status_code=422, detail="Write a comment")
+    c = DocComment(project_id=p.id, target=payload.target, body=payload.body.strip(), author_name=name,
+                   author_account_id=account.id if account else None)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return _comment_dict(c)
+
+
+def _comment(db: Session, project_id: int, comment_id: int) -> DocComment:
+    c = db.get(DocComment, comment_id)
+    if not c or c.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    return c
+
+
+@project_router.patch("/comments/{comment_id}")
+def resolve_comment(project_id: int, comment_id: int, payload: CommentPatch, request: Request,
+                    db: Session = Depends(get_db)):
+    c = _comment(db, project_id, comment_id)
+    account = account_from_request(db, request)
+    if account:
+        check_origin(request)
+    c.resolved = payload.resolved
+    c.resolved_by = (account.name if account else "") if payload.resolved else ""
+    c.resolved_at = datetime.now(UTC) if payload.resolved else None
+    db.commit()
+    return _comment_dict(c)
+
+
+@project_router.delete("/comments/{comment_id}", status_code=204)
+def delete_comment(project_id: int, comment_id: int, request: Request, db: Session = Depends(get_db)):
+    c = _comment(db, project_id, comment_id)
+    account = account_from_request(db, request)
+    if account:
+        check_origin(request)
+    if c.author_account_id is not None and not (
+            account and (account.id == c.author_account_id or account.role == "admin")):
+        raise HTTPException(status_code=403, detail="Only the author or an admin can delete a comment")
+    db.delete(c)
+    db.commit()
 
 
 @project_router.post("/deliver")
