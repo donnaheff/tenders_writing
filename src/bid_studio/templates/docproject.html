@@ -50,6 +50,7 @@
   </div>
   <div class="banner lock" id="lockBanner"></div>
   <div class="banner note" id="noteBanner"></div>
+  <div class="banner lock" id="aiBanner">Research writing: you are responsible for every claim and citation. Check your journal's and funder's policy on AI assistance and disclose it where required. Never use AI to review a manuscript you are asked to peer-review.</div>
 
   <div class="layout">
     <aside class="panel">
@@ -66,6 +67,7 @@
     <aside class="panel">
       <div class="tabs" id="tabs">
         <button data-tab="ai" class="active">Assistant</button><button data-tab="lib">Library</button>
+        <button data-tab="refs" id="tabRefsBtn" style="display:none">References</button>
         <button data-tab="proj">Project</button><button data-tab="rev">Review</button>
       </div>
       <div class="tabpane active" id="tab-ai">
@@ -80,6 +82,14 @@
       <div class="tabpane" id="tab-lib">
         <div class="search"><input id="libQ" placeholder="Search the answer library" /><button class="small" id="libGo">Search</button></div>
         <div id="libList" class="muted">Loading...</div>
+      </div>
+      <div class="tabpane" id="tab-refs">
+        <div class="muted" style="margin-bottom:8px">Add only sources you have found yourself. Cite them in the text as [R1], [R2]. The assistant may cite only these.</div>
+        <div class="search"><input id="doiIn" placeholder="Add by DOI, e.g. 10.1038/nature14539" /><button class="small" id="doiGo">Look up</button></div>
+        <div class="meta" style="margin:4px 0 8px"><label>Style <select id="refStyle"><option value="apa">APA</option><option value="vancouver">Vancouver</option></select></label>
+          <button class="small secondary" id="refAdd">+ Add by hand</button></div>
+        <div id="refList"></div>
+        <div id="refChecks" style="margin-top:10px"></div>
       </div>
       <div class="tabpane" id="tab-proj">
         <div class="muted" id="linkBox" style="margin-bottom:10px"></div>
@@ -107,9 +117,9 @@
   }
   const setSave = (m, err = false) => { const el = $("saveState"); el.textContent = m; el.className = err ? "err" : ""; };
   // Questionnaires and FAQ sets list items; UX copy decks list the style guide, then the strings
-  const list = () => (P.copydeck ? [...P.sections, ...P.items] : P.questionnaire ? P.items : P.sections);
-  const kindOf = x => (x.question !== undefined ? "q" : x.element !== undefined ? "copy" : "sec");
-  const hasItems = () => P.questionnaire || P.copydeck;
+  const list = () => (P.copydeck || P.reviews ? [...P.sections, ...P.items] : P.questionnaire || P.checklist ? P.items : P.sections);
+  const kindOf = x => (x.question !== undefined ? "q" : x.element !== undefined ? "copy" : x.comment !== undefined ? "review" : x.reported !== undefined ? "check" : "sec");
+  const hasItems = () => P.questionnaire || P.copydeck || P.reviews || P.checklist;
 
   function adopt(d, keepEdits = false) {
     const prev = P; P = d;
@@ -122,12 +132,17 @@
     for (const id of ["pTitle", "cName", "cEmail", "cFee", "cCur", "cBrief"]) $(id).disabled = P.locked;
     $("btnMatch").style.display = P.questionnaire ? "" : "none"; $("btnMatch").disabled = P.locked;
     $("addQ").style.display = hasItems() && !P.locked ? "" : "none";
-    $("addQLabel").firstChild.textContent = P.copydeck ? "Add strings (one per line: screen | element | copy)" : "Add questions (one per line)";
-    $("btnAddQ").textContent = P.copydeck ? "Add strings" : "Add and auto-match";
+    $("addQ").style.display = (P.questionnaire || P.copydeck || P.reviews) && !P.locked ? "" : "none";
+    $("addQLabel").firstChild.textContent = P.copydeck ? "Add strings (one per line: screen | element | copy)" : P.reviews ? "Add reviewer comments (one per line, optional 'Reviewer 2:' prefix)" : "Add questions (one per line)";
+    $("btnAddQ").textContent = P.copydeck ? "Add strings" : P.reviews ? "Add comments" : "Add and auto-match";
+    $("aiBanner").classList.toggle("show", !!P.research);
+    $("tabRefsBtn").style.display = P.references_enabled ? "" : "none";
+    if (P.references_enabled && !refDirty) { refs = JSON.parse(JSON.stringify(P.refs)); renderRefs(); }
+    $("btnMatch").style.display = P.questionnaire ? "" : "none";
     const a = $("btnAction");
     a.style.display = ["drafting", "approved"].includes(P.status) ? "" : "none";
     a.textContent = P.status === "approved" ? "Deliver to client" : "Submit for quality review"; a.disabled = false;
-    $("leftTitle").textContent = P.copydeck ? "Style guide and strings" : P.questionnaire ? "Questions" : "Sections";
+    $("leftTitle").textContent = P.copydeck ? "Style guide and strings" : P.reviews ? "Letter and comments" : P.checklist ? "Checklist items" : P.questionnaire ? "Questions" : "Sections";
     const pe = $("btnPromoteEv");
     pe.style.display = P.promotable ? "" : "none";
     pe.disabled = !P.can_promote;
@@ -140,11 +155,11 @@
   function renderList() {
     $("list").innerHTML = list().map((x, i) => {
       const k = kindOf(x), lintN = k === "copy" && P.lint[x.id] ? P.lint[x.id].length : 0;
-      const dot = k === "q" ? x.status : k === "copy" ? (x.status === "approved" ? "approved" : x.text.trim() ? "matched" : "") : (x.text.trim() ? "written" : "");
-      const label = k === "q" ? `${x.id}: ${x.question}` : k === "copy" ? `${x.id}: ${x.text || "(empty)"}` : x.title;
-      const meta = k === "q" ? `${x.status.replace("_", " ")}${x.confidence ? " · " + Math.round(x.confidence * 100) + "% match" : ""}`
+      const dot = k === "review" ? ({ addressed: "approved", partly: "matched", disagree: "needs_review", noted: "matched" }[x.status] || "") : k === "check" ? ({ yes: "approved", na: "matched", no: "needs_review" }[x.reported] || "") : k === "q" ? x.status : k === "copy" ? (x.status === "approved" ? "approved" : x.text.trim() ? "matched" : "") : (x.text.trim() ? "written" : "");
+      const label = k === "review" ? `${x.id} ${x.reviewer}: ${x.comment}` : k === "check" ? `${x.id.slice(1)}. ${x.text}` : k === "q" ? `${x.id}: ${x.question}` : k === "copy" ? `${x.id}: ${x.text || "(empty)"}` : x.title;
+      const meta = k === "review" ? x.status : k === "check" ? `${x.section} · ${x.reported}` : k === "q" ? `${x.status.replace("_", " ")}${x.confidence ? " · " + Math.round(x.confidence * 100) + "% match" : ""}`
         : k === "copy" ? `${x.screen || "No screen"} · ${x.element.replace("_", " ")}${lintN ? ` · ${lintN} warning${lintN > 1 ? "s" : ""}` : ""}` : `${P.copydeck ? "Style guide · " : ""}${words(x.text)} words`;
-      const sep = P.copydeck && i === P.sections.length ? `<div class="muted" style="margin:10px 0 6px">Strings</div>` : "";
+      const sep = (P.copydeck || P.reviews) && i === P.sections.length ? `<div class="muted" style="margin:10px 0 6px">${P.reviews ? "Comments" : "Strings"}</div>` : "";
       return `${sep}<button class="it ${i === cur ? "active" : ""}" data-i="${i}"><div class="t"><span class="dot ${dot}"></span>${esc(label.length > 90 ? label.slice(0, 90) + "…" : label)}</div><div class="m">${esc(meta)}</div></button>`;
     }).join("") || `<div class="muted">Nothing here yet.</div>`;
     document.querySelectorAll("#list .it").forEach(b => b.onclick = () => select(Number(b.dataset.i)));
@@ -153,7 +168,24 @@
   function select(i) {
     cur = Math.max(0, Math.min(i, list().length - 1)); const x = list()[cur]; const L = P.locked;
     if (!x) { $("editor").innerHTML = "<h3>Nothing to edit</h3>"; renderList(); return; }
-    if (kindOf(x) === "copy") {
+    if (kindOf(x) === "review") {
+      $("editor").innerHTML = `<h3>${esc(x.id)} <span class="muted">${esc(x.reviewer)}</span></h3>
+        <div class="guidance" style="font-size:.95rem">${esc(x.comment)}</div>
+        <textarea class="big" id="rResp" style="min-height:230px" ${L ? "disabled" : ""} aria-label="Response">${esc(x.response)}</textarea>
+        <div class="meta"><label>Outcome <select id="rStat" ${L ? "disabled" : ""}>${[["pending", "Not yet answered"], ["addressed", "Addressed"], ["partly", "Partly addressed"], ["disagree", "Respectfully disagree"], ["noted", "Noted, no change"]].map(([v, t]) => `<option value="${v}" ${v === x.status ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+          <label>Where the change is <input id="rChange" value="${esc(x.change)}" placeholder="e.g. Methods, para 2" maxlength="400" style="width:230px" ${L ? "disabled" : ""} /></label></div>`;
+      const sync = () => { x.response = $("rResp").value; x.status = $("rStat").value; x.change = $("rChange").value; if (x.status === "pending" && x.response.trim()) { x.status = "addressed"; $("rStat").value = "addressed"; } touched(); };
+      for (const id of ["rResp", "rStat", "rChange"]) $(id).oninput = sync;
+    } else if (kindOf(x) === "check") {
+      $("editor").innerHTML = `<h3>Item ${esc(x.id.slice(1))} <span class="muted">${esc(x.section)}</span></h3>
+        <div class="guidance" style="font-size:.95rem">${esc(x.text)}</div>
+        <div class="meta"><label>Reported? <select id="kRep" ${L ? "disabled" : ""}>${[["unchecked", "Not yet answered"], ["yes", "Yes, reported"], ["no", "No, not reported"], ["na", "Not applicable"]].map(([v, t]) => `<option value="${v}" ${v === x.reported ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+          <label>Where (section, page) <input id="kLoc" value="${esc(x.location)}" maxlength="120" ${L ? "disabled" : ""} /></label></div>
+        <label class="f">Notes or explanation (needed if not reported)<textarea id="kNotes" rows="4" maxlength="600" ${L ? "disabled" : ""}>${esc(x.notes)}</textarea></label>
+        <div class="muted">Paraphrased summary of the guideline item. Complete the official checklist for submission.</div>`;
+      const sync = () => { x.reported = $("kRep").value; x.location = $("kLoc").value; x.notes = $("kNotes").value; touched(); };
+      for (const id of ["kRep", "kLoc", "kNotes"]) $(id).oninput = sync;
+    } else if (kindOf(x) === "copy") {
       const warn = (P.lint[x.id] || []).map(w => `<div class="chk warn"><span class="ic">!</span><div>${esc(w)}</div></div>`).join("");
       $("editor").innerHTML = `<h3>${esc(x.id)}</h3>
         <div class="meta"><label>Screen or location <input id="cScreen" value="${esc(x.screen)}" ${L ? "disabled" : ""} maxlength="120" /></label>
@@ -199,11 +231,13 @@
   for (const id of ["pTitle", "cName", "cEmail", "cFee", "cCur", "cBrief"]) $(id).addEventListener("input", touched);
 
   async function save() {
+    if (refDirty) await saveRefs();
     if (P.locked || saving || !dirty) return true;
     clearTimeout(timer); saving = true; setSave("Saving...");
     const body = { title: $("pTitle").value.trim() || undefined, client_name: $("cName").value, client_email: $("cEmail").value, brief: $("cBrief").value, fixed_fee: Number($("cFee").value) || 0, currency: $("cCur").value.trim() || undefined };
     if (hasItems()) body.items = P.items;
     if (!P.questionnaire) body.sections = P.sections.map(({ id, title, prompt, text }) => ({ id, title, prompt, text }));
+    if (P.checklist) delete body.sections;
     try { dirty = false; const d = await call(base, "PUT", body); adopt(d); setSave("Saved " + new Date().toLocaleTimeString()); renderList(); refreshWarnings(); return true; }
     catch (e) { dirty = true; setSave(e.status === 409 ? "Locked" : "Save failed: " + e.message, true); return false; }
     finally { saving = false; }
@@ -211,7 +245,7 @@
 
   function renderReview() {
     const r = P.readiness, row = (cls, ic, t) => `<div class="chk ${cls}"><span class="ic">${ic}</span><div>${esc(t)}</div></div>`;
-    const s = P.stats, prog = P.copydeck ? `${s.strings} strings · ${s.approved} approved · ${s.flagged} with style warnings` : P.questionnaire ? `${s.answered}/${s.total} answered · ${s.approved} approved` : `${s.written}/${s.total} sections written · ${s.words} words`;
+    const s = P.stats, prog = P.checklist ? `${s.yes} reported · ${s.no} not reported · ${s.na} n/a · ${s.unchecked} to answer` : P.reviews ? `${s.answered}/${s.total} comments answered` : P.copydeck ? `${s.strings} strings · ${s.approved} approved · ${s.flagged} with style warnings` : P.questionnaire ? `${s.answered}/${s.total} answered · ${s.approved} approved` : `${s.written}/${s.total} sections written · ${s.words} words`;
     $("revBox").innerHTML = `<div class="muted" style="margin-bottom:8px">${esc(prog)}</div>
       ${r.blockers.map(b => row("bad", "✕", b)).join("")}${r.warnings.map(w => row("warn", "!", w)).join("")}
       ${r.ready ? row("ok", "✓", "Ready for quality review") : ""}
@@ -231,16 +265,17 @@
     out.className = "muted"; out.textContent = "Working...";
     document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = true);
     try {
-      const k = kindOf(x), text = k === "q" ? x.answer : x.text;
+      if (P.checklist) { out.textContent = "Checklists are completed by the authors; there is no assistant for them."; return; }
+      const k = kindOf(x), text = k === "q" ? x.answer : k === "review" ? x.response : x.text;
       aiResult = await call(`${base}/assistant`, "POST", { action, target_id: x.id, text, instruction: $("aiQ").value });
       const badge = `<span class="badge">${aiResult.provider === "claude" ? "Claude" : "Offline helper"}</span>`;
       const ul = (t, a) => a && a.length ? `<div style="margin-top:8px"><strong>${t}</strong><ul style="margin:4px 0 0 18px; padding:0">${a.map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>` : "";
       const isText = action !== "critique";
       out.className = "";
       out.innerHTML = `${badge}${isText ? `<div class="item" style="margin-top:8px; white-space:pre-wrap; max-height:260px; overflow:auto">${esc(aiResult.text)}</div>` : `<div style="margin:8px 0">${esc(aiResult.text)}</div>`}${ul("Strengths", aiResult.strengths)}${ul("Gaps", aiResult.gaps)}${ul("Notes", aiResult.notes)}
-        ${isText && action !== "ask" ? `<div style="margin-top:10px"><button class="small" id="aiReplace" ${P.locked ? "disabled" : ""}>Replace ${kindOf(x) === "q" ? "answer" : kindOf(x) === "copy" ? "copy" : "section"}</button></div>` : ""}
+        ${isText && action !== "ask" ? `<div style="margin-top:10px"><button class="small" id="aiReplace" ${P.locked ? "disabled" : ""}>Replace ${kindOf(x) === "q" ? "answer" : kindOf(x) === "review" ? "response" : kindOf(x) === "copy" ? "copy" : "section"}</button></div>` : ""}
         <div class="muted" style="margin-top:8px">AI output can contain mistakes. Check every statement, especially security claims, and replace any [TO CONFIRM] before delivery.</div>`;
-      const r = $("aiReplace"); if (r) r.onclick = () => { const k = kindOf(x); x[k === "q" ? "answer" : "text"] = aiResult.text; if (k === "q") x.status = "needs_review"; if (k === "copy") x.status = "draft"; touched(); select(cur); };
+      const r = $("aiReplace"); if (r) r.onclick = () => { const k = kindOf(x); x[k === "q" ? "answer" : k === "review" ? "response" : "text"] = aiResult.text; if (k === "q") x.status = "needs_review"; if (k === "copy") x.status = "draft"; if (k === "review" && x.status === "pending") x.status = "addressed"; touched(); select(cur); };
     } catch (e) { out.textContent = "Assistant error: " + e.message; }
     finally { document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = false); }
   }
@@ -270,6 +305,79 @@
     });
   }
   $("libGo").onclick = renderLib; $("libQ").addEventListener("input", renderLib);
+
+  // ---- references (author-controlled list; DOI lookup via Crossref)
+  let refs = { style: "apa", items: [] }, refDirty = false, refTimer = null;
+  const REF_KINDS = ["article", "book", "chapter", "report", "web", "dataset", "other"];
+  const nextRefId = () => { let n = refs.items.length + 1; while (refs.items.some(r => r.id === "R" + n)) n++; return "R" + n; };
+  const blankRef = () => ({ id: nextRefId(), kind: "article", authors: [], year: null, title: "", container: "", volume: "", issue: "", pages: "", publisher: "", doi: "", url: "", notes: "", verified: false, checked: false });
+
+  function activeTextarea() { return $("sec") || $("rResp") || $("ans") || $("cText"); }
+  function insertCitation(id) {
+    const ta = activeTextarea(); if (!ta || ta.disabled) return;
+    const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a, mark = `[${id}]`;
+    ta.value = ta.value.slice(0, a) + mark + ta.value.slice(b); ta.selectionStart = ta.selectionEnd = a + mark.length;
+    ta.dispatchEvent(new Event("input", { bubbles: true })); ta.focus();
+  }
+
+  function renderRefs() {
+    $("refStyle").value = refs.style; $("refStyle").disabled = P.locked;
+    $("refList").innerHTML = refs.items.map((r, i) => `<div class="item" data-i="${i}">
+      <div class="h">[${esc(r.id)}] ${r.verified ? `<span class="badge approved">verified</span>` : r.checked ? `<span class="badge matched">checked by author</span>` : `<span class="badge needs_review">unverified</span>`}</div>
+      <label class="f">Title<input data-f="title" value="${esc(r.title)}" ${P.locked ? "disabled" : ""} /></label>
+      <label class="f">Authors (Surname, G.; Surname, G.)<input data-f="authors" value="${esc(r.authors.join("; "))}" ${P.locked ? "disabled" : ""} /></label>
+      <div class="meta" style="margin:0"><label class="f" style="width:70px">Year<input data-f="year" type="number" value="${r.year ?? ""}" ${P.locked ? "disabled" : ""} /></label>
+        <label class="f" style="width:100px">Type<select data-f="kind" ${P.locked ? "disabled" : ""}>${REF_KINDS.map(k => `<option ${k === r.kind ? "selected" : ""}>${k}</option>`).join("")}</select></label></div>
+      <label class="f">Journal, book or site<input data-f="container" value="${esc(r.container)}" ${P.locked ? "disabled" : ""} /></label>
+      <div class="meta" style="margin:0"><label class="f" style="width:70px">Volume<input data-f="volume" value="${esc(r.volume)}" ${P.locked ? "disabled" : ""} /></label>
+        <label class="f" style="width:70px">Issue<input data-f="issue" value="${esc(r.issue)}" ${P.locked ? "disabled" : ""} /></label>
+        <label class="f" style="width:90px">Pages<input data-f="pages" value="${esc(r.pages)}" ${P.locked ? "disabled" : ""} /></label></div>
+      <label class="f">Publisher<input data-f="publisher" value="${esc(r.publisher)}" ${P.locked ? "disabled" : ""} /></label>
+      <label class="f">DOI<input data-f="doi" value="${esc(r.doi)}" ${P.locked ? "disabled" : ""} /></label>
+      <label class="f">URL<input data-f="url" value="${esc(r.url)}" ${P.locked ? "disabled" : ""} /></label>
+      <label style="display:flex; gap:6px; align-items:center; font-size:.84rem"><input type="checkbox" data-f="checked" ${r.checked ? "checked" : ""} ${P.locked ? "disabled" : ""} style="width:auto" /> I have read or checked this source</label>
+      <div style="margin-top:6px"><button class="small" data-cite="${i}" ${P.locked ? "disabled" : ""}>Insert [${esc(r.id)}]</button> <button class="small secondary" data-rm="${i}" ${P.locked ? "disabled" : ""}>Remove</button></div></div>`).join("") || `<div class="muted">No references yet.</div>`;
+    $("refList").querySelectorAll("[data-f]").forEach(el => {
+      const i = Number(el.closest("[data-i]").dataset.i), f = el.dataset.f;
+      el.oninput = () => {
+        const r = refs.items[i];
+        if (f === "authors") r.authors = el.value.split(";").map(x => x.trim()).filter(Boolean);
+        else if (f === "year") r.year = el.value ? Number(el.value) : null;
+        else if (f === "checked") r.checked = el.checked;
+        else { r[f] = el.value; if (f === "doi") r.verified = false; }
+        refTouched();
+      };
+    });
+    $("refList").querySelectorAll("[data-cite]").forEach(b => b.onclick = () => insertCitation(refs.items[Number(b.dataset.cite)].id));
+    $("refList").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { refs.items.splice(Number(b.dataset.rm), 1); refTouched(); renderRefs(); });
+    renderRefChecks();
+  }
+  function renderRefChecks() {
+    $("refChecks").innerHTML = (P.ref_checks || []).map(c => `<div class="chk ${c.level === "error" ? "bad" : "warn"}"><span class="ic">${c.level === "error" ? "✕" : "!"}</span><div>${c.id ? "[" + esc(c.id) + "] " : ""}${esc(c.message)}</div></div>`).join("") || `<div class="chk ok"><span class="ic">✓</span><div>No reference problems found.</div></div>`;
+  }
+  function refTouched() { if (P.locked) return; refDirty = true; setSave("Unsaved changes..."); clearTimeout(refTimer); refTimer = setTimeout(saveRefs, 1500); }
+  async function saveRefs() {
+    if (P.locked || !refDirty) return true;
+    clearTimeout(refTimer); setSave("Saving...");
+    try {
+      refDirty = false;
+      const d = await call(`${base}/references`, "PUT", { style: refs.style, items: refs.items });
+      adopt(d, true); setSave("Saved " + new Date().toLocaleTimeString()); renderRefChecks(); renderList();
+      return true;
+    } catch (e) { refDirty = true; setSave("Save failed: " + e.message, true); return false; }
+  }
+  $("refStyle").onchange = () => { refs.style = $("refStyle").value; refTouched(); };
+  $("refAdd").onclick = () => { if (P.locked) return; refs.items.push(blankRef()); refTouched(); renderRefs(); };
+  $("doiGo").onclick = async () => {
+    const doi = $("doiIn").value.trim(); if (!doi || P.locked) return;
+    $("doiGo").disabled = true; setSave("Looking up...");
+    try {
+      const m = await call(`${base}/references/lookup`, "POST", { doi });
+      if (refs.items.some(r => r.doi && r.doi.toLowerCase() === m.doi.toLowerCase())) { setSave("That DOI is already in your list", true); return; }
+      refs.items.push({ ...blankRef(), ...m }); $("doiIn").value = ""; refTouched(); renderRefs(); setSave("Added. Check the details match your source.");
+    } catch (e) { setSave(e.message, true); }
+    finally { $("doiGo").disabled = false; }
+  };
 
   // ---- actions
   $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => {

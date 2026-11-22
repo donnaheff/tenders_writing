@@ -448,7 +448,7 @@ TYPES: dict[str, dict] = {
         ],
     },
     "technical_report": {
-        "kind": "expert", "title": "Technical report",
+        "references": True, "kind": "expert", "title": "Technical report",
         "description": "Findings from an investigation, test or study, with the evidence and a recommendation.",
         "sections": [
             ("summary", "Executive summary", "The question, the answer and the recommendation in half a page, for a reader who stops here."),
@@ -477,7 +477,7 @@ TYPES: dict[str, dict] = {
     },
     # ---- technical marketing
     "white_paper": {
-        "kind": "marketing", "title": "White paper",
+        "references": True, "kind": "marketing", "title": "White paper",
         "description": "An in-depth, evidence-led argument for a decision-maker. Every statistic needs a source.",
         "sections": [
             ("summary", "Executive summary", "The problem, the argument and the takeaway in half a page. Write this last."),
@@ -490,6 +490,144 @@ TYPES: dict[str, dict] = {
             ("conclusion", "Conclusion and next step", "The decision the reader should make and one clear call to action."),
             ("references", "References", "Full citations for every claim and figure above."),
         ],
+    },
+    # ---- research writing
+    "research_manuscript": {
+        "kind": "research", "title": "Journal manuscript (IMRaD)", "references": True,
+        "description": "Introduction, methods, results and discussion. You cite only sources in your own reference list.",
+        "sections": [
+            ("abstract", "Abstract", "A structured abstract of background, methods, results and conclusions within the journal's word limit. Write it last."),
+            ("introduction", "Introduction", "The problem, what is already known (cite it with [R#] markers), the gap, and your specific question or hypothesis."),
+            ("methods", "Methods", "Enough detail for another researcher to repeat the work: design, participants or materials, procedures, measures and the analysis plan, with ethics approval."),
+            ("results", "Results", "What you found, in the order of your questions, with numbers, tables and figures. Report results without interpreting them."),
+            ("discussion", "Discussion", "What the results mean, how they compare with prior work, the limitations, and the implications. Do not overclaim."),
+            ("conclusion", "Conclusion", "The answer to your question in a few sentences, and what should happen next."),
+            ("declarations", "Declarations", "Ethics approval and consent, data and code availability, funding, competing interests, author contributions and acknowledgements. Disclose any AI assistance as the journal requires."),
+        ],
+    },
+    "literature_review": {
+        "kind": "research", "title": "Literature review", "references": True,
+        "description": "A structured synthesis of what is known. Every claim must trace to a source in your reference list.",
+        "sections": [
+            ("scope", "Scope and review questions", "What the review covers, why it matters and the specific questions it answers."),
+            ("search", "Search strategy and selection", "Databases, search terms, dates, inclusion and exclusion criteria and how studies were screened."),
+            ("themes", "Synthesis by theme", "Group the evidence by theme rather than by paper. For each theme state what the studies agree and disagree on, citing [R#]."),
+            ("appraisal", "Quality and limitations of the evidence", "How reliable the studies are, common weaknesses and potential biases."),
+            ("gaps", "Gaps and future research", "What remains unknown or contested, and the studies needed to resolve it."),
+            ("conclusion", "Conclusion", "What the evidence allows you to say, and its implications."),
+        ],
+    },
+    "research_protocol": {
+        "kind": "research", "title": "Research or study protocol", "references": True,
+        "description": "The plan for a study: question, design, methods, analysis and ethics, fixed before data collection.",
+        "sections": [
+            ("background", "Background and rationale", "The problem and evidence so far, citing [R#], and why this study is needed."),
+            ("objectives", "Objectives and hypotheses", "The primary question, secondary questions and any hypotheses, stated so they can be tested."),
+            ("design", "Study design", "The design, setting and why it suits the question."),
+            ("participants", "Participants and sampling", "Who is included and excluded, how they are recruited and the planned sample."),
+            ("measures", "Interventions, exposures and measures", "What is delivered or observed, and exactly how each outcome is measured and when."),
+            ("sample_size", "Sample size and power", "How the sample size was calculated, with the assumptions and the source of each."),
+            ("analysis", "Analysis plan", "The statistical or analytical methods, how missing data and multiple comparisons are handled, fixed in advance."),
+            ("ethics", "Ethics, data management and governance", "Approvals, consent, privacy, data storage and sharing, and monitoring of harms."),
+            ("timeline", "Timeline and resources", "The schedule from approval to final report with key dates, the team and each person's role, and the resources the study needs."),
+            ("dissemination", "Dissemination and limitations", "How and where results will be shared whatever they show, and the known limitations."),
+        ],
+    },
+    "thesis_proposal": {
+        "kind": "research", "title": "Thesis or PhD proposal", "references": True,
+        "description": "A proposal for a research degree: the question, the evidence base and the plan.",
+        "sections": [
+            ("summary", "Working title and summary", "A working title and a 200-word summary of the question, approach and contribution."),
+            ("problem", "Background and problem", "The context, what is known, the gap and why it matters, citing [R#]."),
+            ("questions", "Research questions", "Two to four answerable questions that together address the problem."),
+            ("review", "Literature overview", "The key schools of thought and studies, and where your work fits among them."),
+            ("method", "Methodology", "Design, data and methods, and why they fit each question. Note limitations."),
+            ("plan", "Work plan and milestones", "Stages with dates, deliverables and checkpoints across the programme."),
+            ("contribution", "Expected contribution", "What new knowledge, method or evidence the thesis will add."),
+            ("ethics_risks", "Ethics and risks", "Ethical issues, approvals needed and the main risks to the plan with fallbacks."),
+        ],
+    },
+    "conference_abstract": {
+        "kind": "research", "title": "Conference abstract", "references": True,
+        "description": "A short, structured abstract that stands alone within a strict word limit.",
+        "sections": [
+            ("background", "Background and aim", "Why the work matters and the aim, in two or three sentences."),
+            ("methods", "Methods", "Design, sample and analysis in a few sentences."),
+            ("results", "Results", "The main findings with numbers. If the work is not finished, say what is expected and when."),
+            ("conclusions", "Conclusions", "What the findings mean and why the audience should care."),
+            ("keywords", "Keywords", "Four to six keywords a researcher would search for."),
+        ],
+    },
+    "systematic_review_protocol": {
+        "kind": "research", "title": "Systematic review protocol (PRISMA-P aligned)", "references": True,
+        "description": "The registered plan for a systematic review, written before screening begins.",
+        "sections": [
+            ("rationale", "Rationale and objectives", "Why the review is needed, what is already known, and the objectives in PICO (or equivalent) form."),
+            ("eligibility", "Eligibility criteria", "Study designs, populations, interventions or exposures, comparators, outcomes, languages and dates."),
+            ("sources", "Information sources and search strategy", "Every database and register, the full search string for at least one, and when it was or will be run."),
+            ("selection", "Study selection", "Screening stages, number of independent reviewers and how disagreements are resolved."),
+            ("extraction", "Data extraction", "What is extracted, with what form, by how many people, and how authors are contacted."),
+            ("bias", "Risk of bias and certainty", "Tools used to assess risk of bias in each study and certainty of the evidence."),
+            ("synthesis", "Synthesis plan", "How results will be summarised or pooled, handling of heterogeneity, subgroup and sensitivity analyses."),
+            ("registration", "Registration, amendments and dissemination", "Registry and number, how amendments will be recorded, and how results will be shared."),
+        ],
+    },
+    "policy_brief": {
+        "kind": "research", "title": "Policy brief", "references": True,
+        "description": "Research distilled for decision-makers: what is known, what to do and why.",
+        "sections": [
+            ("messages", "Key messages", "Three to five bullet points a busy decision-maker could act on."),
+            ("problem", "The problem and why it matters now", "The issue, who is affected and the cost of doing nothing, with sourced evidence."),
+            ("evidence", "What the evidence says", "The strongest relevant findings in plain language, with their strength and limits, citing [R#]."),
+            ("options", "Policy options", "Two or three realistic options with the likely benefits, costs and risks of each."),
+            ("recommendations", "Recommendations", "What you recommend, who should do it and by when."),
+            ("implementation", "Implementation and risks", "What it takes to do this, the main obstacles and how to measure success."),
+            ("about", "About the research", "The study or team behind the evidence, and how to contact the authors."),
+        ],
+    },
+    "research_impact_case_study": {
+        "kind": "research", "title": "Research impact case study", "references": True,
+        "description": "Evidence of the real-world difference research made, in the form research assessments ask for.",
+        "sections": [
+            ("summary", "Summary of the impact", "A one-paragraph account of the impact: who benefited, how and when."),
+            ("research", "Underpinning research", "The research behind the impact: what was found, when, by whom and its quality, citing [R#]."),
+            ("references", "References to the research", "Key outputs that evidence the quality of the research (list them in the references tab)."),
+            ("impact", "Details of the impact", "How the research led to change, with beneficiaries, scale, reach and significance, using specific figures you can evidence."),
+            ("sources", "Sources to corroborate the impact", "Named sources, testimonials, reports or data that an assessor could check, and who has agreed to be contacted."),
+        ],
+    },
+    "journal_cover_letter": {
+        "kind": "research", "title": "Journal cover letter",
+        "description": "A short letter to the editor: why this paper fits this journal.",
+        "sections": [
+            ("opening", "Opening and submission details", "Address the editor by name if known, give the title, article type and journal."),
+            ("novelty", "What is new and why it matters", "In a short paragraph, the main finding, how it advances the field and why it matters to this journal's readers."),
+            ("fit", "Fit with the journal", "Why this journal and this readership. Avoid generic praise."),
+            ("declarations", "Declarations", "Original work, not under review elsewhere, all authors approved it, conflicts of interest, ethics and any AI assistance disclosed as required."),
+            ("reviewers", "Suggested reviewers and exclusions", "Suggested and excluded reviewers with reasons, and no conflicts of interest."),
+        ],
+    },
+    "reviewer_response": {
+        "kind": "research", "title": "Response to reviewers", "items": "reviews", "references": True,
+        "description": "A point-by-point reply to each reviewer comment, saying exactly what changed and where.",
+        "sections": [
+            ("letter", "Letter to the editor", "Thank the editor and reviewers briefly, summarise the main changes and note any comment you disagree with, with your reasons."),
+        ],
+    },
+    "consort_checklist": {
+        "kind": "research", "title": "CONSORT 2010 checklist (randomised trials)", "items": "checklist",
+        "description": "Track what a trial manuscript reports and where. Paraphrased; use the official checklist to submit.",
+        "sections": [],
+    },
+    "prisma_checklist": {
+        "kind": "research", "title": "PRISMA 2020 checklist (systematic reviews)", "items": "checklist",
+        "description": "Track what a systematic review reports and where. Paraphrased; use the official checklist to submit.",
+        "sections": [],
+    },
+    "strobe_checklist": {
+        "kind": "research", "title": "STROBE checklist (observational studies)", "items": "checklist",
+        "description": "Track what an observational study reports and where. Paraphrased; use the official checklist to submit.",
+        "sections": [],
     },
     "security_questionnaire": {
         "kind": "compliance", "title": "Security questionnaire response", "items": "questions",
@@ -526,8 +664,9 @@ def catalogue() -> list[dict]:
     return [
         {"key": k, "kind": v["kind"], "title": v["title"], "description": v["description"],
          "questionnaire": v.get("items") == "questions", "copydeck": v.get("items") == "copy",
+         "reviews": v.get("items") == "reviews", "checklist": v.get("items") == "checklist",
          "sections": len(v["sections"]),
          "promotable": "evidence_type" in v, "link": v.get("link"),
-         "items": v.get("items")}
+         "items": v.get("items"), "references": bool(v.get("references"))}
         for k, v in TYPES.items()
     ]

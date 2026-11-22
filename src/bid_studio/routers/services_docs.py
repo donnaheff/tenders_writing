@@ -17,8 +17,10 @@ from bid_studio.models import (
     Workspace,
 )
 from bid_studio.services import assistant as ai
+from bid_studio.services import checklists, report_prefill, ux_copy
 from bid_studio.services import questionnaire as qn
-from bid_studio.services import report_prefill, ux_copy
+from bid_studio.services import references as refs_lib
+from bid_studio.services import reviews as reviews_lib
 from bid_studio.services import service_templates as tpl
 from bid_studio.services.access import doc_project_guard
 from bid_studio.services.domain_logic import tokenize
@@ -74,6 +76,28 @@ class CopyItemIn(BaseModel):
     notes: str = Field(default="", max_length=300)
     max_chars: int | None = Field(default=None, ge=1, le=2000)
     status: str = Field(default="draft", pattern="^(draft|approved)$")
+
+
+class ReviewItemIn(BaseModel):
+    id: str = Field(min_length=1, max_length=40)
+    reviewer: str = Field(default="Reviewer 1", max_length=60)
+    comment: str = Field(max_length=3000)
+    response: str = Field(default="", max_length=8000)
+    change: str = Field(default="", max_length=400)
+    status: str = Field(default="pending", pattern="^(pending|addressed|partly|disagree|noted)$")
+
+
+class ChecklistItemIn(BaseModel):
+    id: str = Field(min_length=1, max_length=40)
+    section: str = Field(default="", max_length=80)
+    text: str = Field(max_length=400)
+    reported: str = Field(default="unchecked", pattern="^(unchecked|yes|no|na)$")
+    location: str = Field(default="", max_length=120)
+    notes: str = Field(default="", max_length=600)
+
+
+class LookupIn(BaseModel):
+    doi: str = Field(min_length=3, max_length=300)
 
 
 class StringsIn(BaseModel):
@@ -134,13 +158,54 @@ def _is_copydeck(p: DocProject) -> bool:
     return _items_kind(p) == "copy"
 
 
+def _is_reviews(p: DocProject) -> bool:
+    return _items_kind(p) == "reviews"
+
+
+def _is_checklist(p: DocProject) -> bool:
+    return _items_kind(p) == "checklist"
+
+
+def _refs_enabled(p: DocProject) -> bool:
+    return bool(tpl.TYPES.get(p.doc_type, {}).get("references"))
+
+
+def _ref_list(p: DocProject) -> refs_lib.RefList:
+    return refs_lib.RefList.model_validate(p.refs) if p.refs else refs_lib.RefList()
+
+
+def _body_texts(p: DocProject) -> list[str]:
+    texts = [s["text"] for s in p.sections]
+    if _is_reviews(p):
+        texts += [i["response"] for i in p.items]
+    return texts
+
+
 def _words(text: str) -> int:
     return len(text.split())
 
 
 def readiness(p: DocProject) -> dict[str, Any]:
     blockers, warnings = [], []
-    if _is_copydeck(p):
+    if _is_checklist(p):
+        unchecked = [i["id"][1:] for i in p.items if i["reported"] == "unchecked"]
+        if unchecked:
+            blockers.append(f"{len(unchecked)} item(s) not yet answered")
+        if any(i["reported"] == "no" and not i["notes"].strip() for i in p.items):
+            warnings.append("Some items marked 'no' have no explanation")
+        if any(i["reported"] == "yes" and not i["location"].strip() for i in p.items):
+            warnings.append("Some 'yes' items do not say where they are reported")
+    elif _is_reviews(p):
+        if not p.items:
+            blockers.append("No reviewer comments yet")
+        pending = [i["id"] for i in p.items if i["status"] == "pending" or not i["response"].strip()]
+        if pending:
+            blockers.append(f"No response yet to: {', '.join(pending[:8])}{'...' if len(pending) > 8 else ''}")
+        if any(i["status"] in ("addressed", "partly") and not i["change"].strip() for i in p.items):
+            warnings.append("Some addressed comments do not say where the change was made")
+        if not p.sections[0]["text"].strip():
+            warnings.append("The letter to the editor is not written")
+    elif _is_copydeck(p):
         if not p.items:
             blockers.append("No strings yet")
         empty = [i["id"] for i in p.items if not i["text"].strip()]
@@ -171,6 +236,23 @@ def readiness(p: DocProject) -> dict[str, Any]:
             blockers.append("Not yet written: " + ", ".join(unwritten))
         if any(PLACEHOLDER in s["text"] for s in p.sections):
             blockers.append("Contains [TO CONFIRM] placeholders")
+    if not _is_checklist(p):
+        texts = _body_texts(p)
+        if any("[CITATION NEEDED" in t for t in texts):
+            blockers.append("Contains [CITATION NEEDED] placeholders")
+        if any(PLACEHOLDER in t for t in texts) and not any("Contains [TO CONFIRM]" in b for b in blockers):
+            if _is_reviews(p):
+                blockers.append("Contains [TO CONFIRM] placeholders")
+    if _refs_enabled(p):
+        checks = refs_lib.check(_ref_list(p), _body_texts(p))
+        missing = [c["id"] for c in checks if c["level"] == "error" and "not in the reference list" in c["message"]]
+        if missing:
+            blockers.append(f"Cited but missing from the reference list: {', '.join(missing[:8])}")
+        if any(c["level"] == "error" and c["id"] not in missing for c in checks):
+            blockers.append("The reference list has errors to fix")
+        unverified = [c["id"] for c in checks if "Not yet verified" in c["message"]]
+        if unverified:
+            warnings.append(f"{len(unverified)} reference(s) are not verified or checked by the author")
     if not p.client_email:
         warnings.append("No client email, so it cannot be emailed on delivery")
     return {"ready": not blockers, "blockers": blockers, "warnings": warnings}
@@ -178,7 +260,12 @@ def readiness(p: DocProject) -> dict[str, Any]:
 
 def _dict(p: DocProject) -> dict[str, Any]:
     stats = {}
-    if _is_copydeck(p):
+    if _is_checklist(p):
+        stats = {"total": len(p.items), **{k: sum(1 for i in p.items if i["reported"] == k) for k in checklists.REPORTED}}
+    elif _is_reviews(p):
+        stats = {"total": len(p.items), "answered": sum(1 for i in p.items if i["response"].strip()),
+                 "resolved": sum(1 for i in p.items if i["status"] != "pending")}
+    elif _is_copydeck(p):
         stats = {
             "strings": len(p.items), "approved": sum(1 for i in p.items if i["status"] == "approved"),
             "flagged": len(ux_copy.lint(p.items, p.sections)),
@@ -200,6 +287,10 @@ def _dict(p: DocProject) -> dict[str, Any]:
         "id": p.id, "workspace_id": p.workspace_id, "kind": p.kind, "doc_type": p.doc_type,
         "type_title": tpl.TYPES.get(p.doc_type, {}).get("title", p.doc_type),
         "questionnaire": _is_questionnaire(p), "copydeck": _is_copydeck(p),
+        "reviews": _is_reviews(p), "checklist": _is_checklist(p),
+        "references_enabled": _refs_enabled(p), "refs": _ref_list(p).model_dump() if _refs_enabled(p) else None,
+        "ref_checks": refs_lib.check(_ref_list(p), _body_texts(p)) if _refs_enabled(p) else [],
+        "research": tpl.TYPES.get(p.doc_type, {}).get("kind") == "research",
         "lint": ux_copy.lint(p.items, p.sections) if _is_copydeck(p) else {},
         "element_rules": ux_copy.ELEMENTS if _is_copydeck(p) else {}, "title": p.title, "client_name": p.client_name,
         "client_email": p.client_email, "brief": p.brief, "fixed_fee": p.fixed_fee,
@@ -249,6 +340,12 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     kind_of_items = t.get("items")
     if kind_of_items == "copy":
         items = ux_copy.assign_ids([], ux_copy.parse_strings(payload.questions))
+    if kind_of_items == "checklist":
+        items = checklists.new_items(payload.doc_type)
+    if kind_of_items == "reviews":
+        items = reviews_lib.assign_ids([], reviews_lib.parse_comments(payload.questions))
+        if not items:
+            raise HTTPException(status_code=422, detail="Paste at least one reviewer comment (one per line)")
     if kind_of_items == "questions":
         questions = qn.parse_questions(payload.questions)
         if not questions:
@@ -283,6 +380,7 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
         title=payload.title, client_name=payload.client_name, client_email=payload.client_email,
         brief=payload.brief, fixed_fee=payload.fixed_fee, currency=payload.currency,
         sections=sections, items=items,
+        refs=refs_lib.empty() if t.get("references") else {},
     )
     db.add(p)
     db.commit()
@@ -308,7 +406,8 @@ def save_project(project_id: int, payload: ProjectSave, db: Session = Depends(ge
             raise HTTPException(status_code=422, detail="Sections cannot be added, removed or reordered")
         p.sections = [s.model_dump() for s in payload.sections]
     if payload.items is not None:
-        model = ItemIn if _is_questionnaire(p) else CopyItemIn if _is_copydeck(p) else None
+        model = (ItemIn if _is_questionnaire(p) else CopyItemIn if _is_copydeck(p)
+                 else ReviewItemIn if _is_reviews(p) else ChecklistItemIn if _is_checklist(p) else None)
         if model is None:
             raise HTTPException(status_code=422, detail="This document type has no list items")
         try:
@@ -317,6 +416,8 @@ def save_project(project_id: int, payload: ProjectSave, db: Session = Depends(ge
             raise HTTPException(status_code=422, detail=f"Invalid item: {exc}") from exc
         if _is_copydeck(p) and any(i["element"] not in ux_copy.ELEMENTS for i in parsed):
             raise HTTPException(status_code=422, detail="Unknown element type")
+        if _is_checklist(p) and [i["id"] for i in parsed] != [i["id"] for i in p.items]:
+            raise HTTPException(status_code=422, detail="Checklist items cannot be added, removed or reordered")
         p.items = parsed
     p.updated_at = datetime.now(UTC)
     db.commit()
@@ -332,8 +433,15 @@ def _library(db: Session, workspace_id: int) -> list[AnswerLibraryItem]:
 def add_questions(project_id: int, payload: AddQuestionsIn, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     _editable(p)
+    if _is_reviews(p):
+        fresh = reviews_lib.assign_ids(p.items, reviews_lib.parse_comments(payload.questions))
+        if not fresh:
+            raise HTTPException(status_code=422, detail="No comments found")
+        p.items = [*p.items, *fresh]
+        db.commit()
+        return _dict(p)
     if not _is_questionnaire(p):
-        raise HTTPException(status_code=409, detail="Only questionnaires and FAQ sets have questions")
+        raise HTTPException(status_code=409, detail="Only questionnaires, FAQ sets and reviewer responses take pasted lines")
     existing = {i["question"].lower() for i in p.items}
     fresh = [q for q in qn.parse_questions(payload.questions) if q.lower() not in existing]
     start = len(p.items)
@@ -396,6 +504,36 @@ def promote_answer(project_id: int, payload: PromoteIn, db: Session = Depends(ge
     return {"id": lib.id}
 
 
+@project_router.put("/references")
+def save_references(project_id: int, payload: refs_lib.RefList, db: Session = Depends(get_db)):
+    p = _get(db, project_id)
+    _editable(p)
+    if not _refs_enabled(p):
+        raise HTTPException(status_code=409, detail="This document type has no reference list")
+    clean = payload.model_copy(deep=True)
+    for r in clean.items:
+        r.doi = refs_lib.normalise_doi(r.doi)
+    p.refs = clean.model_dump()
+    db.commit()
+    return _dict(p)
+
+
+@project_router.post("/references/lookup")
+def lookup_reference(project_id: int, payload: LookupIn, db: Session = Depends(get_db)):
+    """Look a DOI up at Crossref. Nothing is saved; the author reviews the record and adds it."""
+    p = _get(db, project_id)
+    if not _refs_enabled(p):
+        raise HTTPException(status_code=409, detail="This document type has no reference list")
+    try:
+        return refs_lib.lookup_doi(payload.doi)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Could not reach Crossref. Enter the details by hand instead.") from exc
+
+
 @project_router.post("/promote-evidence", status_code=201)
 def promote_evidence(project_id: int, db: Session = Depends(get_db)):
     """Save an approved CV, capability statement or case study into the evidence library."""
@@ -424,8 +562,23 @@ def promote_evidence(project_id: int, db: Session = Depends(get_db)):
 @project_router.post("/assistant")
 def assistant(project_id: int, payload: AssistIn, db: Session = Depends(get_db)):
     p = _get(db, project_id)
+    if _is_checklist(p):
+        raise HTTPException(status_code=422, detail="Checklists are completed by the authors; there is no assistant for them")
     copy_item = next((i for i in p.items if i["id"] == payload.target_id), None) if _is_copydeck(p) else None
-    if copy_item:
+    review_item = next((i for i in p.items if i["id"] == payload.target_id), None) if _is_reviews(p) else None
+    if _is_reviews(p) and payload.target_id != "letter" and not review_item:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if review_item:
+        title = f"{review_item['reviewer']}, comment {review_item['id']}"
+        guidance = (
+            "Reply to this reviewer comment politely and specifically. Quote or paraphrase the comment, "
+            "say what the authors did or why they disagree, and say where the change is. Do not claim "
+            f"a change was made unless the notes say so. Comment: {review_item['comment']}"
+        )
+        current = review_item["response"] if payload.text is None else payload.text
+        if review_item.get("change") and payload.action in ("draft", "improve"):
+            payload = payload.model_copy(update={"instruction": f"{payload.instruction} Change made: {review_item['change']}".strip()})
+    elif copy_item:
         rule = ux_copy.ELEMENTS.get(copy_item["element"], "")
         limit = f" Maximum {copy_item['max_chars']} characters." if copy_item.get("max_chars") else ""
         title = f"{copy_item['screen'] or 'Interface'}: {copy_item['element'].replace('_', ' ')}"
@@ -461,9 +614,12 @@ def assistant(project_id: int, payload: AssistIn, db: Session = Depends(get_db))
     req = ai.AssistantRequest(
         action=payload.action,
         section={"title": title, "draft_text": current, "is_doc": True,
+                 "is_research": tpl.TYPES[p.doc_type]["kind"] == "research" or _refs_enabled(p),
                  "doc_title": tpl.TYPES[p.doc_type]["title"], "max_score": 5},
         guidance=guidance, call_title=p.title, funder=p.client_name,
         call_summary=p.brief[:600], applicant="", instruction=payload.instruction, material=material,
+        references=[{"id": r.id, "text": refs_lib.format_reference(r, "apa")}
+                    for r in _ref_list(p).items] if _refs_enabled(p) else [],
     )
     try:
         return ai.run(req).as_dict()
@@ -495,6 +651,11 @@ def submit_quality(project_id: int, db: Session = Depends(get_db)):
 
 
 def _markdown(p: DocProject) -> str:
+    if _is_checklist(p):
+        return checklists.export_markdown(p.title, p.items)
+    if _is_reviews(p):
+        return reviews_lib.export_markdown(p.title, p.sections, p.items) + (
+            "\n" + refs_lib.export_markdown(_ref_list(p)) if _ref_list(p).items else "")
     if _is_copydeck(p):
         return ux_copy.export_markdown(p.title, p.sections, p.items)
     if _is_questionnaire(p):
@@ -504,7 +665,10 @@ def _markdown(p: DocProject) -> str:
         out += [f"_Prepared for {p.client_name}_", ""]
     for s in p.sections:
         out += [f"## {s['title']}", "", s["text"].strip() or "_Not yet written._", ""]
-    return "\n".join(out).rstrip() + "\n"
+    body = "\n".join(out).rstrip() + "\n"
+    if _refs_enabled(p) and _ref_list(p).items:
+        body += "\n" + refs_lib.export_markdown(_ref_list(p))
+    return body
 
 
 @project_router.get("/export")

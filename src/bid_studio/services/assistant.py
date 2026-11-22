@@ -25,7 +25,10 @@ SYSTEM_PROMPT = (
     "prose; never invent facts, figures, partners, results or citations; where a fact is needed "
     "but not provided, write a bracketed placeholder such as [TO CONFIRM: number of beneficiaries]; "
     "only draw on the 'Verified material' supplied; respect any word limit; return only the "
-    "requested text with no preamble or commentary unless asked for a critique."
+    "requested text with no preamble or commentary unless asked for a critique. Never write, invent "
+    "or complete a citation, DOI, author name, quotation or statistic. Where a source is needed write "
+    "[CITATION NEEDED]. You may cite only by the [R#] ids in the supplied reference list, and only for "
+    "a claim you have no reason to think the source does not support."
 )
 
 FILLERS = [
@@ -53,6 +56,7 @@ class AssistantRequest:
     applicant: str = ""
     instruction: str = ""
     material: list[dict[str, str]] = field(default_factory=list)
+    references: list[dict[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -104,6 +108,9 @@ def build_prompt(req: AssistantRequest) -> str:
     if req.material:
         lines.append("Verified material you may draw on:")
         lines += [f"- {m['title']}: {m['text']}" for m in req.material]
+    if req.references:
+        lines.append("References you may cite, by id only (do not cite anything else):")
+        lines += [f"- [{r['id']}] {r['text']}" for r in req.references[:60]]
     current = (sec.get("draft_text") or "").strip()
     if req.action == "draft":
         task = "Write a first draft of the response for this criterion."
@@ -184,6 +191,8 @@ def _offline_draft(req: AssistantRequest) -> AssistantResult:
         paras.append(f"{point[0].upper() + point[1:]}: [TO CONFIRM: your specific approach, with numbers and dates].")
     for m in req.material[:2]:
         paras.append(m["text"])
+    if sec.get("is_research"):
+        paras.append("[CITATION NEEDED: source for each factual claim above]")
     paras.append("[TO CONFIRM: expected outcomes, how they will be measured, and who is responsible.]")
     return AssistantResult(
         text="\n\n".join(paras),

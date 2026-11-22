@@ -26,6 +26,9 @@ JOB_TYPES: dict[str, dict] = {
     "technical_marketing": {
         "label": "White papers and technical marketing", "link": "doc", "kind": "marketing",
     },
+    "research_writing": {
+        "label": "Research writing: manuscripts, protocols and reviews", "link": "doc", "kind": "research",
+    },
     "bid_assets": {
         "label": "CVs, capability statements and case studies", "link": "doc", "kind": "bidasset",
     },

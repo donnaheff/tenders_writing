@@ -299,7 +299,7 @@
             <input id="dsFee" type="number" min="0" placeholder="Fixed fee" />
             <textarea id="dsBrief" rows="2" placeholder="Brief: what the client asked for"></textarea>
             <select id="dsLink" style="display:none"></select>
-            <textarea id="dsQuestions" rows="5" style="display:none" placeholder="Questionnaires and FAQs: paste the questions, one per line. UX copy decks (optional): screen | element | copy"></textarea>
+            <textarea id="dsQuestions" rows="5" style="display:none" placeholder="Questionnaires and FAQs: the questions, one per line. Reviewer responses: the comments, one per line (optional \"Reviewer 2:\" prefix). UX copy decks (optional): screen | element | copy"></textarea>
             <button onclick="dsCreate()">Create and open editor</button>
           </div>
         </div>
@@ -936,7 +936,7 @@
       dsLoading = dsLoading || api("/api/v1/services/templates").then(ts => {
         dsTemplates = ts;
         const group = (k, label) => `<optgroup label="${label}">${ts.filter(t => t.kind === k).map(t => `<option value="${t.key}">${esc(t.title)}</option>`).join("")}</optgroup>`;
-        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing") + group("grantdoc", "Grant supporting documents & reports") + group("tenderdoc", "Tender technical responses & plans") + group("enduser", "End-user docs, help & training") + group("expert", "Specifications, reports & architecture") + group("marketing", "Technical marketing") + group("bidasset", "Bid assets: CVs, capability & case studies");
+        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing") + group("grantdoc", "Grant supporting documents & reports") + group("tenderdoc", "Tender technical responses & plans") + group("enduser", "End-user docs, help & training") + group("expert", "Specifications, reports & architecture") + group("marketing", "Technical marketing") + group("research", "Research writing, reviews & checklists") + group("bidasset", "Bid assets: CVs, capability & case studies");
       });
       return dsLoading;
     }
@@ -948,14 +948,14 @@
       document.getElementById("dsStats").textContent = `${stats.projects} project(s): ${stats.by_status.drafting} drafting, ${stats.by_status.quality_review} in review, ${stats.by_status.approved} approved, ${stats.by_status.delivered} delivered. Delivered fees: ${stats.fees_delivered.toLocaleString()}.`;
       document.getElementById("dsList").innerHTML = projects.map(p => `<div class="row-item">
         <span class="badge">${esc(p.status.replace("_", " "))}</span> <strong>${esc(p.title)}</strong> <span class="muted">${esc(p.type_title)}${p.client_name ? " · " + esc(p.client_name) : ""}${p.fixed_fee ? " · " + esc(p.currency) + " " + p.fixed_fee.toLocaleString() : ""}</span>
-        <div class="muted">${p.stats.strings !== undefined ? `${p.stats.strings} strings, ${p.stats.approved} approved` : p.stats.answered !== undefined ? `${p.stats.answered}/${p.stats.total} answered` : `${p.stats.written}/${p.stats.total} sections written`}</div>
+        <div class="muted">${p.stats.strings !== undefined ? `${p.stats.strings} strings, ${p.stats.approved} approved` : p.stats.yes !== undefined ? `${p.stats.yes + p.stats.no + p.stats.na}/${p.stats.total} items answered` : p.stats.answered !== undefined ? `${p.stats.answered}/${p.stats.total} answered` : `${p.stats.written}/${p.stats.total} sections written`}</div>
         <div class="inline-actions"><a href="/app/docs/${p.id}"><button class="small">Open editor</button></a></div></div>`).join("") || `<div class="muted">No projects yet.</div>`;
     }
     let dsTypeSeq = 0;
     async function dsTypeChanged() {
       const seq = ++dsTypeSeq;  // a slow earlier call must never overwrite a later one
       const t = dsTemplates.find(x => x.key === document.getElementById("dsType").value);
-      document.getElementById("dsQuestions").style.display = t && (t.questionnaire || t.copydeck) ? "" : "none";
+      document.getElementById("dsQuestions").style.display = t && (t.questionnaire || t.copydeck || t.reviews) ? "" : "none";
       const sel = document.getElementById("dsLink");
       if (!t || !t.link) { sel.style.display = "none"; sel.innerHTML = ""; sel.dataset.kind = ""; return; }
       sel.style.display = ""; sel.dataset.kind = t.link;
