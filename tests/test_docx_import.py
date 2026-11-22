@@ -2,9 +2,9 @@ import io
 import zipfile
 
 from docx import Document
+from tests.test_doc_services import create, url
 
 from bid_studio.services import docx_import
-from tests.test_doc_services import create, url
 
 
 def make_docx(build) -> bytes:
