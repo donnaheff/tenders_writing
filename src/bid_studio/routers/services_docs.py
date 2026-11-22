@@ -18,6 +18,7 @@ from bid_studio.models import (
 )
 from bid_studio.services import assistant as ai
 from bid_studio.services import checklists, render, report_prefill, ux_copy
+from bid_studio.services import packs as packs_lib
 from bid_studio.services import questionnaire as qn
 from bid_studio.services import references as refs_lib
 from bid_studio.services import reviews as reviews_lib
@@ -346,6 +347,52 @@ def assistant_status():
 @router.get("/templates")
 def list_templates():
     return tpl.catalogue()
+
+
+class PackCreate(BaseModel):
+    workspace_id: int = 1
+    name: str = Field(min_length=3, max_length=160)
+    client_name: str = Field(default="", max_length=200)
+    client_email: str = Field(default="", pattern=r"^([^@\s]+@[^@\s]+\.[^@\s]+)?$", max_length=200)
+    brief: str = Field(default="", max_length=8000)
+    currency: str = Field(default="GBP", min_length=3, max_length=10)
+    proposal_id: int | None = None
+    notice_id: int | None = None
+
+
+@router.get("/packs")
+def list_packs():
+    return packs_lib.catalogue(tpl.TYPES)
+
+
+@router.post("/packs/{key}/create", status_code=201)
+def create_pack(key: str, payload: PackCreate, db: Session = Depends(get_db)):
+    pack = packs_lib.PACKS.get(key)
+    if not pack:
+        raise HTTPException(status_code=404, detail="Pack not found")
+    if not db.get(Workspace, payload.workspace_id):
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    if payload.proposal_id is not None:
+        prop = db.get(GrantProposal, payload.proposal_id)
+        if not prop or prop.workspace_id != payload.workspace_id:
+            raise HTTPException(status_code=404, detail="Proposal not found in this workspace")
+    if payload.notice_id is not None:
+        notice = db.get(OpportunityNotice, payload.notice_id)
+        if not notice or notice.workspace_id not in (None, payload.workspace_id):
+            raise HTTPException(status_code=404, detail="Tender not found in this workspace")
+    created = []
+    for doc_type in pack["types"]:
+        link = tpl.TYPES[doc_type].get("link")
+        item = create_project(ProjectCreate(
+            workspace_id=payload.workspace_id, doc_type=doc_type,
+            title=f"{payload.name}: {tpl.TYPES[doc_type]['title']}"[:240],
+            client_name=payload.client_name, client_email=payload.client_email,
+            brief=payload.brief, currency=payload.currency,
+            proposal_id=payload.proposal_id if link == "proposal" else None,
+            notice_id=payload.notice_id if link == "notice" else None,
+        ), db)
+        created.append({"id": item["id"], "doc_type": doc_type, "title": item["title"]})
+    return {"pack": key, "projects": created}
 
 
 @router.get("/projects")

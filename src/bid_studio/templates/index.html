@@ -303,6 +303,20 @@
             <button onclick="dsCreate()">Create and open editor</button>
           </div>
         </div>
+        <div class="card">
+          <h4>Document packs</h4>
+          <p class="muted">Create a related set of documents in one go, for example an ISO 27001 starter set.</p>
+          <div class="form-grid">
+            <select id="dpPack" onchange="dpShow()"></select>
+            <input id="dpName" placeholder="Pack name, e.g. Acme ISMS" />
+            <input id="dpClient" placeholder="Client name (optional)" />
+            <input id="dpEmail" type="email" placeholder="Client email (optional)" />
+            <select id="dpProposal"></select>
+            <select id="dpNotice"></select>
+            <div class="muted" id="dpDocs"></div>
+            <button onclick="dpCreate()">Create pack</button>
+          </div>
+        </div>
         <div class="card"><h4>Projects</h4><div id="dsList"></div></div>
       </section>
 
@@ -940,7 +954,32 @@
       });
       return dsLoading;
     }
+    let dpPacks = [];
+    async function dpInit() {
+      if (!dpPacks.length) dpPacks = await api("/api/v1/services/packs");
+      const sel = document.getElementById("dpPack");
+      if (!sel.options.length) sel.innerHTML = dpPacks.map(p => `<option value="${p.key}">${esc(p.title)}</option>`).join("");
+      const [props, tenders] = await Promise.all([api(`/api/v1/grants/proposals?workspace_id=${currentWsId}`), api(`/api/v1/notices?workspace_id=${currentWsId}&notice_type=tender&limit=100`)]);
+      document.getElementById("dpProposal").innerHTML = `<option value="">Link a proposal (optional, pre-fills funder reports)</option>` + props.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join("");
+      document.getElementById("dpNotice").innerHTML = `<option value="">Link a tender (optional, pre-fills method statement)</option>` + tenders.map(n => `<option value="${n.id}">${esc(n.title)}</option>`).join("");
+      dpShow();
+    }
+    function dpShow() {
+      const p = dpPacks.find(x => x.key === document.getElementById("dpPack").value);
+      document.getElementById("dpDocs").textContent = p ? `${p.description} Creates: ${p.documents.map(d => d.title).join("; ")}.` : "";
+    }
+    async function dpCreate() {
+      const g = id => document.getElementById(id).value;
+      if (g("dpName").trim().length < 3) { alert("Give the pack a name (at least 3 characters)."); return; }
+      try {
+        const r = await api(`/api/v1/services/packs/${g("dpPack")}/create`, "POST", { workspace_id: currentWsId, name: g("dpName").trim(), client_name: g("dpClient"), client_email: g("dpEmail"), proposal_id: g("dpProposal") ? Number(g("dpProposal")) : null, notice_id: g("dpNotice") ? Number(g("dpNotice")) : null });
+        document.getElementById("dpName").value = "";
+        await dsInit();
+        alert(`Created ${r.projects.length} documents. Find them under Projects below.`);
+      } catch (_) { /* api() already showed the error */ }
+    }
     async function dsInit() {
+      dpInit().catch(() => {});
       const first = !dsTemplates.length;
       await dsLoadTemplates();
       if (first) dsTypeChanged();
