@@ -18,7 +18,7 @@ from bid_studio.models import (
 )
 from bid_studio.services import assistant as ai
 from bid_studio.services import questionnaire as qn
-from bid_studio.services import report_prefill
+from bid_studio.services import report_prefill, ux_copy
 from bid_studio.services import service_templates as tpl
 from bid_studio.services.access import doc_project_guard
 from bid_studio.services.domain_logic import tokenize
@@ -66,6 +66,20 @@ class ItemIn(BaseModel):
     source_answer_id: int | None = None
 
 
+class CopyItemIn(BaseModel):
+    id: str = Field(min_length=1, max_length=40)
+    screen: str = Field(default="", max_length=120)
+    element: str = Field(default="label", max_length=30)
+    text: str = Field(default="", max_length=500)
+    notes: str = Field(default="", max_length=300)
+    max_chars: int | None = Field(default=None, ge=1, le=2000)
+    status: str = Field(default="draft", pattern="^(draft|approved)$")
+
+
+class StringsIn(BaseModel):
+    text: str = Field(min_length=1, max_length=40000)
+
+
 class ProjectSave(BaseModel):
     title: str | None = Field(default=None, min_length=3, max_length=240)
     client_name: str | None = Field(default=None, max_length=200)
@@ -74,7 +88,7 @@ class ProjectSave(BaseModel):
     fixed_fee: float | None = Field(default=None, ge=0, le=10_000_000)
     currency: str | None = Field(default=None, min_length=3, max_length=10)
     sections: list[SectionIn] | None = Field(default=None, max_length=40)
-    items: list[ItemIn] | None = Field(default=None, max_length=300)
+    items: list[dict[str, Any]] | None = Field(default=None, max_length=500)
 
 
 class AssistIn(BaseModel):
@@ -108,8 +122,16 @@ def _editable(p: DocProject) -> None:
         )
 
 
+def _items_kind(p: DocProject) -> str | None:
+    return tpl.TYPES.get(p.doc_type, {}).get("items")
+
+
 def _is_questionnaire(p: DocProject) -> bool:
-    return p.doc_type == "security_questionnaire"
+    return _items_kind(p) == "questions"
+
+
+def _is_copydeck(p: DocProject) -> bool:
+    return _items_kind(p) == "copy"
 
 
 def _words(text: str) -> int:
@@ -118,7 +140,23 @@ def _words(text: str) -> int:
 
 def readiness(p: DocProject) -> dict[str, Any]:
     blockers, warnings = [], []
-    if _is_questionnaire(p):
+    if _is_copydeck(p):
+        if not p.items:
+            blockers.append("No strings yet")
+        empty = [i["id"] for i in p.items if not i["text"].strip()]
+        if empty:
+            blockers.append(f"Empty copy: {', '.join(empty[:8])}{'...' if len(empty) > 8 else ''}")
+        over = [i["id"] for i in p.items if i.get("max_chars") and len(i["text"]) > i["max_chars"]]
+        if over:
+            blockers.append(f"Over the character limit: {', '.join(over[:8])}")
+        flagged = ux_copy.lint(p.items, p.sections)
+        if flagged:
+            warnings.append(f"{len(flagged)} string(s) have style warnings")
+        if any(not s["text"].strip() for s in p.sections):
+            warnings.append("The style guide is not fully written")
+        if any(i["status"] != "approved" for i in p.items if i["text"].strip()):
+            warnings.append("Some strings are not yet approved")
+    elif _is_questionnaire(p):
         if not p.items:
             blockers.append("No questions yet")
         empty = [i["id"] for i in p.items if not i["answer"].strip()]
@@ -140,7 +178,13 @@ def readiness(p: DocProject) -> dict[str, Any]:
 
 def _dict(p: DocProject) -> dict[str, Any]:
     stats = {}
-    if _is_questionnaire(p):
+    if _is_copydeck(p):
+        stats = {
+            "strings": len(p.items), "approved": sum(1 for i in p.items if i["status"] == "approved"),
+            "flagged": len(ux_copy.lint(p.items, p.sections)),
+            "written": sum(1 for s in p.sections if s["text"].strip()), "total": len(p.sections),
+        }
+    elif _is_questionnaire(p):
         stats = {
             "answered": sum(1 for i in p.items if i["answer"].strip()),
             "approved": sum(1 for i in p.items if i["status"] == "approved"),
@@ -155,7 +199,9 @@ def _dict(p: DocProject) -> dict[str, Any]:
     return {
         "id": p.id, "workspace_id": p.workspace_id, "kind": p.kind, "doc_type": p.doc_type,
         "type_title": tpl.TYPES.get(p.doc_type, {}).get("title", p.doc_type),
-        "questionnaire": _is_questionnaire(p), "title": p.title, "client_name": p.client_name,
+        "questionnaire": _is_questionnaire(p), "copydeck": _is_copydeck(p),
+        "lint": ux_copy.lint(p.items, p.sections) if _is_copydeck(p) else {},
+        "element_rules": ux_copy.ELEMENTS if _is_copydeck(p) else {}, "title": p.title, "client_name": p.client_name,
         "client_email": p.client_email, "brief": p.brief, "fixed_fee": p.fixed_fee,
         "currency": p.currency, "status": p.status, "locked": p.status not in EDITABLE,
         "sections": p.sections, "items": p.items, "reviewer_notes": p.reviewer_notes,
@@ -200,7 +246,10 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Workspace not found")
     t = tpl.TYPES[payload.doc_type]
     items: list[dict] = []
-    if payload.doc_type == "security_questionnaire":
+    kind_of_items = t.get("items")
+    if kind_of_items == "copy":
+        items = ux_copy.assign_ids([], ux_copy.parse_strings(payload.questions))
+    if kind_of_items == "questions":
         questions = qn.parse_questions(payload.questions)
         if not questions:
             raise HTTPException(status_code=422, detail="Paste at least one question (one per line)")
@@ -259,7 +308,16 @@ def save_project(project_id: int, payload: ProjectSave, db: Session = Depends(ge
             raise HTTPException(status_code=422, detail="Sections cannot be added, removed or reordered")
         p.sections = [s.model_dump() for s in payload.sections]
     if payload.items is not None:
-        p.items = [i.model_dump() for i in payload.items]
+        model = ItemIn if _is_questionnaire(p) else CopyItemIn if _is_copydeck(p) else None
+        if model is None:
+            raise HTTPException(status_code=422, detail="This document type has no list items")
+        try:
+            parsed = [model(**i).model_dump() for i in payload.items]
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid item: {exc}") from exc
+        if _is_copydeck(p) and any(i["element"] not in ux_copy.ELEMENTS for i in parsed):
+            raise HTTPException(status_code=422, detail="Unknown element type")
+        p.items = parsed
     p.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(p)
@@ -275,7 +333,7 @@ def add_questions(project_id: int, payload: AddQuestionsIn, db: Session = Depend
     p = _get(db, project_id)
     _editable(p)
     if not _is_questionnaire(p):
-        raise HTTPException(status_code=409, detail="Only security questionnaires have questions")
+        raise HTTPException(status_code=409, detail="Only questionnaires and FAQ sets have questions")
     existing = {i["question"].lower() for i in p.items}
     fresh = [q for q in qn.parse_questions(payload.questions) if q.lower() not in existing]
     start = len(p.items)
@@ -289,12 +347,29 @@ def add_questions(project_id: int, payload: AddQuestionsIn, db: Session = Depend
     return _dict(p)
 
 
+@project_router.post("/strings")
+def add_strings(project_id: int, payload: StringsIn, db: Session = Depends(get_db)):
+    """Bulk-add copy strings, one per line as 'screen | element | copy'."""
+    p = _get(db, project_id)
+    _editable(p)
+    if not _is_copydeck(p):
+        raise HTTPException(status_code=409, detail="Only UX copy decks have strings")
+    fresh = ux_copy.assign_ids(p.items, ux_copy.parse_strings(payload.text))
+    if not fresh:
+        raise HTTPException(status_code=422, detail="No strings found")
+    if len(p.items) + len(fresh) > 500:
+        raise HTTPException(status_code=422, detail="A copy deck holds at most 500 strings")
+    p.items = [*p.items, *fresh]
+    db.commit()
+    return _dict(p)
+
+
 @project_router.post("/auto-match")
 def auto_match_project(project_id: int, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     _editable(p)
     if not _is_questionnaire(p):
-        raise HTTPException(status_code=409, detail="Auto-match is for security questionnaires")
+        raise HTTPException(status_code=409, detail="Auto-match is for questionnaires and FAQ sets")
     items = [dict(i) for i in p.items]
     changed = qn.auto_match(items, _library(db, p.workspace_id))
     p.items = items
@@ -349,14 +424,31 @@ def promote_evidence(project_id: int, db: Session = Depends(get_db)):
 @project_router.post("/assistant")
 def assistant(project_id: int, payload: AssistIn, db: Session = Depends(get_db)):
     p = _get(db, project_id)
-    if _is_questionnaire(p):
+    copy_item = next((i for i in p.items if i["id"] == payload.target_id), None) if _is_copydeck(p) else None
+    if copy_item:
+        rule = ux_copy.ELEMENTS.get(copy_item["element"], "")
+        limit = f" Maximum {copy_item['max_chars']} characters." if copy_item.get("max_chars") else ""
+        title = f"{copy_item['screen'] or 'Interface'}: {copy_item['element'].replace('_', ' ')}"
+        guidance = f"{rule}{limit} Follow the style guide's voice, terminology and rules."
+        current = copy_item["text"] if payload.text is None else payload.text
+        if payload.action in ("draft", "improve") and copy_item.get("notes"):
+            payload = payload.model_copy(update={"instruction": f"{payload.instruction} Context: {copy_item['notes']}".strip()})
+    elif _is_questionnaire(p):
         item = next((i for i in p.items if i["id"] == payload.target_id), None)
         if not item:
             raise HTTPException(status_code=404, detail="Question not found")
-        title, guidance = item["question"], (
-            "Answer this customer security question truthfully and concisely. Only state controls "
-            "that appear in the verified material; use [TO CONFIRM: ...] for anything else."
-        )
+        if p.doc_type == "faq":
+            guidance = (
+                "Answer this user question directly in the first sentence, then give any steps in a "
+                "short numbered list. Use plain language and only facts from the verified material; "
+                "use [TO CONFIRM: ...] for anything else."
+            )
+        else:
+            guidance = (
+                "Answer this customer security question truthfully and concisely. Only state controls "
+                "that appear in the verified material; use [TO CONFIRM: ...] for anything else."
+            )
+        title = item["question"]
         current = item["answer"] if payload.text is None else payload.text
     else:
         sec = next((s for s in p.sections if s["id"] == payload.target_id), None)
@@ -403,6 +495,8 @@ def submit_quality(project_id: int, db: Session = Depends(get_db)):
 
 
 def _markdown(p: DocProject) -> str:
+    if _is_copydeck(p):
+        return ux_copy.export_markdown(p.title, p.sections, p.items)
     if _is_questionnaire(p):
         return qn.export_markdown(p.title, p.items)
     out = [f"# {p.title}", ""]

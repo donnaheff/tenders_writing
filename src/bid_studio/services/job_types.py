@@ -17,6 +17,15 @@ JOB_TYPES: dict[str, dict] = {
     "tender_documents": {
         "label": "Tender technical responses and plans", "link": "doc", "kind": "tenderdoc",
     },
+    "end_user_docs": {
+        "label": "End-user documentation, help content and training", "link": "doc", "kind": "enduser",
+    },
+    "expert_docs": {
+        "label": "Specifications, technical reports and architecture documents", "link": "doc", "kind": "expert",
+    },
+    "technical_marketing": {
+        "label": "White papers and technical marketing", "link": "doc", "kind": "marketing",
+    },
     "bid_assets": {
         "label": "CVs, capability statements and case studies", "link": "doc", "kind": "bidasset",
     },

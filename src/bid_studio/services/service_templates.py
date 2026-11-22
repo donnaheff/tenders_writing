@@ -352,8 +352,147 @@ TYPES: dict[str, dict] = {
             ("commercials", "Commercial terms summary", "Price model, payment milestones and expenses, referring to the contract for legal terms."),
         ],
     },
+    # ---- end-user documentation
+    "kb_article": {
+        "kind": "enduser", "title": "Knowledge-base article (how-to)",
+        "description": "One task, one article: a searchable answer a user can follow without help.",
+        "sections": [
+            ("summary", "Title and summary", "A title that starts with the user's goal ('Reset your password') and one sentence saying what the article helps them do and who it is for."),
+            ("before", "Before you begin", "What the user needs first: permissions, versions, information or setup, with links to anything they might be missing."),
+            ("steps", "Steps", "Numbered steps, one action each, starting with a verb. Name buttons and fields exactly as they appear on screen."),
+            ("result", "What you should see", "The visible result of finishing the steps, so the user can tell it worked."),
+            ("troubleshooting", "If something goes wrong", "The two or three most likely problems as symptom and fix, and where to get help."),
+            ("related", "Related articles", "Links to the next task the user is likely to need, and to deeper reference."),
+        ],
+    },
+    "kb_troubleshooting": {
+        "kind": "enduser", "title": "Knowledge-base article (troubleshooting)",
+        "description": "A problem-first article: symptom, cause, fix, and how to confirm it is solved.",
+        "sections": [
+            ("symptom", "Symptom", "What the user sees, in their words, including exact error messages so the article is findable by search."),
+            ("cause", "Cause", "Why it happens, in one or two plain sentences."),
+            ("resolution", "Resolution", "Numbered steps to fix it, starting with the quickest and least risky option."),
+            ("verify", "Check that it is fixed", "How the user confirms the problem is gone."),
+            ("prevention", "Prevent it happening again", "Settings, habits or updates that avoid a repeat."),
+            ("escalate", "Still stuck?", "What information to gather and how to contact support."),
+        ],
+    },
+    "faq": {
+        "kind": "enduser", "title": "FAQ set", "items": "questions",
+        "description": "Questions and answers matched against your answer library; approve each one.",
+        "sections": [],
+    },
+    "tutorial": {
+        "kind": "enduser", "title": "Tutorial / how-to walkthrough",
+        "description": "A guided path to a first real result, with every step shown.",
+        "sections": [
+            ("goal", "What you will build or learn", "The concrete result at the end and roughly how long it takes."),
+            ("prereqs", "Prerequisites", "Accounts, tools, versions and knowledge needed, with links to set them up."),
+            ("setup", "Set up", "Getting to the starting point: install, sign in, sample data. Give exact commands or clicks."),
+            ("walkthrough", "Step-by-step walkthrough", "The main steps, each with an action, the expected result and a screenshot or code block where useful."),
+            ("check", "Check your understanding", "Two or three quick questions or a small task to confirm the learner got it."),
+            ("troubleshooting", "Common problems", "Mistakes learners usually make at each stage and how to recover."),
+            ("next", "Where to go next", "The next tutorial, the reference docs and community or support links."),
+        ],
+    },
+    "onboarding_guide": {
+        "kind": "enduser", "title": "Customer onboarding guide",
+        "description": "Takes a new customer from sign-up to their first success.",
+        "sections": [
+            ("welcome", "Welcome and what to expect", "Who the guide is for, how long onboarding takes and what success looks like."),
+            ("before", "Before you start", "What the customer should gather or decide first, and who needs access."),
+            ("setup", "Set-up steps", "The ordered set-up tasks, with owner and time for each."),
+            ("first_win", "Your first success", "One valuable task to complete early, step by step, so the customer sees the product work."),
+            ("mistakes", "Common mistakes", "What new users trip over and how to avoid it."),
+            ("habits", "Making it stick", "The routines and features that turn a trial into regular use."),
+            ("help", "Getting help", "Support channels, response times, training and a named contact."),
+        ],
+    },
+    "training_module": {
+        "kind": "enduser", "title": "Training module",
+        "description": "A learning module with objectives, content, exercises and an assessment.",
+        "sections": [
+            ("audience", "Audience and learning objectives", "Who it is for, what they already know, and three to five measurable objectives starting with an action verb."),
+            ("outline", "Module outline and timing", "Sections in order with the time each takes and the format (talk, demo, exercise)."),
+            ("content", "Core content", "The teaching content for each section, with examples and the key points to remember."),
+            ("exercises", "Exercises and activities", "Hands-on tasks that practise each objective, with instructions and expected answers."),
+            ("assessment", "Assessment and pass criteria", "Questions or a practical task that test the objectives, the pass mark and how results are used."),
+            ("facilitator", "Facilitator notes", "Setup, timing tips, likely questions and common misconceptions."),
+            ("materials", "Materials and resources", "Slides, handouts, datasets, equipment and further reading."),
+        ],
+    },
+    "ux_copy": {
+        "kind": "enduser", "title": "UX copy deck (labels, errors, empty states)", "items": "copy",
+        "description": "Interface text in one table, checked against your voice, terminology and character limits.",
+        "sections": [
+            ("voice", "Voice and tone", "Three or four adjectives for how the product sounds, with a do and a don't example for each, and how tone changes in errors."),
+            ("terminology", "Terminology", "One rule per line in the form: Use \"Sign in\", not \"Log in\". Strings that use an avoided term are flagged automatically."),
+            ("rules", "Writing rules", "House rules: sentence case, how to address the user, punctuation, numbers, and what never to say."),
+        ],
+    },
+    # ---- expert-to-expert documentation
+    "technical_specification": {
+        "kind": "expert", "title": "Technical specification / requirements",
+        "description": "What the system must do and how you will know it does it.",
+        "sections": [
+            ("purpose", "Purpose and scope", "What the system is for, what is in scope and what is explicitly not."),
+            ("definitions", "Definitions and references", "Terms, acronyms and the standards or documents this specification depends on."),
+            ("overview", "System overview and context", "The system in its environment: users, interfacing systems and the main data flows."),
+            ("functional", "Functional requirements", "Numbered, testable statements of the form 'The system shall...', grouped by feature, each with a priority."),
+            ("nonfunctional", "Non-functional requirements", "Performance, availability, security, accessibility, scalability and compliance, each with a measurable target."),
+            ("interfaces", "Interfaces and data", "External interfaces, protocols, data formats and key data entities."),
+            ("constraints", "Constraints and assumptions", "Technical, legal and budget constraints, and the assumptions the design relies on."),
+            ("acceptance", "Acceptance criteria and verification", "For each requirement or group, how it is verified (test, demonstration, inspection, analysis)."),
+            ("traceability", "Traceability", "How requirements map to design elements and tests, and how changes are controlled."),
+            ("open", "Open issues", "Decisions still needed, with an owner and a date."),
+        ],
+    },
+    "technical_report": {
+        "kind": "expert", "title": "Technical report",
+        "description": "Findings from an investigation, test or study, with the evidence and a recommendation.",
+        "sections": [
+            ("summary", "Executive summary", "The question, the answer and the recommendation in half a page, for a reader who stops here."),
+            ("background", "Background and objectives", "Why the work was done, what was asked, and the scope."),
+            ("method", "Method", "What you did, with enough detail for another expert to reproduce it: data, tools, test setup and limitations."),
+            ("findings", "Findings", "What you found, presented with data, tables or figures, without interpretation."),
+            ("analysis", "Analysis and discussion", "What the findings mean, how confident you are, and alternative explanations."),
+            ("conclusions", "Conclusions", "What can and cannot be concluded from the evidence."),
+            ("recommendations", "Recommendations", "Specific, prioritised actions with owners and expected benefit."),
+            ("appendices", "Appendices and references", "Raw data, calculations, sources and anything a specialist may need to check."),
+        ],
+    },
+    "architecture_doc": {
+        "kind": "expert", "title": "Architecture and design document",
+        "description": "The design, the decisions behind it and the alternatives rejected.",
+        "sections": [
+            ("context", "Context and goals", "The problem, who it serves, goals and explicit non-goals."),
+            ("overview", "Architecture overview", "The main components and how they interact, with a diagram description and the data flows."),
+            ("decisions", "Key decisions", "Each significant decision: the choice, the reason and the consequences, in decision-record form."),
+            ("data", "Data model and storage", "Entities, ownership, storage choices, retention and migration."),
+            ("security", "Security and privacy", "Threats considered, authentication and authorisation, data protection and audit."),
+            ("reliability", "Reliability and failure modes", "What can fail, how it is detected, the effect on users and how the system recovers."),
+            ("rollout", "Rollout and operations", "How it is deployed, monitored and changed, including rollback."),
+            ("alternatives", "Alternatives considered", "Other options and the reasons they were not chosen."),
+        ],
+    },
+    # ---- technical marketing
+    "white_paper": {
+        "kind": "marketing", "title": "White paper",
+        "description": "An in-depth, evidence-led argument for a decision-maker. Every statistic needs a source.",
+        "sections": [
+            ("summary", "Executive summary", "The problem, the argument and the takeaway in half a page. Write this last."),
+            ("problem", "The problem", "The challenge the reader faces, why it is getting worse or more important, and what it costs. Cite a source for every figure."),
+            ("context", "Market and evidence", "What the research, regulation or industry data say, with sources. Never state a statistic you cannot cite."),
+            ("approach", "A better approach", "The principles of the solution, explained so a sceptical expert would find them credible."),
+            ("how", "How it works", "The solution in enough technical depth to be believed, with an example or walkthrough."),
+            ("proof", "Evidence of results", "Case studies, benchmarks or independent findings that show it works, with their limits."),
+            ("implementation", "Implementation considerations", "What adopting it takes: people, systems, cost, risks and a realistic timeline."),
+            ("conclusion", "Conclusion and next step", "The decision the reader should make and one clear call to action."),
+            ("references", "References", "Full citations for every claim and figure above."),
+        ],
+    },
     "security_questionnaire": {
-        "kind": "compliance", "title": "Security questionnaire response",
+        "kind": "compliance", "title": "Security questionnaire response", "items": "questions",
         "description": "Answer a customer's security questionnaire, matched against your answer library.",
         "sections": [],
     },
@@ -386,7 +525,9 @@ def instantiate_sections(doc_type: str) -> list[dict]:
 def catalogue() -> list[dict]:
     return [
         {"key": k, "kind": v["kind"], "title": v["title"], "description": v["description"],
-         "questionnaire": k == "security_questionnaire", "sections": len(v["sections"]),
-         "promotable": "evidence_type" in v, "link": v.get("link")}
+         "questionnaire": v.get("items") == "questions", "copydeck": v.get("items") == "copy",
+         "sections": len(v["sections"]),
+         "promotable": "evidence_type" in v, "link": v.get("link"),
+         "items": v.get("items")}
         for k, v in TYPES.items()
     ]

@@ -56,7 +56,7 @@
       <h3 id="leftTitle">Sections</h3>
       <div id="list"></div>
       <div id="addQ" style="display:none; margin-top:10px">
-        <label class="f">Add questions (one per line)<textarea id="newQ" rows="4"></textarea></label>
+        <label class="f" id="addQLabel">Add questions (one per line)<textarea id="newQ" rows="4"></textarea></label>
         <button class="small secondary" id="btnAddQ">Add and auto-match</button>
       </div>
     </aside>
@@ -106,7 +106,10 @@
     return data;
   }
   const setSave = (m, err = false) => { const el = $("saveState"); el.textContent = m; el.className = err ? "err" : ""; };
-  const list = () => (P.questionnaire ? P.items : P.sections);
+  // Questionnaires and FAQ sets list items; UX copy decks list the style guide, then the strings
+  const list = () => (P.copydeck ? [...P.sections, ...P.items] : P.questionnaire ? P.items : P.sections);
+  const kindOf = x => (x.question !== undefined ? "q" : x.element !== undefined ? "copy" : "sec");
+  const hasItems = () => P.questionnaire || P.copydeck;
 
   function adopt(d, keepEdits = false) {
     const prev = P; P = d;
@@ -118,11 +121,13 @@
     const note = $("noteBanner"); const show = P.status === "drafting" && P.reviewer_notes; note.classList.toggle("show", !!show); note.textContent = show ? "Reviewer notes: " + P.reviewer_notes : "";
     for (const id of ["pTitle", "cName", "cEmail", "cFee", "cCur", "cBrief"]) $(id).disabled = P.locked;
     $("btnMatch").style.display = P.questionnaire ? "" : "none"; $("btnMatch").disabled = P.locked;
-    $("addQ").style.display = P.questionnaire && !P.locked ? "" : "none";
+    $("addQ").style.display = hasItems() && !P.locked ? "" : "none";
+    $("addQLabel").firstChild.textContent = P.copydeck ? "Add strings (one per line: screen | element | copy)" : "Add questions (one per line)";
+    $("btnAddQ").textContent = P.copydeck ? "Add strings" : "Add and auto-match";
     const a = $("btnAction");
     a.style.display = ["drafting", "approved"].includes(P.status) ? "" : "none";
     a.textContent = P.status === "approved" ? "Deliver to client" : "Submit for quality review"; a.disabled = false;
-    $("leftTitle").textContent = P.questionnaire ? "Questions" : "Sections";
+    $("leftTitle").textContent = P.copydeck ? "Style guide and strings" : P.questionnaire ? "Questions" : "Sections";
     const pe = $("btnPromoteEv");
     pe.style.display = P.promotable ? "" : "none";
     pe.disabled = !P.can_promote;
@@ -134,10 +139,13 @@
 
   function renderList() {
     $("list").innerHTML = list().map((x, i) => {
-      const dot = P.questionnaire ? x.status : (x.text.trim() ? "written" : "");
-      const label = P.questionnaire ? `${x.id}: ${x.question}` : x.title;
-      const meta = P.questionnaire ? `${x.status.replace("_", " ")}${x.confidence ? " · " + Math.round(x.confidence * 100) + "% match" : ""}` : `${words(x.text)} words`;
-      return `<button class="it ${i === cur ? "active" : ""}" data-i="${i}"><div class="t"><span class="dot ${dot}"></span>${esc(label.length > 90 ? label.slice(0, 90) + "…" : label)}</div><div class="m">${esc(meta)}</div></button>`;
+      const k = kindOf(x), lintN = k === "copy" && P.lint[x.id] ? P.lint[x.id].length : 0;
+      const dot = k === "q" ? x.status : k === "copy" ? (x.status === "approved" ? "approved" : x.text.trim() ? "matched" : "") : (x.text.trim() ? "written" : "");
+      const label = k === "q" ? `${x.id}: ${x.question}` : k === "copy" ? `${x.id}: ${x.text || "(empty)"}` : x.title;
+      const meta = k === "q" ? `${x.status.replace("_", " ")}${x.confidence ? " · " + Math.round(x.confidence * 100) + "% match" : ""}`
+        : k === "copy" ? `${x.screen || "No screen"} · ${x.element.replace("_", " ")}${lintN ? ` · ${lintN} warning${lintN > 1 ? "s" : ""}` : ""}` : `${P.copydeck ? "Style guide · " : ""}${words(x.text)} words`;
+      const sep = P.copydeck && i === P.sections.length ? `<div class="muted" style="margin:10px 0 6px">Strings</div>` : "";
+      return `${sep}<button class="it ${i === cur ? "active" : ""}" data-i="${i}"><div class="t"><span class="dot ${dot}"></span>${esc(label.length > 90 ? label.slice(0, 90) + "…" : label)}</div><div class="m">${esc(meta)}</div></button>`;
     }).join("") || `<div class="muted">Nothing here yet.</div>`;
     document.querySelectorAll("#list .it").forEach(b => b.onclick = () => select(Number(b.dataset.i)));
   }
@@ -145,7 +153,23 @@
   function select(i) {
     cur = Math.max(0, Math.min(i, list().length - 1)); const x = list()[cur]; const L = P.locked;
     if (!x) { $("editor").innerHTML = "<h3>Nothing to edit</h3>"; renderList(); return; }
-    if (P.questionnaire) {
+    if (kindOf(x) === "copy") {
+      const warn = (P.lint[x.id] || []).map(w => `<div class="chk warn"><span class="ic">!</span><div>${esc(w)}</div></div>`).join("");
+      $("editor").innerHTML = `<h3>${esc(x.id)}</h3>
+        <div class="meta"><label>Screen or location <input id="cScreen" value="${esc(x.screen)}" ${L ? "disabled" : ""} maxlength="120" /></label>
+          <label>Element <select id="cElem" ${L ? "disabled" : ""}>${Object.keys(P.element_rules).map(k => `<option value="${k}" ${k === x.element ? "selected" : ""}>${k.replace("_", " ")}</option>`).join("")}</select></label>
+          <label>Max characters <input id="cMax" type="number" min="1" style="width:90px" value="${x.max_chars || ""}" ${L ? "disabled" : ""} /></label></div>
+        <div class="guidance" id="cRule">${esc(P.element_rules[x.element] || "")}</div>
+        <textarea class="big" id="cText" style="min-height:110px" ${L ? "disabled" : ""} aria-label="Copy">${esc(x.text)}</textarea>
+        <div class="meta"><span><strong id="cCount">${x.text.length}</strong>${x.max_chars ? " / " + x.max_chars : ""} characters</span>
+          <label>Status <select id="cStat" ${L ? "disabled" : ""}><option value="draft" ${x.status === "draft" ? "selected" : ""}>draft</option><option value="approved" ${x.status === "approved" ? "selected" : ""}>approved</option></select></label>
+          <button class="small secondary" id="cRemove" ${L ? "disabled" : ""}>Remove string</button></div>
+        <label class="f">Notes (context for the writer, not shipped)<input id="cNotes" value="${esc(x.notes)}" maxlength="300" ${L ? "disabled" : ""} /></label>
+        <div id="cWarn">${warn}</div>`;
+      const sync = () => { x.screen = $("cScreen").value; x.element = $("cElem").value; x.max_chars = Number($("cMax").value) || null; x.text = $("cText").value; x.notes = $("cNotes").value; x.status = $("cStat").value; $("cCount").textContent = x.text.length; $("cRule").textContent = P.element_rules[x.element] || ""; touched(); };
+      for (const id of ["cScreen", "cElem", "cMax", "cText", "cNotes", "cStat"]) $(id).oninput = sync;
+      $("cRemove").onclick = () => { P.items.splice(P.items.indexOf(x), 1); touched(); select(Math.max(0, cur - 1)); };
+    } else if (kindOf(x) === "q") {
       $("editor").innerHTML = `<h3>${esc(x.id)}</h3><div class="guidance" style="font-size:.98rem"><strong>${esc(x.question)}</strong></div>
         <textarea class="big" id="ans" style="min-height:240px" ${L ? "disabled" : ""} aria-label="Answer">${esc(x.answer)}</textarea>
         <div class="meta"><label>Status <select id="stat" ${L ? "disabled" : ""}>${["unanswered", "matched", "needs_review", "approved"].map(s => `<option ${s === x.status ? "selected" : ""} value="${s}">${s.replace("_", " ")}</option>`).join("")}</select></label>
@@ -165,6 +189,12 @@
     renderList();
   }
 
+  // Style warnings come from the server after each save; update the open string without re-rendering its inputs
+  function refreshWarnings() {
+    const el = $("cWarn"), x = list()[cur];
+    if (el && x && kindOf(x) === "copy") el.innerHTML = (P.lint[x.id] || []).map(w => `<div class="chk warn"><span class="ic">!</span><div>${esc(w)}</div></div>`).join("");
+  }
+
   function touched() { if (P.locked) return; dirty = true; setSave("Unsaved changes..."); renderList(); clearTimeout(timer); timer = setTimeout(save, 1500); }
   for (const id of ["pTitle", "cName", "cEmail", "cFee", "cCur", "cBrief"]) $(id).addEventListener("input", touched);
 
@@ -172,15 +202,16 @@
     if (P.locked || saving || !dirty) return true;
     clearTimeout(timer); saving = true; setSave("Saving...");
     const body = { title: $("pTitle").value.trim() || undefined, client_name: $("cName").value, client_email: $("cEmail").value, brief: $("cBrief").value, fixed_fee: Number($("cFee").value) || 0, currency: $("cCur").value.trim() || undefined };
-    if (P.questionnaire) body.items = P.items; else body.sections = P.sections.map(({ id, title, prompt, text }) => ({ id, title, prompt, text }));
-    try { dirty = false; const d = await call(base, "PUT", body); adopt(d); setSave("Saved " + new Date().toLocaleTimeString()); renderList(); return true; }
+    if (hasItems()) body.items = P.items;
+    if (!P.questionnaire) body.sections = P.sections.map(({ id, title, prompt, text }) => ({ id, title, prompt, text }));
+    try { dirty = false; const d = await call(base, "PUT", body); adopt(d); setSave("Saved " + new Date().toLocaleTimeString()); renderList(); refreshWarnings(); return true; }
     catch (e) { dirty = true; setSave(e.status === 409 ? "Locked" : "Save failed: " + e.message, true); return false; }
     finally { saving = false; }
   }
 
   function renderReview() {
     const r = P.readiness, row = (cls, ic, t) => `<div class="chk ${cls}"><span class="ic">${ic}</span><div>${esc(t)}</div></div>`;
-    const s = P.stats, prog = P.questionnaire ? `${s.answered}/${s.total} answered · ${s.approved} approved` : `${s.written}/${s.total} sections written · ${s.words} words`;
+    const s = P.stats, prog = P.copydeck ? `${s.strings} strings · ${s.approved} approved · ${s.flagged} with style warnings` : P.questionnaire ? `${s.answered}/${s.total} answered · ${s.approved} approved` : `${s.written}/${s.total} sections written · ${s.words} words`;
     $("revBox").innerHTML = `<div class="muted" style="margin-bottom:8px">${esc(prog)}</div>
       ${r.blockers.map(b => row("bad", "✕", b)).join("")}${r.warnings.map(w => row("warn", "!", w)).join("")}
       ${r.ready ? row("ok", "✓", "Ready for quality review") : ""}
@@ -200,16 +231,16 @@
     out.className = "muted"; out.textContent = "Working...";
     document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = true);
     try {
-      const text = P.questionnaire ? x.answer : x.text;
+      const k = kindOf(x), text = k === "q" ? x.answer : x.text;
       aiResult = await call(`${base}/assistant`, "POST", { action, target_id: x.id, text, instruction: $("aiQ").value });
       const badge = `<span class="badge">${aiResult.provider === "claude" ? "Claude" : "Offline helper"}</span>`;
       const ul = (t, a) => a && a.length ? `<div style="margin-top:8px"><strong>${t}</strong><ul style="margin:4px 0 0 18px; padding:0">${a.map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>` : "";
       const isText = action !== "critique";
       out.className = "";
       out.innerHTML = `${badge}${isText ? `<div class="item" style="margin-top:8px; white-space:pre-wrap; max-height:260px; overflow:auto">${esc(aiResult.text)}</div>` : `<div style="margin:8px 0">${esc(aiResult.text)}</div>`}${ul("Strengths", aiResult.strengths)}${ul("Gaps", aiResult.gaps)}${ul("Notes", aiResult.notes)}
-        ${isText && action !== "ask" ? `<div style="margin-top:10px"><button class="small" id="aiReplace" ${P.locked ? "disabled" : ""}>Replace ${P.questionnaire ? "answer" : "section"}</button></div>` : ""}
+        ${isText && action !== "ask" ? `<div style="margin-top:10px"><button class="small" id="aiReplace" ${P.locked ? "disabled" : ""}>Replace ${kindOf(x) === "q" ? "answer" : kindOf(x) === "copy" ? "copy" : "section"}</button></div>` : ""}
         <div class="muted" style="margin-top:8px">AI output can contain mistakes. Check every statement, especially security claims, and replace any [TO CONFIRM] before delivery.</div>`;
-      const r = $("aiReplace"); if (r) r.onclick = () => { x[P.questionnaire ? "answer" : "text"] = aiResult.text; if (P.questionnaire) x.status = "needs_review"; touched(); select(cur); };
+      const r = $("aiReplace"); if (r) r.onclick = () => { const k = kindOf(x); x[k === "q" ? "answer" : "text"] = aiResult.text; if (k === "q") x.status = "needs_review"; if (k === "copy") x.status = "draft"; touched(); select(cur); };
     } catch (e) { out.textContent = "Assistant error: " + e.message; }
     finally { document.querySelectorAll("[data-ai], #aiAsk").forEach(b => b.disabled = false); }
   }
@@ -224,16 +255,17 @@
   }
   function renderLib() {
     const q = $("libQ").value.toLowerCase(), hits = library.filter(a => !q || (a.question_pattern + " " + a.answer_text).toLowerCase().includes(q)).slice(0, 12);
-    const evHits = (P && P.questionnaire ? [] : evidence).filter(e => !q || (e.title + " " + e.summary).toLowerCase().includes(q)).slice(0, 8);
+    const evHits = (P && hasItems() ? [] : evidence).filter(e => !q || (e.title + " " + e.summary).toLowerCase().includes(q)).slice(0, 8);
     const evHtml = evHits.length ? `<div class="muted" style="margin:8px 0 6px">Evidence</div>` + evHits.map((e, i) => `<div class="item"><div class="h">${esc(e.title)} <span class="badge">${esc(e.evidence_type)}</span></div><div class="x">${esc(e.summary)}</div><button class="small" data-ev="${i}" ${P && P.locked ? "disabled" : ""}>Insert</button></div>`).join("") : "";
     $("libList").innerHTML = hits.map((a, i) => `<div class="item"><div class="h">${esc(a.question_pattern)}</div><div class="x">${esc(a.answer_text)}</div><button class="small" data-i="${i}" ${P && P.locked ? "disabled" : ""}>Insert</button></div>`).join("") + evHtml || "No matching answers.";
     $("libList").querySelectorAll("button[data-ev]").forEach(b => b.onclick = () => {
-      const x = list()[cur], e = evHits[Number(b.dataset.ev)]; if (!x || P.locked || P.questionnaire) return;
+      const x = list()[cur], e = evHits[Number(b.dataset.ev)]; if (!x || P.locked || hasItems()) return;
       x.text = (x.text ? x.text + "\n\n" : "") + e.summary; touched(); select(cur);
     });
     $("libList").querySelectorAll("button[data-i]").forEach(b => b.onclick = () => {
       const x = list()[cur], a = hits[Number(b.dataset.i)]; if (!x || P.locked) return;
-      if (P.questionnaire) { x.answer = a.answer_text; x.source_answer_id = a.id; x.status = "needs_review"; x.confidence = 1; } else { x.text = (x.text ? x.text + "\n\n" : "") + a.answer_text; }
+      if (kindOf(x) === "copy") return;
+      if (kindOf(x) === "q") { x.answer = a.answer_text; x.source_answer_id = a.id; x.status = "needs_review"; x.confidence = 1; } else { x.text = (x.text ? x.text + "\n\n" : "") + a.answer_text; }
       touched(); select(cur);
     });
   }
@@ -249,7 +281,11 @@
     catch (e) { alert(e.message); }
   };
   $("btnMatch").onclick = async () => { if (!(await save())) return; try { const r = await call(`${base}/auto-match`, "POST"); adopt(r.project); select(cur); setSave(`Matched ${r.changed} answer(s)`); } catch (e) { setSave(e.message, true); } };
-  $("btnAddQ").onclick = async () => { if (!(await save())) return; try { adopt(await call(`${base}/questions`, "POST", { questions: $("newQ").value })); $("newQ").value = ""; select(cur); } catch (e) { setSave(e.message, true); } };
+  $("btnAddQ").onclick = async () => {
+    if (!(await save())) return;
+    try { adopt(await call(P.copydeck ? `${base}/strings` : `${base}/questions`, "POST", P.copydeck ? { text: $("newQ").value } : { questions: $("newQ").value })); $("newQ").value = ""; renderList(); select(P.copydeck ? list().length - 1 : cur); }
+    catch (e) { setSave(e.message, true); }
+  };
   $("btnExport").onclick = async () => {
     await save(); const d = await call(`${base}/export`), a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([d.markdown], { type: "text/markdown" })); a.download = (d.title || "document").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".md"; a.click(); URL.revokeObjectURL(a.href);
