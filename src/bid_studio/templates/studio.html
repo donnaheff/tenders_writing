@@ -124,6 +124,7 @@
     <span id="saveState" role="status"></span>
     <button class="secondary" id="btnVersion">Save version</button>
     <button class="secondary" id="btnExport">Export .md</button>
+    <button class="secondary" id="btnDocx">Word</button><button class="secondary" id="btnPdf">PDF</button>
     <button id="btnSubmit">Submit for review</button>
   </div>
   <div class="banner" id="lockBanner">This proposal is in review or approved and is read-only. If a reviewer requests changes it reopens for editing.</div>
@@ -383,6 +384,9 @@
     a.download = (d.title || "proposal").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".md"; a.click(); URL.revokeObjectURL(a.href);
   }
 
+  for (const fmt of ["docx", "pdf"]) $(fmt === "docx" ? "btnDocx" : "btnPdf").onclick = async () => {
+    await save(); const a = document.createElement("a"); a.href = `${base}/export.${fmt}`; a.click();
+  };
   $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => {
     $("tabs").querySelectorAll("button").forEach(x => x.classList.remove("active")); b.classList.add("active");
     document.querySelectorAll(".tabpane").forEach(p => p.classList.remove("active")); $("tab-" + b.dataset.tab).classList.add("active");

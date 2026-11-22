@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from bid_studio.database import get_db
 from bid_studio.models import GrantProposal, OpportunityNotice
 from bid_studio.schemas import GrantProposalCreate, GrantProposalSectionUpdate
+from bid_studio.services import render
 from bid_studio.services.access import proposal_guard
 from bid_studio.services.domain_logic import (
     compute_proposal_weighted_score,
@@ -221,3 +222,15 @@ def export_grant_proposal_markdown(proposal_id: int, db: Session = Depends(get_d
         "title": proposal.title,
         "markdown": "\n".join(lines),
     }
+
+
+@router.get("/proposals/{proposal_id}/export.docx", dependencies=[Depends(proposal_guard)])
+def export_grant_proposal_docx(proposal_id: int, db: Session = Depends(get_db)):
+    d = export_grant_proposal_markdown(proposal_id, db)
+    return render.file_response("docx", d["markdown"], d["title"])
+
+
+@router.get("/proposals/{proposal_id}/export.pdf", dependencies=[Depends(proposal_guard)])
+def export_grant_proposal_pdf(proposal_id: int, db: Session = Depends(get_db)):
+    d = export_grant_proposal_markdown(proposal_id, db)
+    return render.file_response("pdf", d["markdown"], d["title"])

@@ -46,6 +46,7 @@
     <button class="secondary" id="btnMatch" style="display:none">Auto-match library</button>
     <button class="secondary" id="btnPromoteEv" style="display:none">Save to evidence library</button>
     <button class="secondary" id="btnExport">Export .md</button>
+    <button class="secondary" id="btnDocx">Word</button><button class="secondary" id="btnPdf">PDF</button>
     <button id="btnAction">Submit for quality review</button>
   </div>
   <div class="banner lock" id="lockBanner"></div>
@@ -437,6 +438,9 @@
   $("btnAddRow").onclick = async () => {
     if (!(await save())) return;
     try { adopt(await call(`${base}/rows`, "POST"), false); renderList(); select(P.items.length - 1); } catch (e) { setSave(e.message, true); }
+  };
+  for (const fmt of ["docx", "pdf"]) $(fmt === "docx" ? "btnDocx" : "btnPdf").onclick = async () => {
+    await save(); const a = document.createElement("a"); a.href = `${base}/export.${fmt}`; a.click();
   };
   $("btnExport").onclick = async () => {
     await save(); const d = await call(`${base}/export`), a = document.createElement("a");

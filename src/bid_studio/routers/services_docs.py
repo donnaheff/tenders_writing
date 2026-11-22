@@ -17,7 +17,7 @@ from bid_studio.models import (
     Workspace,
 )
 from bid_studio.services import assistant as ai
-from bid_studio.services import checklists, report_prefill, ux_copy
+from bid_studio.services import checklists, render, report_prefill, ux_copy
 from bid_studio.services import questionnaire as qn
 from bid_studio.services import references as refs_lib
 from bid_studio.services import reviews as reviews_lib
@@ -737,6 +737,18 @@ def _markdown(p: DocProject) -> str:
 def export_project(project_id: int, db: Session = Depends(get_db)):
     p = _get(db, project_id)
     return {"project_id": p.id, "title": p.title, "markdown": _markdown(p)}
+
+
+@project_router.get("/export.docx")
+def export_docx(project_id: int, db: Session = Depends(get_db)):
+    p = _get(db, project_id)
+    return render.file_response("docx", _markdown(p), p.title)
+
+
+@project_router.get("/export.pdf")
+def export_pdf(project_id: int, db: Session = Depends(get_db)):
+    p = _get(db, project_id)
+    return render.file_response("pdf", _markdown(p), p.title)
 
 
 @project_router.post("/deliver")
