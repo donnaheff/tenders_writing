@@ -22,6 +22,7 @@ from bid_studio.services import questionnaire as qn
 from bid_studio.services import references as refs_lib
 from bid_studio.services import reviews as reviews_lib
 from bid_studio.services import service_templates as tpl
+from bid_studio.services import tables as tbl
 from bid_studio.services.access import doc_project_guard
 from bid_studio.services.domain_logic import tokenize
 from bid_studio.services.mailer import deliver
@@ -120,6 +121,7 @@ class AssistIn(BaseModel):
     target_id: str = Field(min_length=1, max_length=40)  # section id, or questionnaire item id
     text: str | None = Field(default=None, max_length=60000)
     instruction: str = Field(default="", max_length=1500)
+    field: str | None = Field(default=None, max_length=40)  # column key, for table documents
 
 
 class PromoteIn(BaseModel):
@@ -166,6 +168,14 @@ def _is_checklist(p: DocProject) -> bool:
     return _items_kind(p) == "checklist"
 
 
+def _is_table(p: DocProject) -> bool:
+    return _items_kind(p) == "table"
+
+
+def _spec(p: DocProject) -> dict[str, Any]:
+    return tpl.TYPES[p.doc_type]["table"]
+
+
 def _refs_enabled(p: DocProject) -> bool:
     return bool(tpl.TYPES.get(p.doc_type, {}).get("references"))
 
@@ -195,6 +205,17 @@ def readiness(p: DocProject) -> dict[str, Any]:
             warnings.append("Some items marked 'no' have no explanation")
         if any(i["reported"] == "yes" and not i["location"].strip() for i in p.items):
             warnings.append("Some 'yes' items do not say where they are reported")
+    elif _is_table(p):
+        spec = _spec(p)
+        if not p.items:
+            blockers.append(f"No {spec['row_label'].lower()} rows yet")
+        problems = [(r["id"], tbl.row_issues(spec, r)) for r in p.items]
+        problems = [(rid, i) for rid, i in problems if i]
+        if problems:
+            first = "; ".join(f"{rid}: {', '.join(i[:2])}" for rid, i in problems[:3])
+            blockers.append(f"{len(problems)} row(s) incomplete. {first}")
+        if any(PLACEHOLDER in str(v) for r in p.items for v in r.values()):
+            blockers.append("Contains [TO CONFIRM] placeholders")
     elif _is_reviews(p):
         if not p.items:
             blockers.append("No reviewer comments yet")
@@ -262,6 +283,10 @@ def _dict(p: DocProject) -> dict[str, Any]:
     stats = {}
     if _is_checklist(p):
         stats = {"total": len(p.items), **{k: sum(1 for i in p.items if i["reported"] == k) for k in checklists.REPORTED}}
+    elif _is_table(p):
+        spec = _spec(p)
+        done = sum(1 for r in p.items if not tbl.row_issues(spec, r))
+        stats = {"total": len(p.items), "complete": done}
     elif _is_reviews(p):
         stats = {"total": len(p.items), "answered": sum(1 for i in p.items if i["response"].strip()),
                  "resolved": sum(1 for i in p.items if i["status"] != "pending")}
@@ -287,7 +312,9 @@ def _dict(p: DocProject) -> dict[str, Any]:
         "id": p.id, "workspace_id": p.workspace_id, "kind": p.kind, "doc_type": p.doc_type,
         "type_title": tpl.TYPES.get(p.doc_type, {}).get("title", p.doc_type),
         "questionnaire": _is_questionnaire(p), "copydeck": _is_copydeck(p),
-        "reviews": _is_reviews(p), "checklist": _is_checklist(p),
+        "reviews": _is_reviews(p), "checklist": _is_checklist(p), "table": _is_table(p),
+        "table_spec": _spec(p) if _is_table(p) else None,
+        "notice": tpl.TYPES.get(p.doc_type, {}).get("notice", ""),
         "references_enabled": _refs_enabled(p), "refs": _ref_list(p).model_dump() if _refs_enabled(p) else None,
         "ref_checks": refs_lib.check(_ref_list(p), _body_texts(p)) if _refs_enabled(p) else [],
         "research": tpl.TYPES.get(p.doc_type, {}).get("kind") == "research",
@@ -342,6 +369,8 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
         items = ux_copy.assign_ids([], ux_copy.parse_strings(payload.questions))
     if kind_of_items == "checklist":
         items = checklists.new_items(payload.doc_type)
+    if kind_of_items == "table":
+        items = tbl.initial_rows(t["table"])
     if kind_of_items == "reviews":
         items = reviews_lib.assign_ids([], reviews_lib.parse_comments(payload.questions))
         if not items:
@@ -405,7 +434,9 @@ def save_project(project_id: int, payload: ProjectSave, db: Session = Depends(ge
         if [s.id for s in payload.sections] != [s["id"] for s in p.sections]:
             raise HTTPException(status_code=422, detail="Sections cannot be added, removed or reordered")
         p.sections = [s.model_dump() for s in payload.sections]
-    if payload.items is not None:
+    if payload.items is not None and _is_table(p):
+        p.items = tbl.validate_rows(_spec(p), payload.items, p.items)
+    elif payload.items is not None:
         model = (ItemIn if _is_questionnaire(p) else CopyItemIn if _is_copydeck(p)
                  else ReviewItemIn if _is_reviews(p) else ChecklistItemIn if _is_checklist(p) else None)
         if model is None:
@@ -419,6 +450,25 @@ def save_project(project_id: int, payload: ProjectSave, db: Session = Depends(ge
         if _is_checklist(p) and [i["id"] for i in parsed] != [i["id"] for i in p.items]:
             raise HTTPException(status_code=422, detail="Checklist items cannot be added, removed or reordered")
         p.items = parsed
+    p.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(p)
+    return _dict(p)
+
+
+@project_router.post("/rows", status_code=201)
+def add_row(project_id: int, db: Session = Depends(get_db)):
+    p = _get(db, project_id)
+    _editable(p)
+    if not _is_table(p):
+        raise HTTPException(status_code=422, detail="This document type has no table rows")
+    spec = _spec(p)
+    if spec.get("fixed_rows"):
+        raise HTTPException(status_code=422, detail="Rows cannot be added to this document")
+    if len(p.items) >= 600:
+        raise HTTPException(status_code=422, detail="A table holds at most 600 rows")
+    n = 1 + max((int(r["id"][1:]) for r in p.items if r["id"][1:].isdigit()), default=0)
+    p.items = [*p.items, tbl.new_row(spec, f"R{n}")]
     p.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(p)
@@ -586,6 +636,16 @@ def assistant(project_id: int, payload: AssistIn, db: Session = Depends(get_db))
         current = copy_item["text"] if payload.text is None else payload.text
         if payload.action in ("draft", "improve") and copy_item.get("notes"):
             payload = payload.model_copy(update={"instruction": f"{payload.instruction} Context: {copy_item['notes']}".strip()})
+    elif _is_table(p):
+        row = next((r for r in p.items if r["id"] == payload.target_id), None)
+        column = next((c for c in _spec(p)["columns"] if c["key"] == payload.field), None)
+        if not row or not column or column["readonly"] or column["type"] == "select":
+            raise HTTPException(status_code=404, detail="Row or free-text column not found")
+        label = row.get("control") or row.get("title") or row.get("name") or row.get("activity") or row["id"]
+        title = f"{label}: {column['label']}"
+        guidance = (column["prompt"] or f"Write the {column['label'].lower()} for this row.") + (
+            " State only facts the user has given; use [TO CONFIRM: ...] for anything else.")
+        current = row[column["key"]] if payload.text is None else payload.text
     elif _is_questionnaire(p):
         item = next((i for i in p.items if i["id"] == payload.target_id), None)
         if not item:
@@ -651,6 +711,8 @@ def submit_quality(project_id: int, db: Session = Depends(get_db)):
 
 
 def _markdown(p: DocProject) -> str:
+    if _is_table(p):
+        return tbl.export_markdown(p.title, _spec(p), p.items)
     if _is_checklist(p):
         return checklists.export_markdown(p.title, p.items)
     if _is_reviews(p):

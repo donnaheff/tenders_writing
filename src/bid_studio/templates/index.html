@@ -936,7 +936,7 @@
       dsLoading = dsLoading || api("/api/v1/services/templates").then(ts => {
         dsTemplates = ts;
         const group = (k, label) => `<optgroup label="${label}">${ts.filter(t => t.kind === k).map(t => `<option value="${t.key}">${esc(t.title)}</option>`).join("")}</optgroup>`;
-        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing") + group("grantdoc", "Grant supporting documents & reports") + group("tenderdoc", "Tender technical responses & plans") + group("enduser", "End-user docs, help & training") + group("expert", "Specifications, reports & architecture") + group("marketing", "Technical marketing") + group("research", "Research writing, reviews & checklists") + group("bidasset", "Bid assets: CVs, capability & case studies");
+        document.getElementById("dsType").innerHTML = group("techdoc", "Technical documentation") + group("compliance", "Compliance & policy writing") + group("grantdoc", "Grant supporting documents & reports") + group("tenderdoc", "Tender technical responses & plans") + group("enduser", "End-user docs, help & training") + group("expert", "Specifications, reports & architecture") + group("marketing", "Technical marketing") + group("research", "Research writing, reviews & checklists") + group("engineering", "Engineering & operations docs") + group("security", "Security & privacy documents") + group("product", "Product & business documents") + group("aidata", "AI & data documentation") + group("quality", "Quality & audit documents") + group("hardware", "Hardware & industrial documentation") + group("bidasset", "Bid assets: CVs, capability & case studies");
       });
       return dsLoading;
     }

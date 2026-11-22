@@ -29,6 +29,12 @@ JOB_TYPES: dict[str, dict] = {
     "research_writing": {
         "label": "Research writing: manuscripts, protocols and reviews", "link": "doc", "kind": "research",
     },
+    "engineering_docs": {"label": "Engineering and operations documentation", "link": "doc", "kind": "engineering"},
+    "security_privacy_docs": {"label": "Security and privacy documents", "link": "doc", "kind": "security"},
+    "product_business_docs": {"label": "Product and business documents", "link": "doc", "kind": "product"},
+    "ai_data_docs": {"label": "AI and data documentation", "link": "doc", "kind": "aidata"},
+    "quality_audit_docs": {"label": "Quality and audit documents", "link": "doc", "kind": "quality"},
+    "hardware_docs": {"label": "Hardware and industrial documentation", "link": "doc", "kind": "hardware"},
     "bid_assets": {
         "label": "CVs, capability statements and case studies", "link": "doc", "kind": "bidasset",
     },
