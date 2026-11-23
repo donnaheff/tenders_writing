@@ -4,6 +4,22 @@ Bid Studio is a Python + FastAPI platform for tender writing, grant and funding 
 
 ---
 
+## MCP Server & Developers Section
+
+Bid Studio ships a [Model Context Protocol](https://modelcontextprotocol.io) server so Claude, ChatGPT / OpenAI (Responses API, Agents SDK), Gemini, Cursor, VS Code and any other MCP client can search opportunities, draft grant proposals, run compliance matching, and generate intelligence reports.
+
+- **Remote (Streamable HTTP):** `POST /mcp` on the running app (stateless, serverless friendly).
+- **Local (stdio):** `bid-studio-mcp` (set `BID_STUDIO_API_URL` + `BID_STUDIO_API_KEY` to proxy a remote instance).
+- **Developer portal:** open `/developers` for per-client setup snippets (Claude Code, Claude Desktop/claude.ai, Claude API, OpenAI Responses API, Agents SDK, ChatGPT, Gemini CLI, Cursor/VS Code), the tool catalog with schemas, and links to Swagger/ReDoc.
+- **Function calling without MCP:** `GET /api/v1/developers/tools/{openai|openai-chat|anthropic|gemini}` returns tool definitions generated from the same tools; `POST /api/v1/developers/tools/{name}/call` executes a tool call.
+- **Server card:** `GET /api/v1/developers/mcp`.
+
+Safety: set `MCP_API_KEY` to require `Authorization: Bearer <key>` (or `X-API-Key`) on `/mcp` and the executor. Read tools are annotated read-only; write tools only create drafts. Quality-queue approval and email delivery are intentionally **not** exposed, so an AI cannot approve its own work. The REST API itself still has no per-user auth.
+
+Settings: `MCP_API_KEY`, `PUBLIC_BASE_URL` (used in docs snippets), `API_BASE_URL` (remote backend for tools).
+
+---
+
 ## Core Platform & Implemented Modules
 
 ### Core Infrastructure
