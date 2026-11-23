@@ -65,12 +65,14 @@ SERVICES: list[Service] = [
         slug="tech-docs", app_id="techdocs", title="Technical Documentation & API Docs",
         nav_label="Technical & API Docs", group="Writing & Review Services",
         tagline="Fixed-fee documentation with a QA gate before delivery.",
-        summary="User guides, API references, SOPs, release notes, whitepapers, runbooks and "
-                "architecture documents delivered as fixed-fee projects through a tracked pipeline.",
+        summary="User guides, API references, SOPs, release notes, whitepapers, runbooks, "
+                "architecture documents, tutorials, knowledge-base articles, migration guides, "
+                "postmortems and datasheets, delivered as fixed-fee projects through a tracked pipeline.",
         features=[
-            "Seven packages: user guide, API reference, SOP, release notes, whitepaper, runbook "
-            "and architecture document",
-            "Whitepapers, runbooks and architecture documents start from a section outline",
+            "Twelve packages: user guide, API reference, SOP, release notes, whitepaper, runbook, "
+            "architecture document, tutorial, knowledge-base article, migration guide, "
+            "incident postmortem and datasheet",
+            "All packages after the first four start from a section outline",
             "Fixed fee per project (default GBP 950, adjustable per order)",
             "Pipeline: intake → drafting → quality review → approved → delivered",
             "QA gate: nothing is delivered until a reviewer approves it",

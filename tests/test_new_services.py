@@ -194,3 +194,45 @@ def test_service_page_lists_the_new_packages(client):
     page = client.get("/services/tech-docs").text
     assert "whitepaper" in page and "runbook" in page and "architecture document" in page
     assert "Architecture Document" in client.get("/app/tech-docs").text
+
+
+def test_every_tech_doc_type_is_wired_end_to_end():
+    """Schema, outlines, labels and the app form must all list the same document types."""
+    import typing
+    from pathlib import Path
+
+    from bid_studio.schemas import TechDocCreate
+    from bid_studio.services.domain_logic import TECH_DOC_LABELS, TECH_DOC_OUTLINES
+
+    literal = set(typing.get_args(TechDocCreate.model_fields["doc_type"].annotation))
+    assert literal == set(TECH_DOC_LABELS)
+    original = {"user_guide", "api_reference", "sop", "release_notes"}
+    assert set(TECH_DOC_OUTLINES) == literal - original
+    form = (
+        Path(__file__).resolve().parent.parent
+        / "src/bid_studio/templates/app/sections/techdocs.html"
+    ).read_text()
+    for key, label in TECH_DOC_LABELS.items():
+        assert f'<option value="{key}">{label}</option>' in form, key
+
+
+@pytest.mark.parametrize(
+    ("doc_type", "heading"),
+    [
+        ("tutorial", "## Check that it works"),
+        ("knowledge_base_article", "## Common problems"),
+        ("migration_guide", "## Deprecation timeline"),
+        ("postmortem", "## Root cause"),
+        ("datasheet", "## Technical specifications"),
+    ],
+)
+def test_second_batch_of_tech_doc_types(client, doc_type, heading):
+    res = client.post(
+        "/api/v1/tech-docs",
+        json={"workspace_id": 1, "doc_type": doc_type, "title": "Billing API", "client_email": "a@b.example"},
+    )
+    assert res.status_code == 201
+    assert heading in res.json()["draft_content"]
+    # runs through the same QA gate as every other type
+    doc_id = res.json()["id"]
+    assert client.post(f"/api/v1/tech-docs/{doc_id}/deliver").status_code == 400

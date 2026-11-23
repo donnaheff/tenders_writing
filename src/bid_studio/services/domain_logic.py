@@ -569,6 +569,45 @@ TECH_DOC_OUTLINES: dict[str, list[str]] = {
         "Troubleshooting",
         "Escalation contacts",
     ],
+    "tutorial": [
+        "What you will build",
+        "Prerequisites",
+        "Step-by-step instructions (with code)",
+        "Check that it works",
+        "Next steps",
+    ],
+    "knowledge_base_article": [
+        "Summary",
+        "When this applies",
+        "Steps",
+        "Common problems",
+        "Related articles",
+    ],
+    "migration_guide": [
+        "Who needs to migrate and why",
+        "What changes (breaking and non-breaking)",
+        "Before you start",
+        "Migration steps",
+        "Verification",
+        "Rollback",
+        "Deprecation timeline",
+    ],
+    "postmortem": [
+        "Summary and impact",
+        "Timeline",
+        "Root cause",
+        "What went well",
+        "What went wrong",
+        "Action items (owner and due date)",
+    ],
+    "datasheet": [
+        "Overview",
+        "Key features",
+        "Technical specifications",
+        "Supported platforms and requirements",
+        "Compliance and certifications",
+        "Ordering and contact",
+    ],
     "architecture_doc": [
         "Context and goals",
         "Constraints and assumptions",
@@ -583,10 +622,26 @@ TECH_DOC_OUTLINES: dict[str, list[str]] = {
 }
 
 
+TECH_DOC_LABELS: dict[str, str] = {
+    "user_guide": "User Guide",
+    "api_reference": "API Reference",
+    "sop": "SOP",
+    "release_notes": "Release Notes",
+    "whitepaper": "Whitepaper",
+    "runbook": "Runbook",
+    "architecture_doc": "Architecture Document",
+    "tutorial": "Tutorial / Quickstart",
+    "knowledge_base_article": "Knowledge Base Article",
+    "migration_guide": "Migration Guide",
+    "postmortem": "Incident Postmortem",
+    "datasheet": "Datasheet",
+}
+
+
 def tech_doc_starter(doc_type: str, title: str) -> str:
     """Starter draft for a new technical document project.
 
-    The three long-form types get a section outline so writers start from structure;
+    Every type except the original four gets a section outline so writers start from structure;
     the original four keep their one-line placeholder.
     """
     outline = TECH_DOC_OUTLINES.get(doc_type)

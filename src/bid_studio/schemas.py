@@ -148,6 +148,11 @@ class TechDocCreate(BaseModel):
         "whitepaper",
         "runbook",
         "architecture_doc",
+        "tutorial",
+        "knowledge_base_article",
+        "migration_guide",
+        "postmortem",
+        "datasheet",
     ]
     title: str
     client_email: str
