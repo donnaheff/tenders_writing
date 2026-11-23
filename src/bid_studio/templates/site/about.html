@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}About — {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="hero" style="padding-bottom:8px">
+  <div class="wrap">
+    <div class="eyebrow">About</div>
+    <h1>Bid writing, with a human in the loop.</h1>
+    <p class="lead">{{ brand_name }} brings tenders, grants, compliance and bid intelligence into one workspace, so teams reuse what they know and submit work that has been reviewed.</p>
+  </div>
+</section>
+<section class="block">
+  <div class="wrap">
+    <div class="grid">
+      <div class="card"><h3>Drafts are fast, approval is human</h3><p>Drafting and matching are automated. Quality-queue approval and email delivery are always a person's decision, including for AI clients that connect over MCP.</p></div>
+      <div class="card"><h3>Client isolation by design</h3><p>Workspaces are isolated, members have explicit roles, and access reviews are timestamped, which matters for consultancies serving several clients.</p></div>
+      <div class="card"><h3>Open to your tools</h3><p>Everything in the app is a REST endpoint, and the main workflows are MCP tools for Claude, ChatGPT/OpenAI, Gemini and Cursor.</p></div>
+    </div>
+  </div>
+</section>
+<section class="block band">
+  <div class="wrap">
+    <h2>Who it is for</h2>
+    <div class="grid" style="margin-top:12px">
+      <div class="card"><h3>Bid and grant teams</h3><p>Write against criteria, reuse verified answers, and score before you submit.</p></div>
+      <div class="card"><h3>Bid consultancies</h3><p>White-label workspaces per client, with isolation and access reviews.</p></div>
+      <div class="card"><h3>Public-sector buyers</h3><p>Draft clearer tenders and check criteria weights before publishing.</p></div>
+      <div class="card"><h3>Trainers and learners</h3><p>Practise on a realistic municipal tender pack in cohorts.</p></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

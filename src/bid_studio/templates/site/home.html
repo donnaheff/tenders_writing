@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ brand_name }} — Tender, grant & compliance writing{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Bid writing platform</div>
+    <h1>Win more bids with drafts that are scored before you submit.</h1>
+    <p class="lead">One workspace for tenders, grant proposals, compliance packs and bid intelligence — with human quality review on every deliverable, and an API and MCP server so your AI tools can work inside it.</p>
+    <div class="actions">
+      <a class="btn" href="/app">Open the app</a>
+      <a class="btn ghost" href="/services">Explore services</a>
+      <a class="btn ghost" href="/developers">For developers</a>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Everything a bid team writes, in one place</h2>
+    <p class="sub">{{ all_services|length }} services across five areas. Each one has its own page in the app and its own API.</p>
+    <div class="grid">
+      {% for s in all_services[:6] %}
+      <a class="card" href="/services/{{ s.slug }}"><span class="tag">{{ s.group }}</span>
+        <h3 style="margin-top:8px">{{ s.title }}</h3><p>{{ s.tagline }}</p></a>
+      {% endfor %}
+    </div>
+    <p style="margin-top:18px"><a href="/services">See all {{ all_services|length }} services →</a></p>
+  </div>
+</section>
+
+<section class="block band">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="sub">The same loop for every deliverable.</p>
+    <ol class="steps">
+      <li><strong>Find the opportunity.</strong> Search tenders, awarded notices and funding calls in the live feed.</li>
+      <li><strong>Draft against the criteria.</strong> Proposals, packs and statements are built around each evaluation criterion and its weight.</li>
+      <li><strong>Reuse what you already know.</strong> Verified answers and evidence are matched automatically.</li>
+      <li><strong>Review before it ships.</strong> Every deliverable passes a human quality queue. Approval is never automatic.</li>
+    </ol>
+  </div>
+</section>
+
+{% if latest %}
+<section class="block">
+  <div class="wrap">
+    <h2>From the live feed</h2>
+    <p class="sub">The most recent shared notices in the platform.</p>
+    <div class="grid">
+      {% for n in latest %}
+      <div class="card"><span class="tag">{{ n.notice_type|replace('_',' ') }}</span>
+        <h3 style="margin-top:8px">{{ n.title }}</h3>
+        <p>{{ n.funder_or_buyer }} · {{ n.currency }} {{ '{:,.0f}'.format(n.contract_value) }}</p></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="block">
+  <div class="wrap two">
+    <div>
+      <div class="eyebrow">For developers</div>
+      <h2>Connect your AI tools</h2>
+      <p class="sub" style="margin:0 0 16px">A Model Context Protocol server works with Claude, ChatGPT/OpenAI, Gemini and Cursor. Prefer plain function calling or REST? Those are covered too.</p>
+      <a class="btn" href="/developers">Developer docs</a>
+    </div>
+    <pre><code>claude mcp add --transport http bid-studio \
+  {{ site_url }}/mcp</code></pre>
+  </div>
+</section>
+{% endblock %}

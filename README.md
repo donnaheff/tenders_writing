@@ -4,6 +4,23 @@ Bid Studio is a Python + FastAPI platform for tender writing, grant and funding 
 
 ---
 
+## Website
+
+Bid Studio is a server-rendered multi-page site (Jinja2, no build step):
+
+| Area | Pages |
+| --- | --- |
+| Marketing | `/` home, `/services`, `/services/{slug}` (15 service pages), `/pricing`, `/about`, `/contact`, `/developers` |
+| App (one page per section) | `/app` overview, `/app/{slug}` for each service, e.g. `/app/grants`, `/app/tech-docs`, `/app/white-label` |
+| SEO | `/sitemap.xml`, `/robots.txt`, branded 404 |
+
+- `src/bid_studio/catalog.py` is the single source of truth for services, app navigation and the sitemap. Add a service there and a page, nav entry and sitemap entry appear.
+- App pages share `static/app.js`; each page declares the datasets it needs (`PAGE_NEEDS`) so only those are fetched.
+- The workspace is chosen with `?workspace_id=` and is kept in every app link. Branding follows the workspace.
+- The contact form opens a pre-filled email; it does not store messages.
+
+---
+
 ## MCP Server & Developers Section
 
 Bid Studio ships a [Model Context Protocol](https://modelcontextprotocol.io) server so Claude, ChatGPT / OpenAI (Responses API, Agents SDK), Gemini, Cursor, VS Code and any other MCP client can search opportunities, draft grant proposals, run compliance matching, and generate intelligence reports.

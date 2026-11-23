@@ -7,19 +7,19 @@ definitions are generated from the same tool list, so they can never drift apart
 from __future__ import annotations
 
 import hmac
-from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, Header, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
 from bid_studio.config import settings
+from bid_studio.database import get_db
 from bid_studio.mcp_server import INSTRUCTIONS, SERVER_NAME, SERVER_VERSION, build_server
+from bid_studio.site import render
 
 PROVIDERS = ("openai", "openai-chat", "anthropic", "gemini")
 
-templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 router = APIRouter(tags=["developers"])
 
 
@@ -155,23 +155,15 @@ def connection_snippets(url: str) -> list[dict[str, str]]:
 
 
 @router.get("/developers", response_class=HTMLResponse, include_in_schema=False)
-async def developers_page(request: Request):
+async def developers_page(request: Request, db: Session = Depends(get_db)):
     url = base_url(request)
     tools = await tool_catalog()
-    return templates.TemplateResponse(
-        request=request,
-        name="developers.html",
-        context={
-            "app_name": settings.app_name,
-            "base_url": url,
-            "mcp_url": f"{url}/mcp",
-            "auth_required": bool(settings.mcp_api_key),
-            "tools": tools,
-            "snippets": connection_snippets(url),
-            "providers": PROVIDERS,
-            "instructions": INSTRUCTIONS,
-            "version": SERVER_VERSION,
-        },
+    return render(
+        request, "developers.html", db, active="developers",
+        app_name=settings.app_name, base_url=url, mcp_url=f"{url}/mcp",
+        auth_required=bool(settings.mcp_api_key), tools=tools,
+        snippets=connection_snippets(url), providers=PROVIDERS,
+        instructions=INSTRUCTIONS, version=SERVER_VERSION,
     )
 
 

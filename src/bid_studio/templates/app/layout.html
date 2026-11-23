@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ page_title }} — {{ brand_name }}</title>
+  <meta name="robots" content="noindex" />
+  <style>:root { --primary: {{ primary_color }}; --accent: {{ accent_color }}; }</style>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1 id="brandHeader"><a href="/" style="color:#fff;text-decoration:none">{{ brand_name }}</a></h1>
+      <div class="sub">Unified Tender, Grant Proposal, Compliance, Intelligence &amp; Public-Sector Bid Studio</div>
+    </div>
+    <div class="ws-bar">
+      <label for="wsSelect">Workspace:</label>
+      <select id="wsSelect" onchange="switchWorkspace()"><option value="{{ workspace_id }}">…</option></select>
+      <a href="/services" class="hdr-link">Services</a>
+      <a href="/developers" class="hdr-link">Developers</a>
+      <a href="/docs" class="hdr-link">API Docs</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav id="sidebar" aria-label="App sections">
+      <a href="/app{{ ws_query }}" class="{{ 'active' if current == 'overview' }}">Overview, Feed &amp; QA</a>
+      {% for group, items in groups %}
+      <div class="nav-group">{{ group }}</div>
+      {% for s in items %}
+      <a href="/app/{{ s.slug }}{{ ws_query }}" class="{{ 'active' if current == s.slug }}">{{ s.nav_label }}</a>
+      {% endfor %}
+      {% endfor %}
+    </nav>
+    <main>
+      <h2 class="page-title">{{ page_title }}</h2>
+      {% if intro %}<p class="muted" style="margin-top:-4px">{{ intro }}</p>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script>
+    window.WS_ID = {{ workspace_id }};
+    window.PAGE_NEEDS = {{ needs | tojson }};
+  </script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

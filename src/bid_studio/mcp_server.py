@@ -433,6 +433,20 @@ class BearerKeyMiddleware:
         await self.app(scope, receive, send)
 
 
+class McpGateway:
+    """Routes ``/mcp`` to the MCP app and everything else to the wrapped FastAPI app."""
+
+    def __init__(self, app: Any, mcp_app: Any) -> None:
+        self.app = app
+        self.mcp_app = mcp_app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] == "http" and (scope["path"] == "/mcp" or scope["path"].startswith("/mcp/")):
+            await self.mcp_app(scope, receive, send)
+        else:
+            await self.app(scope, receive, send)
+
+
 def build_http_app(mcp: MCPServer) -> Any:
     """Stateless streamable-HTTP ASGI app serving MCP at ``/mcp`` (serverless friendly)."""
     return mcp.streamable_http_app(
