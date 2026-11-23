@@ -7,6 +7,7 @@
   <div class="wrap">
     <h1 style="max-width:24ch">{{ service.title }}</h1>
     <p class="lead">{{ service.summary }}</p>
+    {% if service.notice %}<div class="card" role="note" style="border-left:4px solid var(--accent);max-width:70ch;margin:0 0 20px"><strong>{{ 'Lawyer-only service' if service.lawyer_required else 'Note' }}.</strong> {{ service.notice }}</div>{% endif %}
     <div class="actions">
       <a class="btn" href="/app/{{ service.slug }}">Open in the app</a>
       <a class="btn ghost" href="/contact">Talk to us</a>

@@ -24,7 +24,11 @@ from bid_studio.schemas import (
     TechDocCreate,
     TechDocReviewInput,
 )
-from bid_studio.services.domain_logic import match_security_questionnaire, tech_doc_starter
+from bid_studio.services.domain_logic import (
+    BUSINESS_DOC_LABELS,
+    match_security_questionnaire,
+    tech_doc_starter,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["service-lines"])
 
@@ -34,7 +38,10 @@ router = APIRouter(prefix="/api/v1", tags=["service-lines"])
 def list_tech_docs(workspace_id: int = 1, db: Session = Depends(get_db)):
     return (
         db.query(TechDocProject)
-        .filter(TechDocProject.workspace_id == workspace_id)
+        .filter(
+            TechDocProject.workspace_id == workspace_id,
+            TechDocProject.doc_type.not_in(list(BUSINESS_DOC_LABELS)),
+        )
         .order_by(TechDocProject.id.desc())
         .all()
     )

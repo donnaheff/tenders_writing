@@ -109,11 +109,13 @@ def contact(request: Request, db: Session = Depends(get_db)):
 
 def _app_page(
     request: Request, db: Session, workspace_id: int | None, section_id: str, title: str,
-    needs: list[str], current: str, intro: str = "",
+    needs: list[str], current: str, intro: str = "", notice: str = "",
+    lawyer_required: bool = False,
 ):
     return render(
         request, "app/page.html", db, workspace_id=workspace_id,
         section_id=section_id, page_title=title, needs=needs, current=current, intro=intro,
+        notice=notice, lawyer_required=lawyer_required,
         ws_query=f"?workspace_id={workspace_id}" if workspace_id else "",
     )
 
@@ -135,7 +137,7 @@ def app_section(
         raise HTTPException(status_code=404, detail="Page not found")
     return _app_page(
         request, db, workspace_id, service.app_id, service.title, service.needs, slug,
-        service.summary,
+        service.summary, notice=service.notice, lawyer_required=service.lawyer_required,
     )
 
 

@@ -622,6 +622,101 @@ TECH_DOC_OUTLINES: dict[str, list[str]] = {
 }
 
 
+LEGAL_REVIEW_NOTE = (
+    "> Binding terms (liability, payment, termination, IP) must be written or reviewed by a "
+    "lawyer. See Legal Contracts."
+)
+
+BUSINESS_DOC_OUTLINES: dict[str, list[str]] = {
+    "business_proposal": [
+        "Executive summary",
+        "Our understanding of your needs",
+        "Proposed solution",
+        "Scope and deliverables",
+        "Timeline",
+        "Team and experience",
+        "Pricing",
+        "Next steps",
+    ],
+    "business_plan": [
+        "Executive summary",
+        "Company description",
+        "Market analysis",
+        "Products and services",
+        "Marketing and sales strategy",
+        "Operations plan",
+        "Management and team",
+        "Financial plan (figures to be supplied by the client)",
+        "Funding request",
+        "Risks and mitigations",
+    ],
+    "executive_summary": ["The opportunity", "Our solution", "Market", "Traction", "Team", "The ask"],
+    "company_profile": [
+        "Who we are",
+        "What we do",
+        "Leadership",
+        "Track record",
+        "Accreditations and credentials",
+        "Contact",
+    ],
+    "concept_note": [
+        "Background and need",
+        "Objectives",
+        "Proposed activities",
+        "Expected outcomes",
+        "Budget summary",
+        "Organisational capacity",
+    ],
+    "investor_one_pager": [
+        "Problem",
+        "Solution",
+        "Market",
+        "Business model",
+        "Traction",
+        "Team",
+        "Funding ask",
+    ],
+    "statement_of_work": [
+        "Purpose",
+        "Scope of work",
+        "Deliverables and acceptance criteria",
+        "Timeline and milestones",
+        "Fees and payment schedule",
+        "Assumptions and dependencies",
+        "Change control",
+    ],
+    "quotation": [
+        "Scope covered by this quotation",
+        "Itemised prices",
+        "Assumptions and exclusions",
+        "Validity period",
+        "Payment terms",
+    ],
+}
+
+BUSINESS_DOC_LABELS: dict[str, str] = {
+    "business_proposal": "Business Proposal",
+    "business_plan": "Business Plan",
+    "executive_summary": "Executive Summary",
+    "company_profile": "Company Profile",
+    "concept_note": "Project Concept Note",
+    "investor_one_pager": "Investor One-Pager",
+    "statement_of_work": "Statement of Work",
+    "quotation": "Quotation",
+}
+
+# Commercial documents that read like contracts carry a pointer to the legal service.
+LEGAL_ADJACENT_BUSINESS_TYPES = {"statement_of_work", "quotation", "business_proposal"}
+
+
+def business_doc_starter(doc_type: str, title: str) -> str:
+    sections = "\n\n".join(
+        f"## {name}\n\n_To be written._" for name in BUSINESS_DOC_OUTLINES[doc_type]
+    )
+    note = f"{LEGAL_REVIEW_NOTE}\n\n" if doc_type in LEGAL_ADJACENT_BUSINESS_TYPES else ""
+    return f"# {title}\n\n{note}{sections}\n"
+
+
 TECH_DOC_LABELS: dict[str, str] = {
     "user_guide": "User Guide",
     "api_reference": "API Reference",

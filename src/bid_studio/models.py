@@ -178,6 +178,31 @@ class TechDocProject(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class LegalContractMatter(Base):
+    """A legal contract engagement. Content is written and signed off by a lawyer only."""
+
+    __tablename__ = "legal_contract_matters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    contract_type: Mapped[str] = mapped_column(String(60))
+    title: Mapped[str] = mapped_column(String(220))
+    client_email: Mapped[str] = mapped_column(String(180))
+    jurisdiction: Mapped[str] = mapped_column(String(120))
+    instructions: Mapped[str] = mapped_column(Text, default="")
+    quoted_fee: Mapped[float | None] = mapped_column(Float, nullable=True)
+    currency: Mapped[str] = mapped_column(String(10), default="GBP")
+    status: Mapped[str] = mapped_column(String(40), default="intake")
+    assigned_lawyer_name: Mapped[str] = mapped_column(String(180), default="")
+    assigned_lawyer_ref: Mapped[str] = mapped_column(String(120), default="")
+    draft_content: Mapped[str] = mapped_column(Text, default="")
+    signed_off_by: Mapped[str] = mapped_column(String(180), default="")
+    signoff_notes: Mapped[str] = mapped_column(Text, default="")
+    signed_off_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class CompliancePack(Base):
     __tablename__ = "compliance_packs"
 

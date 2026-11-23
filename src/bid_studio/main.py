@@ -20,6 +20,7 @@ from bid_studio.mcp_server import (
 from bid_studio.routers import (
     audiences,
     bid_enhancements,
+    business,
     core,
     grants,
     intelligence,
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(bid_enhancements.router)
     app.include_router(intelligence.router)
     app.include_router(audiences.router)
+    app.include_router(business.router)
     app.include_router(developers_router)
 
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

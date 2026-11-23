@@ -306,3 +306,63 @@ class BuyerTenderDraftCreate(BaseModel):
     currency: str = "GBP"
     specification_text: str
     evaluation_criteria: list[dict[str, Any]] = Field(default_factory=list)
+
+
+BusinessDocType = Literal[
+    "business_proposal",
+    "business_plan",
+    "executive_summary",
+    "company_profile",
+    "concept_note",
+    "investor_one_pager",
+    "statement_of_work",
+    "quotation",
+]
+
+
+class BusinessDocCreate(BaseModel):
+    workspace_id: int = 1
+    doc_type: BusinessDocType
+    title: str = Field(min_length=2, max_length=220)
+    client_email: str
+    # Deliberately no default: Bid Studio does not assume a price for business documents.
+    fixed_fee: float = Field(ge=0)
+    currency: str = "GBP"
+    draft_content: str = ""
+
+
+LegalContractType = Literal[
+    "nda",
+    "service_agreement",
+    "employment_contract",
+    "terms_of_service",
+    "shareholder_agreement",
+    "other",
+]
+
+
+class LegalMatterCreate(BaseModel):
+    workspace_id: int = 1
+    contract_type: LegalContractType
+    title: str = Field(min_length=2, max_length=220)
+    client_email: str
+    jurisdiction: str = Field(min_length=2, max_length=120)
+    instructions: str = ""
+    quoted_fee: float | None = Field(default=None, ge=0)
+    currency: str = "GBP"
+
+
+class LegalAssignLawyer(BaseModel):
+    lawyer_name: str = Field(min_length=2, max_length=180)
+    registration_ref: str = Field(min_length=2, max_length=120)
+
+
+class LegalDraftUpdate(BaseModel):
+    lawyer_name: str
+    draft_content: str = Field(min_length=1)
+
+
+class LegalSignOff(BaseModel):
+    lawyer_name: str
+    confirm_qualified_and_reviewed: bool
+    notes: str = ""

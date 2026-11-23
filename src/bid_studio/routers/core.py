@@ -333,7 +333,7 @@ def review_quality_queue_item(
                 proposal.status = "approved"
             elif payload.status == "changes_requested":
                 proposal.status = "draft"
-    elif item.item_type == "tech_doc" and item.reference_id:
+    elif item.item_type in {"tech_doc", "business_doc"} and item.reference_id:
         doc = db.get(TechDocProject, item.reference_id)
         if doc:
             if payload.status == "approved":

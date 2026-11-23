@@ -74,7 +74,7 @@ let noticeOffset = 0;
       if (q) noticeParams.set("q", q);
       if (nType) noticeParams.set("notice_type", nType);
 
-      const [summary, noticePage, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, pricingTemplates, matrices, svs, alertSubs, intelReports, frameworks, cohorts, enrolments, buyerDrafts, members] = await Promise.all([
+      const [summary, noticePage, grants, answers, evidence, orders, queue, deliveries, proposals, techdocs, compliance, assets, reviewers, reviews, debriefs, clarifs, pricingTemplates, matrices, svs, alertSubs, intelReports, frameworks, cohorts, enrolments, buyerDrafts, members, businessDocs, legalMatters] = await Promise.all([
         need("summary") ? api(`/api/v1/workspaces/${currentWsId}/summary`) : Promise.resolve({ total_order_revenue: 0 }),
         need("notices") ? apiNotices(`/api/v1/notices?${noticeParams.toString()}`) : Promise.resolve({ items: [], total: 0 }),
         need("grants") ? api(`/api/v1/grants/calls?workspace_id=${currentWsId}`) : Promise.resolve([]),
@@ -100,7 +100,9 @@ let noticeOffset = 0;
         need("cohorts") ? api("/api/v1/training/cohorts") : Promise.resolve([]),
         need("enrolments") ? api(`/api/v1/training/enrolments?workspace_id=${currentWsId}`) : Promise.resolve([]),
         need("buyerDrafts") ? api(`/api/v1/public-sector/drafts?workspace_id=${currentWsId}`) : Promise.resolve([]),
-        need("members") ? api(`/api/v1/workspaces/${currentWsId}/members`) : Promise.resolve([])
+        need("members") ? api(`/api/v1/workspaces/${currentWsId}/members`) : Promise.resolve([]),
+        need("businessDocs") ? api(`/api/v1/business-docs?workspace_id=${currentWsId}`) : Promise.resolve([]),
+        need("legalMatters") ? api(`/api/v1/legal-contracts?workspace_id=${currentWsId}`) : Promise.resolve({ items: [] })
       ]);
 
       const pmSel = E("pmTemplate");
@@ -285,6 +287,35 @@ let noticeOffset = 0;
       E("membersList").innerHTML = members.map(m => `<div class="row-item">
         <strong>${m.full_name}</strong> (${m.email}) — <span class="badge">${m.role}</span> | Status: ${m.status}
       </div>`).join("") || `<div class="muted">No members added to this workspace yet.</div>`;
+
+      E("businessDocsList").innerHTML = businessDocs.map(d => `<div class="row-item">
+        <strong>${esc(d.title)}</strong> (${esc(d.doc_type.replace(/_/g, " "))}, ${esc(d.currency)} ${d.fixed_fee}) — Stage: <span class="badge">${esc(d.pipeline_stage)}</span>
+        <div class="inline-actions">
+          <button class="small secondary" onclick="submitBusinessDocQA(${d.id})">1. Submit to QA</button>
+          <button class="small secondary" onclick="approveBusinessDocQA(${d.id})">2. Approve QA</button>
+          <button class="small" onclick="deliverBusinessDoc(${d.id})">3. Deliver Email</button>
+          <button class="small secondary" onclick="exportBusinessDoc(${d.id})">Export Markdown</button>
+        </div>
+      </div>`).join("") || `<div class="muted">No business documents yet.</div>`;
+
+      E("legalList").innerHTML = legalMatters.items.map(m => {
+        const signed = m.status === "lawyer_signed_off" || m.status === "delivered";
+        return `<div class="row-item">
+        <strong>${esc(m.title)}</strong> (${esc(m.contract_type.replace(/_/g, " "))}, ${esc(m.jurisdiction)}) — <span class="badge">${esc(m.status)}</span>
+        <div class="muted">Lawyer: ${m.assigned_lawyer_name ? esc(m.assigned_lawyer_name) + " (" + esc(m.assigned_lawyer_ref) + ")" : "not yet assigned"}${m.signed_off_at ? " | Signed off " + esc(m.signed_off_at) : ""}</div>
+        <div class="muted">Instructions: ${esc(m.instructions) || "-"}</div>
+        <div class="inline-actions">
+          ${!m.assigned_lawyer_name ? `<button class="small" onclick="assignLawyer(${m.id})">Assign lawyer</button>` : ""}
+          ${m.assigned_lawyer_name && m.status !== "delivered" ? `<button class="small secondary" onclick="toggleLegalDraft(${m.id})">Lawyer's draft</button><button class="small secondary" onclick="signOffLegal(${m.id})">Lawyer sign-off</button>` : ""}
+          ${m.status === "lawyer_signed_off" ? `<button class="small" onclick="deliverLegal(${m.id})">Deliver signed contract</button>` : ""}
+          ${signed ? `<button class="small secondary" onclick="exportLegal(${m.id})">Export Markdown</button>` : ""}
+        </div>
+        <div id="lgDraft-${m.id}" style="display:none; margin-top:8px;">
+          <textarea id="lgText-${m.id}" rows="8">${esc(m.draft_content)}</textarea>
+          <button class="small" onclick="saveLegalDraft(${m.id})">Save lawyer's draft (voids any earlier sign-off)</button>
+        </div>
+      </div>`;
+      }).join("") || `<div class="muted">No legal matters yet.</div>`;
     }
 
     async function addAnswerItem() {
@@ -312,12 +343,12 @@ let noticeOffset = 0;
     }
 
     function renderMarkdownExport(anchorId, previewId, filename, markdown) {
-      let wrap = E(previewId);
+      let wrap = document.getElementById(previewId); // real lookup: E() never returns null
       if (!wrap) {
         wrap = document.createElement("div");
         wrap.id = previewId;
         wrap.style.marginTop = "10px";
-        E(anchorId).after(wrap);
+        document.getElementById(anchorId).after(wrap);
       }
       wrap.innerHTML = `<div class="inline-actions" style="margin-bottom:6px;">
         <button class="small secondary" id="${previewId}-copy">Copy Markdown</button>
@@ -724,3 +755,73 @@ let noticeOffset = 0;
 
   
 document.addEventListener("DOMContentLoaded", () => { loadWorkspaces().then(refreshAll); });
+
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function createBusinessDoc() {
+  const fee = E("bdFee").value;
+  if (fee === "" || Number(fee) < 0) { alert("Enter a fixed fee (0 or more). There is no default price."); return; }
+  await api("/api/v1/business-docs", "POST", {
+    workspace_id: currentWsId,
+    doc_type: E("bdType").value,
+    title: E("bdTitle").value,
+    client_email: E("bdEmail").value,
+    fixed_fee: Number(fee)
+  });
+  refreshAll();
+}
+async function submitBusinessDocQA(id) { await api(`/api/v1/business-docs/${id}/submit-quality`, "POST"); refreshAll(); }
+async function approveBusinessDocQA(id) {
+  await api(`/api/v1/business-docs/${id}/review`, "POST", { approved: true, reviewer_notes: "Approved in QA." });
+  refreshAll();
+}
+async function deliverBusinessDoc(id) { await api(`/api/v1/business-docs/${id}/deliver`, "POST"); refreshAll(); }
+async function exportBusinessDoc(id) {
+  const data = await api(`/api/v1/business-docs/${id}/export`);
+  renderMarkdownExport("businessDocsList", "bdExportPreview", `business-doc-${id}.md`, data.markdown);
+}
+
+async function createLegalMatter() {
+  const fee = E("lgFee").value;
+  await api("/api/v1/legal-contracts", "POST", {
+    workspace_id: currentWsId,
+    contract_type: E("lgType").value,
+    title: E("lgTitle").value,
+    client_email: E("lgEmail").value,
+    jurisdiction: E("lgJurisdiction").value,
+    instructions: E("lgInstructions").value,
+    quoted_fee: fee === "" ? null : Number(fee)
+  });
+  refreshAll();
+}
+// The prompts below stand in for lawyer accounts until the app has real user roles; the API
+// records what is entered but cannot verify a lawyer's identity or registration.
+async function assignLawyer(id) {
+  const name = prompt("Lawyer's full name");
+  const ref = name && prompt("Lawyer's registration / practising certificate reference");
+  if (!name || !ref) return;
+  await api(`/api/v1/legal-contracts/${id}/assign-lawyer`, "POST", { lawyer_name: name, registration_ref: ref });
+  refreshAll();
+}
+function toggleLegalDraft(id) {
+  const el = document.getElementById(`lgDraft-${id}`);
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+async function saveLegalDraft(id) {
+  const name = prompt("Your name (must match the assigned lawyer)");
+  if (!name) return;
+  await api(`/api/v1/legal-contracts/${id}/draft`, "PUT", { lawyer_name: name, draft_content: document.getElementById(`lgText-${id}`).value });
+  refreshAll();
+}
+async function signOffLegal(id) {
+  const name = prompt("Your name (must match the assigned lawyer)");
+  if (!name) return;
+  const ok = confirm("I confirm I am qualified to practise in this contract's jurisdiction and have reviewed this contract.");
+  await api(`/api/v1/legal-contracts/${id}/sign-off`, "POST", { lawyer_name: name, confirm_qualified_and_reviewed: ok });
+  refreshAll();
+}
+async function deliverLegal(id) { await api(`/api/v1/legal-contracts/${id}/deliver`, "POST"); refreshAll(); }
+async function exportLegal(id) {
+  const data = await api(`/api/v1/legal-contracts/${id}/export`);
+  renderMarkdownExport("legalList", "lgExportPreview", `legal-contract-${id}.md`, data.markdown);
+}

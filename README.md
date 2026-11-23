@@ -57,6 +57,10 @@ Settings: `MCP_API_KEY`, `PUBLIC_BASE_URL` (used in docs snippets), `API_BASE_UR
 3. **CV, Capability Statement & Case Study Writing (`/api/v1/bidder-assets`)** — Buyer-formatted team CVs, capability statements, and case studies with one-click promotion to the **Evidence Library**.
 4. **Bid Review Marketplace (`/api/v1/marketplace`)** — Independent reviewer directory, criterion-by-criterion pre-submission scoring, and integration with Bid Studio's Quality Queue.
 
+### Business & Legal Documents
+- **Business Documents (`/api/v1/business-docs`)** — Fixed-fee business proposals, business plans, executive summaries, company profiles, project concept notes, investor one-pagers, statements of work and quotations. Same pipeline and QA gate as technical documents, each type starts from a section outline, and there is no default price (the fee is required). Statements of work, quotations and proposals point to Legal Contracts for binding terms.
+- **Legal Contracts — lawyer-only (`/api/v1/legal-contracts`)** — Bid Studio never drafts contract text. A matter records the client's instructions and jurisdiction, a lawyer is assigned (name and registration reference recorded), only that lawyer can write the draft and sign it off, and export and delivery are blocked until sign-off. Any edit after sign-off voids it. These endpoints are deliberately not exposed through the MCP server or the function-calling schemas. Limits: the API records, but cannot verify, a lawyer's identity or registration, so staff must verify credentials before assigning, and real enforcement needs user accounts and roles (for example via the suite login).
+
 ### Bid Strategy & Response
 5. **Win/Loss Debrief Service (`/api/v1/debriefs`)** — Outcome tracking (`won`, `lost`, `withdrawn`), buyer feedback request letters, internal-vs-buyer criterion comparison, and prioritized next-bid fixes.
 6. **Clarification Question Service (`/api/v1/clarifications`)** — Pack reader that detects ambiguous phrases (`TBD`, `reasonable`, `etc.`, unstated weightings) and drafts prioritized clarification questions before deadline.
