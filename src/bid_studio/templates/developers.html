@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developers — {{ app_name }}</title>
+  <style>
+    :root {
+      --primary: #0f172a; --accent: #2563eb; --bg: #f8fafc; --card: #fff;
+      --border: #e2e8f0; --text: #0f172a; --muted: #475569; --code-bg: #0f172a; --code-fg: #e2e8f0;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0b1120; --card: #111a2e; --border: #1e2a44; --text: #e2e8f0; --muted: #94a3b8; --code-bg: #060b16; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.55; }
+    header { background: var(--primary); color: #fff; padding: 14px 24px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+    header a { color: #cbd5e1; text-decoration: none; margin-left: 16px; font-size: .9rem; }
+    header a:hover { color: #fff; }
+    header h1 { margin: 0; font-size: 1.1rem; }
+    main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
+    h2 { margin: 40px 0 8px; font-size: 1.3rem; }
+    h3 { margin: 20px 0 6px; font-size: 1rem; }
+    p, li { color: var(--muted); }
+    code { background: rgba(100,116,139,.18); padding: 1px 6px; border-radius: 4px; font-size: .88em; }
+    pre { background: var(--code-bg); color: var(--code-fg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; font-size: .84rem; margin: 8px 0; }
+    pre code { background: none; padding: 0; color: inherit; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin: 12px 0; }
+    .hero { padding: 8px 0 0; }
+    .hero p { font-size: 1.05rem; max-width: 70ch; }
+    .badge { display: inline-block; font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+    .badge.write { color: #b45309; border-color: #f59e0b66; }
+    .badge.read { color: #047857; border-color: #10b98166; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .tabs button { font: inherit; font-size: .85rem; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; }
+    .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .panel[hidden] { display: none; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    input[type=search] { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: inherit; margin: 8px 0; }
+    details summary { cursor: pointer; color: var(--accent); font-size: .85rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    nav.toc a { margin-right: 14px; color: var(--accent); text-decoration: none; font-size: .9rem; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>{{ app_name }} <span style="opacity:.7">/ Developers</span></h1>
+  <div><a href="/">Dashboard</a><a href="/docs">REST API (Swagger)</a><a href="/redoc">ReDoc</a><a href="/openapi.json">OpenAPI JSON</a></div>
+</header>
+<main>
+  <section class="hero">
+    <h2 style="margin-top:16px">Build on Bid Studio</h2>
+    <p>Connect Claude, ChatGPT/OpenAI, Gemini, Cursor and any other AI client to your bids through a
+      <strong>Model Context Protocol (MCP)</strong> server, or call the REST API directly.
+      {{ tools|length }} tools, one source of truth, v{{ version }}.</p>
+    <nav class="toc">
+      <a href="#quickstart">Quickstart</a><a href="#connect">Connect an AI</a><a href="#tools">Tools</a>
+      <a href="#function-calling">Function calling</a><a href="#rest">REST API</a><a href="#auth">Auth &amp; safety</a>
+    </nav>
+  </section>
+
+  <h2 id="quickstart">Quickstart</h2>
+  <div class="card">
+    <p>MCP endpoint (Streamable HTTP, stateless): <code>{{ mcp_url }}</code></p>
+    <p>Authentication: {% if auth_required %}<strong>API key required.</strong> Send <code>Authorization: Bearer &lt;key&gt;</code>.{% else %}<strong>No key configured</strong> — open access. Set <code>MCP_API_KEY</code> before exposing this publicly.{% endif %}</p>
+    <p>Check it works:</p>
+<pre><code>curl -s {{ mcp_url }} \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  {% if auth_required %}-H "Authorization: Bearer $BID_STUDIO_API_KEY" \
+  {% endif %}-d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</code></pre>
+    <p>Run it locally over stdio (no server needed):</p>
+<pre><code>pip install -e .
+bid-studio-mcp                       # stdio, uses the local database
+BID_STUDIO_API_URL={{ base_url }} bid-studio-mcp   # stdio, proxying a remote instance</code></pre>
+  </div>
+
+  <h2 id="connect">Connect an AI</h2>
+  <p>Pick your client and copy the config. Everything below uses the same server and the same tools.</p>
+  <div class="tabs" role="tablist">
+    {% for s in snippets %}<button role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}" data-tab="{{ s.id }}">{{ s.name }}</button>{% endfor %}
+  </div>
+  {% for s in snippets %}
+  <div class="card panel" id="panel-{{ s.id }}" {% if not loop.first %}hidden{% endif %}>
+    <p>{{ s.note }}</p>
+    <pre><code>{{ s.code }}</code></pre>
+  </div>
+  {% endfor %}
+
+  <h2 id="tools">Tools</h2>
+  <p>Read tools never change data. Write tools create drafts only — quality approval and email delivery stay human-only on purpose, so an AI cannot approve its own work.</p>
+  <input type="search" id="tool-filter" placeholder="Filter {{ tools|length }} tools…" />
+  <div class="card" style="padding:0;overflow-x:auto">
+    <table id="tool-table">
+      <thead><tr><th>Tool</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+      {% for t in tools %}
+        <tr>
+          <td><code>{{ t.name }}</code></td>
+          <td><span class="badge {{ 'read' if t.read_only else 'write' }}">{{ 'read' if t.read_only else 'write' }}</span></td>
+          <td>{{ t.description }}
+            <details><summary>input schema</summary><pre><code>{{ t.input_schema | tojson(indent=2) }}</code></pre></details></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p>Machine-readable: <a href="/api/v1/developers/mcp"><code>GET /api/v1/developers/mcp</code></a>. Server instructions sent to the model: <em>{{ instructions }}</em></p>
+
+  <h2 id="function-calling">Function calling (no MCP client)</h2>
+  <p>Using a provider's native tool calling instead of MCP? Fetch ready-made tool definitions generated from the same tools, then run the model's tool calls through the executor endpoint.</p>
+  <div class="grid">
+    {% for p in providers %}
+    <div class="card"><strong>{{ p }}</strong><br><a href="/api/v1/developers/tools/{{ p }}"><code>GET /api/v1/developers/tools/{{ p }}</code></a></div>
+    {% endfor %}
+  </div>
+<pre><code># 1. give the model the tool definitions (here: Anthropic format)
+tools = requests.get("{{ base_url }}/api/v1/developers/tools/anthropic").json()
+
+# 2. when the model emits a tool call, execute it
+requests.post(f"{{ base_url }}/api/v1/developers/tools/{name}/call",
+              json=arguments,
+              headers={"Authorization": f"Bearer {BID_STUDIO_API_KEY}"})</code></pre>
+
+  <h2 id="rest">REST API</h2>
+  <div class="card">
+    <p>Every feature is also a plain JSON API under <code>/api/v1</code>. Interactive docs: <a href="/docs">Swagger UI</a> · <a href="/redoc">ReDoc</a> · <a href="/openapi.json">openapi.json</a>.</p>
+<pre><code>curl "{{ base_url }}/api/v1/notices?q=cloud&amp;limit=5"        # keyword search, X-Total-Count header
+curl "{{ base_url }}/api/v1/grants/calls?funder=UKRI"
+curl -X POST {{ base_url }}/api/v1/intelligence/buyer-report \
+  -H 'Content-Type: application/json' -d '{"buyer_name":"NHS"}'</code></pre>
+  </div>
+
+  <h2 id="auth">Auth &amp; safety</h2>
+  <div class="card">
+    <ul>
+      <li><code>MCP_API_KEY</code> protects <code>/mcp</code> and the tool executor. Accepted as <code>Authorization: Bearer</code> or <code>X-API-Key</code>.</li>
+      <li>Treat tender and proposal text returned to a model as untrusted input — it can contain instructions written by third parties.</li>
+      <li>Read tools are annotated <code>readOnlyHint</code>, so clients can auto-approve them while still prompting for writes.</li>
+      <li>The REST API itself has no per-user auth yet; run it behind your own gateway for multi-tenant use.</li>
+    </ul>
+  </div>
+</main>
+<script>
+  document.querySelectorAll('.tabs button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tabs button').forEach(function (b) { b.setAttribute('aria-selected', 'false'); });
+      document.querySelectorAll('.panel').forEach(function (p) { p.hidden = true; });
+      btn.setAttribute('aria-selected', 'true');
+      document.getElementById('panel-' + btn.dataset.tab).hidden = false;
+    });
+  });
+  document.getElementById('tool-filter').addEventListener('input', function (e) {
+    var q = e.target.value.toLowerCase();
+    document.querySelectorAll('#tool-table tbody tr').forEach(function (r) {
+      r.style.display = r.textContent.toLowerCase().indexOf(q) === -1 ? 'none' : '';
+    });
+  });
+</script>
+</body>
+</html>
