@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Contact — {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="hero" style="padding-bottom:8px">
+  <div class="wrap">
+    <div class="eyebrow">Contact</div>
+    <h1>Talk to us.</h1>
+    <p class="lead">Questions, quotes or a demo. Email <a href="mailto:{{ support_email }}">{{ support_email }}</a>, or use the form to open a pre-filled message in your email app.</p>
+  </div>
+</section>
+<section class="block" style="padding-top:8px">
+  <div class="wrap" style="max-width:640px">
+    <form id="contactForm" class="card">
+      <label class="f" for="cName">Your name</label><input class="f" id="cName" required />
+      <label class="f" for="cOrg">Organisation</label><input class="f" id="cOrg" />
+      <label class="f" for="cTopic">Topic</label>
+      <select class="f" id="cTopic">
+        <option>General enquiry</option><option>Quote</option><option>Demo</option>
+        <option>White-label / consultancy</option><option>API or MCP integration</option>
+      </select>
+      <label class="f" for="cMsg">Message</label><textarea class="f" id="cMsg" rows="5" required></textarea>
+      <p style="margin-top:14px"><button class="btn" type="submit">Open email draft</button></p>
+    </form>
+  </div>
+</section>
+<script>
+  document.getElementById("contactForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var g = function (id) { return document.getElementById(id).value; };
+    var body = g("cMsg") + "\n\n— " + g("cName") + (g("cOrg") ? ", " + g("cOrg") : "");
+    window.location.href = "mailto:{{ support_email }}?subject=" + encodeURIComponent(g("cTopic")) +
+      "&body=" + encodeURIComponent(body);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+        <div class="card">
+          <h3>1. Technical Documentation &amp; API Docs (Fixed-Fee + QA + Email Delivery)</h3>
+          <div class="form-grid">
+            <select id="tdType">
+              <option value="api_reference">API Reference</option>
+              <option value="user_guide">User Guide</option>
+              <option value="sop">SOP</option>
+              <option value="release_notes">Release Notes</option>
+            </select>
+            <input id="tdTitle" placeholder="Document Title" value="Partner Webhook API v2 Reference" />
+            <input id="tdEmail" placeholder="Client Email" value="client@example.com" />
+            <input id="tdFee" type="number" value="950" />
+            <button onclick="createTechDoc()">Create Fixed-Fee Doc Project</button>
+          </div>
+          <div id="techDocsList"></div>
+        </div>

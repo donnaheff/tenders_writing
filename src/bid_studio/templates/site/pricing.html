@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Pricing — {{ brand_name }}{% endblock %}
+{% block description %}How fees work for each service. Amounts are set per workspace and per order.{% endblock %}
+{% block content %}
+<section class="hero" style="padding-bottom:8px">
+  <div class="wrap">
+    <div class="eyebrow">Pricing</div>
+    <h1>Priced per deliverable, not per seat.</h1>
+    <p class="lead">There is no public rate card. Fees are set per workspace and recorded per order in the Orders Ledger. This is how each service is charged.</p>
+  </div>
+</section>
+<section class="block" style="padding-top:8px">
+  <div class="wrap">
+    <div class="card" style="padding:0;overflow-x:auto">
+      <table class="plain">
+        <thead><tr><th>Service</th><th>How it is charged</th></tr></thead>
+        <tbody>
+          <tr><td><a href="/services/tech-docs">Technical documentation</a></td><td>Fixed fee per project (the app's default is GBP 950, editable per order).</td></tr>
+          <tr><td><a href="/services/bid-review">Bid review marketplace</a></td><td>Flat fee set by each reviewer, shown in the reviewer directory.</td></tr>
+          <tr><td><a href="/services/training">Training &amp; workshops</a></td><td>Price per cohort seat; each enrolment is recorded as an order.</td></tr>
+          <tr><td><a href="/services/alerts">Tender alerts</a></td><td>Subscription plan tier per subscriber, daily or weekly.</td></tr>
+          <tr><td>Grants, compliance, bid assets, pricing, social value</td><td>Quoted per engagement and recorded as orders.</td></tr>
+          <tr><td><a href="/services/white-label">White-label consultancies</a></td><td>Agreed per consultancy, covering branding, client workspaces and access review.</td></tr>
+          <tr><td><a href="/developers">API &amp; MCP access</a></td><td>Agreed per integration.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:20px">Need a number for your situation? <a href="/contact">Ask us for a quote</a>.</p>
+  </div>
+</section>
+{% endblock %}

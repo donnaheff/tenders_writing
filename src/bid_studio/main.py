@@ -1,17 +1,22 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from bid_studio.config import settings
-from bid_studio.database import Base, SessionLocal, engine, get_db
+from bid_studio.database import Base, SessionLocal, engine
 from bid_studio.developers import router as developers_router
-from bid_studio.mcp_server import BearerKeyMiddleware, build_http_app, build_server, set_backend_app
-from bid_studio.models import Workspace
+from bid_studio.mcp_server import (
+    BearerKeyMiddleware,
+    McpGateway,
+    build_http_app,
+    build_server,
+    set_backend_app,
+)
 from bid_studio.routers import (
     audiences,
     bid_enhancements,
@@ -21,9 +26,10 @@ from bid_studio.routers import (
     services_line,
 )
 from bid_studio.seed import seed_database
+from bid_studio.site import render
+from bid_studio.site import router as site_router
 
-TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def create_app() -> FastAPI:
@@ -62,26 +68,21 @@ def create_app() -> FastAPI:
     app.include_router(audiences.router)
     app.include_router(developers_router)
 
-    @app.get("/", response_class=HTMLResponse)
-    def dashboard(request: Request, workspace_id: int | None = None, db: Session = Depends(get_db)):
-        ws = (
-            db.get(Workspace, workspace_id)
-            if workspace_id
-            else db.query(Workspace).order_by(Workspace.id).first()
-        )
-        return templates.TemplateResponse(
-            request=request,
-            name="index.html",
-            context={
-                "workspace_id": ws.id if ws else 1,
-                "brand_name": ws.brand_name if ws else settings.app_name,
-                "primary_color": ws.primary_color if ws else "#0f172a",
-                "accent_color": ws.accent_color if ws else "#2563eb",
-            },
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    app.include_router(site_router)
+
+    @app.exception_handler(StarletteHTTPException)
+    def http_error(request: Request, exc: StarletteHTTPException):
+        wants_html = "text/html" in request.headers.get("accept", "")
+        if exc.status_code == 404 and wants_html and not request.url.path.startswith("/api/"):
+            with SessionLocal() as db:
+                return render(request, "site/404.html", db, status_code=404, active="")
+        return JSONResponse(
+            status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers
         )
 
-    # Mounted last so every explicit route wins; the MCP app only answers /mcp.
-    app.mount("/", BearerKeyMiddleware(mcp_http_app, settings.mcp_api_key))
+    # Only /mcp goes to the MCP app; every other path (including 404s) stays with FastAPI.
+    app.add_middleware(McpGateway, mcp_app=BearerKeyMiddleware(mcp_http_app, settings.mcp_api_key))
 
     return app
 

@@ -1,0 +1,33 @@
+        <div class="card">
+          <h3>13. White-Label Bid Consultancies &amp; Access Review</h3>
+          <div class="form-grid">
+            <input id="wlBrand" placeholder="Brand Name" value="Consultancy Bid Portal" />
+            <input id="wlDomain" placeholder="Custom Domain" value="bids.consultancy.example" />
+            <div class="inline-actions">
+              <button onclick="saveWhiteLabel()">Update Current Workspace Branding</button>
+              <button class="secondary" onclick="runAccessReview()">Run Access Review</button>
+            </div>
+          </div>
+          <h4 style="margin-top:14px;">Create Client-Isolated White-Label Consultancy</h4>
+          <div class="form-grid">
+            <input id="newWsSlug" placeholder="Slug (e.g. meridian-bids)" />
+            <input id="newWsName" placeholder="Consultancy Name (e.g. Meridian Bid Advisory)" />
+            <input id="newWsBrand" placeholder="White-Label Brand Name" />
+            <button onclick="createWhiteLabelWorkspace()">Create Consultancy Workspace</button>
+          </div>
+          <h4 style="margin-top:14px;">Add Member to Current Workspace</h4>
+          <div class="form-grid">
+            <input id="memEmail" placeholder="Member Email" />
+            <input id="memName" placeholder="Full Name" />
+            <select id="memRole">
+              <option value="writer">Writer</option>
+              <option value="reviewer">Reviewer</option>
+              <option value="admin">Admin</option>
+              <option value="client">Client</option>
+            </select>
+            <button class="secondary" onclick="addWorkspaceMember()">Add Workspace Member</button>
+          </div>
+          <h4 style="margin-top:14px;">Current Workspace Members</h4>
+          <div id="membersList" style="margin-bottom:10px;"></div>
+          <pre id="accessReviewOutput" style="margin-top:12px;">Select a workspace and click Run Access Review.</pre>
+        </div>

@@ -1,0 +1,17 @@
+        <div class="card">
+          <h3>2. Compliance &amp; Policy Writing + Security Questionnaire Auto-Match</h3>
+          <div class="form-grid">
+            <select id="cpType">
+              <option value="security_questionnaire">Security Questionnaire</option>
+              <option value="iso_27001">ISO 27001 Manual</option>
+              <option value="iso_9001">ISO 9001 Manual</option>
+              <option value="data_protection_policy">Data Protection Policy</option>
+            </select>
+            <input id="cpTitle" value="NHS Buyer Security Questionnaire" />
+            <textarea id="cpQuestions" rows="3">Do you hold ISO 27001 certification?
+How is data encrypted at rest and in transit?
+What is your incident response SLA?</textarea>
+            <button onclick="createAndMatchCompliance()">Create Pack &amp; Auto-Match Answer Library</button>
+          </div>
+          <div id="complianceList"></div>
+        </div>

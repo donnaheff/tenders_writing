@@ -6,18 +6,20 @@ def test_health_and_dashboard(client):
     home = client.get("/")
     assert home.status_code == 200
     assert "Bid Studio" in home.text
-    assert "statWinRate" in home.text
-    assert "exportSocialValue" in home.text
-    assert "exportBuyerDraft" in home.text
-    assert "createWhiteLabelWorkspace" in home.text
-    assert "membersList" in home.text
-    assert "apiNotices" in home.text
-    assert "draftProposalForCall" in home.text
-    assert "promoteBidderAsset" in home.text
-    assert "renderMarkdownExport" in home.text
-    assert "saveProposalSections" in home.text
-    assert "revalidateBuyerDraft" in home.text
-    assert "pmTemplate" in home.text
+
+    # The app is now one page per section; the shared script carries the handlers.
+    overview = client.get("/app")
+    assert overview.status_code == 200
+    assert "statWinRate" in overview.text
+    script = client.get("/static/app.js").text
+    for needle in (
+        "exportSocialValue", "exportBuyerDraft", "createWhiteLabelWorkspace", "apiNotices",
+        "draftProposalForCall", "promoteBidderAsset", "renderMarkdownExport",
+        "saveProposalSections", "revalidateBuyerDraft",
+    ):
+        assert needle in script, needle
+    assert "membersList" in client.get("/app/white-label").text
+    assert "pmTemplate" in client.get("/app/pricing").text
 
 
 def test_white_label_and_access_review_and_isolation(client):

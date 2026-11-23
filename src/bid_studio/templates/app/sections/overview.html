@@ -1,0 +1,71 @@
+        <div class="grid">
+          <div class="card"><div>Feed Notices (Page)</div><div class="stat" id="statNotices">-</div></div>
+          <div class="card"><div>Grant Calls</div><div class="stat" id="statGrants">-</div></div>
+          <div class="card"><div>Answer / Evidence</div><div class="stat" id="statAnswers">-</div></div>
+          <div class="card"><div>Pending QA</div><div class="stat" id="statQueue">-</div></div>
+          <div class="card"><div>Win Rate</div><div class="stat" id="statWinRate">-</div></div>
+          <div class="card"><div>Order Revenue</div><div class="stat" id="statRevenue">-</div></div>
+        </div>
+        <div class="card">
+          <h3>Live Opportunity Feed (Tenders, Grants &amp; Awarded Notices)</h3>
+          <div class="inline-actions" style="margin-bottom:10px;">
+            <input id="feedSearch" placeholder="Search title, buyer, or keyword..." oninput="noticeOffset=0; refreshAll()" />
+            <select id="feedType" onchange="noticeOffset=0; refreshAll()">
+              <option value="">All notice types</option>
+              <option value="grant_call">Grant Calls</option>
+              <option value="tender">Open Tenders</option>
+              <option value="awarded_tender">Awarded Tenders</option>
+            </select>
+            <button id="btnPrevNotices" class="small secondary" onclick="prevNoticePage()">&larr; Prev</button>
+            <span class="muted" id="noticePageLabel">Page 1</span>
+            <button id="btnNextNotices" class="small secondary" onclick="nextNoticePage()">Next &rarr;</button>
+          </div>
+          <details style="margin-bottom:12px;">
+            <summary style="cursor:pointer; font-weight:600; font-size:0.88rem;">+ Post Notice to Workspace Feed</summary>
+            <div class="form-grid" style="margin-top:8px;">
+              <select id="newNoticeType">
+                <option value="tender">Open Tender</option>
+                <option value="grant_call">Grant Call</option>
+                <option value="awarded_tender">Awarded Tender</option>
+              </select>
+              <input id="newNoticeTitle" placeholder="Notice Title" value="Municipal Zero-Emission Bus Charging Network" />
+              <input id="newNoticeBuyer" placeholder="Buyer or Funder" value="Riverbend Borough Council" />
+              <input id="newNoticeSector" placeholder="Sector" value="CleanTech & Transport" />
+              <input id="newNoticeValue" type="number" placeholder="Contract / Grant Value" value="420000" />
+              <button onclick="createFeedNotice()">Publish Notice</button>
+            </div>
+          </details>
+          <div id="feedList">Loading...</div>
+        </div>
+        <div class="card">
+          <h3>Answer Library &amp; Evidence Library</h3>
+          <div class="form-grid">
+            <input id="alTitle" placeholder="Answer Title" value="Cyber Essentials Plus &amp; Zero Trust" />
+            <input id="alCategory" placeholder="Category (e.g. security, net_zero, delivery)" value="security" />
+            <textarea id="alContent" rows="2" placeholder="Reusable boilerplate answer...">We maintain Cyber Essentials Plus and ISO 27001 controls with quarterly penetration testing.</textarea>
+            <div class="inline-actions">
+              <button onclick="addAnswerItem()">Add to Answer Library</button>
+            </div>
+          </div>
+          <div id="answerLibraryList"></div>
+          <h4 style="margin-top:14px;">Evidence Library</h4>
+          <details style="margin-bottom:10px;">
+            <summary style="cursor:pointer; font-weight:600; font-size:0.86rem;">+ Add Evidence Item</summary>
+            <div class="form-grid" style="margin-top:8px;">
+              <input id="evTitle" placeholder="Evidence Title" value="Borough EV Charging Rollout" />
+              <input id="evType" placeholder="Evidence Type (e.g. case_study, metric)" value="case_study" />
+              <input id="evFormat" placeholder="Buyer Format" value="UK Cabinet Office Format" />
+              <textarea id="evSummary" rows="2">Installed 64 rapid chargers across 8 council depots ahead of schedule with 99.8% uptime.</textarea>
+              <button onclick="addEvidenceItem()">Add to Evidence Library</button>
+            </div>
+          </details>
+          <div id="evidenceLibraryList"></div>
+        </div>
+        <div class="card">
+          <h3>Quality Review Queue, Orders Ledger &amp; Email Deliveries</h3>
+          <div id="queueList"></div>
+          <h4 style="margin-top:14px;">Recent Orders</h4>
+          <div id="ordersList"></div>
+          <h4 style="margin-top:14px;">Recent Email Deliveries</h4>
+          <div id="deliveriesList"></div>
+        </div>

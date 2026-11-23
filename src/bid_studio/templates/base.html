@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ brand_name }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}Tender, grant, compliance and bid-intelligence writing platform with an API and MCP server.{% endblock %}" />
+  <link rel="canonical" href="{{ site_url }}{{ request.url.path }}" />
+  <style>:root { --primary: {{ primary_color }}; --accent: {{ accent_color }}; }</style>
+  <link rel="stylesheet" href="/static/site.css" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/">{{ brand_name }}</a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/services" class="{{ 'active' if active == 'services' }}">Services</a>
+      <a href="/pricing" class="{{ 'active' if active == 'pricing' }}">Pricing</a>
+      <a href="/developers" class="{{ 'active' if active == 'developers' }}">Developers</a>
+      <a href="/about" class="{{ 'active' if active == 'about' }}">About</a>
+      <a href="/contact" class="{{ 'active' if active == 'contact' }}">Contact</a>
+      <a href="/app" class="cta">Open the app</a>
+    </nav>
+  </div>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="cols">
+      <div><strong style="color:var(--text)">{{ brand_name }}</strong><br />
+        Tender, grant and compliance writing, with human quality review on every deliverable.</div>
+      <div><h4>Services</h4>
+        {% for s in all_services[:6] %}<a href="/services/{{ s.slug }}">{{ s.nav_label }}</a>{% endfor %}
+        <a href="/services">All services →</a></div>
+      <div><h4>Platform</h4>
+        <a href="/app">Open the app</a><a href="/developers">Developers &amp; MCP</a>
+        <a href="/docs">REST API docs</a><a href="/pricing">Pricing</a></div>
+      <div><h4>Company</h4><a href="/about">About</a><a href="/contact">Contact</a>
+        <a href="/sitemap.xml">Sitemap</a></div>
+    </div>
+    <div class="legal">© {{ now_year }} {{ brand_name }}.</div>
+  </div>
+</footer>
+</body>
+</html>

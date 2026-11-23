@@ -4,6 +4,23 @@ Bid Studio is a Python + FastAPI platform for tender writing, grant and funding 
 
 ---
 
+## Website
+
+Bid Studio is a server-rendered multi-page site (Jinja2, no build step):
+
+| Area | Pages |
+| --- | --- |
+| Marketing | `/` home, `/services`, `/services/{slug}` (15 service pages), `/pricing`, `/about`, `/contact`, `/developers` |
+| App (one page per section) | `/app` overview, `/app/{slug}` for each service, e.g. `/app/grants`, `/app/tech-docs`, `/app/white-label` |
+| SEO | `/sitemap.xml`, `/robots.txt`, branded 404 |
+
+- `src/bid_studio/catalog.py` is the single source of truth for services, app navigation and the sitemap. Add a service there and a page, nav entry and sitemap entry appear.
+- App pages share `static/app.js`; each page declares the datasets it needs (`PAGE_NEEDS`) so only those are fetched.
+- The workspace is chosen with `?workspace_id=` and is kept in every app link. Branding follows the workspace.
+- The contact form opens a pre-filled email; it does not store messages.
+
+---
+
 ## MCP Server & Developers Section
 
 Bid Studio ships a [Model Context Protocol](https://modelcontextprotocol.io) server so Claude, ChatGPT / OpenAI (Responses API, Agents SDK), Gemini, Cursor, VS Code and any other MCP client can search opportunities, draft grant proposals, run compliance matching, and generate intelligence reports.
@@ -34,13 +51,13 @@ Settings: `MCP_API_KEY`, `PUBLIC_BASE_URL` (used in docs snippets), `API_BASE_UR
    - Structured funding calls from **EU (Horizon Europe)**, **UKRI**, **World Bank**, and **Foundations**.
    - Automatic criteria & scoring rubric extraction (`/calls/{id}/extract-criteria`), section drafting against criterion weights, weighted score calculation, and submission to the Quality Review Queue.
 
-### New Service Lines
+### Writing & Review Services
 1. **Technical Documentation & API Docs (`/api/v1/tech-docs`)** — Fixed-fee packages (`user_guide`, `api_reference`, `sop`, `release_notes`), staff pipeline (`intake` → `drafting` → `quality_review` → `approved` → `delivered`), QA gate, and email delivery logging.
 2. **Compliance & Policy Writing (`/api/v1/compliance`)** — ISO 9001/27001 manuals, data protection policies, and security questionnaires with automated matching against the **Answer Library**.
 3. **CV, Capability Statement & Case Study Writing (`/api/v1/bidder-assets`)** — Buyer-formatted team CVs, capability statements, and case studies with one-click promotion to the **Evidence Library**.
 4. **Bid Review Marketplace (`/api/v1/marketplace`)** — Independent reviewer directory, criterion-by-criterion pre-submission scoring, and integration with Bid Studio's Quality Queue.
 
-### Closest to Bid Studio
+### Bid Strategy & Response
 5. **Win/Loss Debrief Service (`/api/v1/debriefs`)** — Outcome tracking (`won`, `lost`, `withdrawn`), buyer feedback request letters, internal-vs-buyer criterion comparison, and prioritized next-bid fixes.
 6. **Clarification Question Service (`/api/v1/clarifications`)** — Pack reader that detects ambiguous phrases (`TBD`, `reasonable`, `etc.`, unstated weightings) and drafts prioritized clarification questions before deadline.
 7. **Pricing & Cost-Narrative Writing (`/api/v1/pricing`)** — Reusable pricing templates, margin/contingency price matrices, and evaluator-ready cost-justification narratives.

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Services — {{ brand_name }}{% endblock %}
+{% block description %}Grant proposals, technical documentation, compliance packs, bid review, pricing, social value, tender intelligence and more.{% endblock %}
+{% block content %}
+<section class="hero" style="padding-bottom:8px">
+  <div class="wrap">
+    <div class="eyebrow">Services</div>
+    <h1>{{ all_services|length }} services, one workspace.</h1>
+    <p class="lead">Pick the service you need. Each opens in the app, and each is available through the API.</p>
+  </div>
+</section>
+<section class="block" style="padding-top:0">
+  <div class="wrap">
+    {% for group, items in groups %}
+    <div class="group-title">{{ group }}</div>
+    <div class="grid">
+      {% for s in items %}
+      <a class="card" href="/services/{{ s.slug }}"><h3>{{ s.title }}</h3><p>{{ s.summary }}</p></a>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

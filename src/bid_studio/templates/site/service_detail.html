@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ service.title }} — {{ brand_name }}{% endblock %}
+{% block description %}{{ service.summary }}{% endblock %}
+{% block content %}
+<div class="wrap crumbs"><a href="/services">Services</a> / {{ service.group }}</div>
+<section class="hero" style="padding-top:16px">
+  <div class="wrap">
+    <h1 style="max-width:24ch">{{ service.title }}</h1>
+    <p class="lead">{{ service.summary }}</p>
+    <div class="actions">
+      <a class="btn" href="/app/{{ service.slug }}">Open in the app</a>
+      <a class="btn ghost" href="/contact">Talk to us</a>
+    </div>
+  </div>
+</section>
+<section class="block">
+  <div class="wrap two">
+    <div>
+      <h2>What you get</h2>
+      <ul class="ticks">{% for f in service.features %}<li>{{ f }}</li>{% endfor %}</ul>
+      <p style="margin-top:14px"><span class="tag">Built for: {{ service.audience }}</span></p>
+    </div>
+    <div>
+      <h2>How it works</h2>
+      <ol class="steps">{% for st in service.steps %}<li>{{ st }}</li>{% endfor %}</ol>
+    </div>
+  </div>
+</section>
+<section class="block band">
+  <div class="wrap">
+    <h2>Use it from code</h2>
+    <p class="sub">Every step above is an API call{% if service.mcp_tools %}, and the main ones are also tools in the MCP server{% endif %}.</p>
+    <div class="two">
+      <div><h3>REST API</h3><pre><code>{% for a in service.api %}{{ a }}
+{% endfor %}</code></pre></div>
+      {% if service.mcp_tools %}
+      <div><h3>MCP tools</h3><pre><code>{% for t in service.mcp_tools %}{{ t }}
+{% endfor %}</code></pre>
+        <p><a href="/developers#tools">Connect Claude, ChatGPT or Gemini →</a></p></div>
+      {% else %}
+      <div><h3>Interactive docs</h3><p>Try every endpoint in <a href="/docs">Swagger UI</a>.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% if related %}
+<section class="block">
+  <div class="wrap">
+    <h2>Related in {{ service.group }}</h2>
+    <div class="grid" style="margin-top:12px">
+      {% for r in related %}<a class="card" href="/services/{{ r.slug }}"><h3>{{ r.title }}</h3><p>{{ r.tagline }}</p></a>{% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

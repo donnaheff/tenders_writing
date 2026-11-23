@@ -68,8 +68,9 @@ def test_developers_page(client):
         assert needle in r.text
 
 
-def test_dashboard_still_served_after_mount(client):
+def test_app_still_served_after_mcp_gateway(client):
     assert client.get("/").status_code == 200
+    assert client.get("/app").status_code == 200
     assert client.get("/api/v1/health").json()["status"] == "ok"
 
 
@@ -104,3 +105,8 @@ def test_tool_executor(client):
     assert r.status_code == 200, r.text
     assert client.post("/api/v1/developers/tools/nope/call", json={}).status_code == 404
     assert client.post("/api/v1/developers/tools/get_workspace_summary/call", json={}).status_code == 422
+
+
+def test_app_and_site_link_to_developers(client):
+    assert 'href="/developers"' in client.get("/app").text
+    assert 'href="/developers"' in client.get("/").text
