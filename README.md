@@ -52,7 +52,7 @@ Settings: `MCP_API_KEY`, `PUBLIC_BASE_URL` (used in docs snippets), `API_BASE_UR
    - Automatic criteria & scoring rubric extraction (`/calls/{id}/extract-criteria`), section drafting against criterion weights, weighted score calculation, and submission to the Quality Review Queue.
 
 ### Writing & Review Services
-1. **Technical Documentation & API Docs (`/api/v1/tech-docs`)** — Fixed-fee packages (`user_guide`, `api_reference`, `sop`, `release_notes`), staff pipeline (`intake` → `drafting` → `quality_review` → `approved` → `delivered`), QA gate, and email delivery logging.
+1. **Technical Documentation & API Docs (`/api/v1/tech-docs`)** — Fixed-fee packages (`user_guide`, `api_reference`, `sop`, `release_notes`, `whitepaper`, `runbook`, `architecture_doc`; the last three start from a section outline), staff pipeline (`intake` → `drafting` → `quality_review` → `approved` → `delivered`), QA gate, and email delivery logging.
 2. **Compliance & Policy Writing (`/api/v1/compliance`)** — ISO 9001/27001 manuals, data protection policies, and security questionnaires with automated matching against the **Answer Library**.
 3. **CV, Capability Statement & Case Study Writing (`/api/v1/bidder-assets`)** — Buyer-formatted team CVs, capability statements, and case studies with one-click promotion to the **Evidence Library**.
 4. **Bid Review Marketplace (`/api/v1/marketplace`)** — Independent reviewer directory, criterion-by-criterion pre-submission scoring, and integration with Bid Studio's Quality Queue.

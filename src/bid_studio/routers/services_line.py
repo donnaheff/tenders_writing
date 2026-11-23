@@ -24,7 +24,7 @@ from bid_studio.schemas import (
     TechDocCreate,
     TechDocReviewInput,
 )
-from bid_studio.services.domain_logic import match_security_questionnaire
+from bid_studio.services.domain_logic import match_security_questionnaire, tech_doc_starter
 
 router = APIRouter(prefix="/api/v1", tags=["service-lines"])
 
@@ -50,8 +50,7 @@ def create_tech_doc_project(payload: TechDocCreate, db: Session = Depends(get_db
         fixed_fee=payload.fixed_fee,
         currency=payload.currency,
         pipeline_stage="drafting" if payload.draft_content else "intake",
-        draft_content=payload.draft_content
-        or f"# {payload.title}\n\nStructured {payload.doc_type.replace('_', ' ')} draft ready for staff pipeline.",
+        draft_content=payload.draft_content or tech_doc_starter(payload.doc_type, payload.title),
     )
     db.add(doc)
     db.flush()

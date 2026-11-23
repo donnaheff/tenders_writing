@@ -142,3 +142,55 @@ def test_marketplace_reviewer_scoring_updates_quality_queue(client):
     export_res = client.get(f"/api/v1/marketplace/reviews/{review['id']}/export")
     assert export_res.status_code == 200
     assert "Riverbend Fleet Draft v1" in export_res.json()["markdown"]
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    ("doc_type", "heading"),
+    [
+        ("whitepaper", "## Executive summary"),
+        ("runbook", "## Rollback"),
+        ("architecture_doc", "## Alternatives considered"),
+    ],
+)
+def test_long_form_tech_doc_types_start_from_an_outline(client, doc_type, heading):
+    res = client.post(
+        "/api/v1/tech-docs",
+        json={
+            "workspace_id": 1,
+            "doc_type": doc_type,
+            "title": "Payments platform",
+            "client_email": "cto@fintech.example",
+        },
+    )
+    assert res.status_code == 201
+    doc = res.json()
+    assert doc["doc_type"] == doc_type
+    assert heading in doc["draft_content"]
+    assert doc["pipeline_stage"] == "intake"
+    export = client.get(f"/api/v1/tech-docs/{doc['id']}/export").json()["markdown"]
+    assert doc_type in export and heading in export
+
+
+def test_unknown_tech_doc_type_is_rejected(client):
+    res = client.post(
+        "/api/v1/tech-docs",
+        json={"workspace_id": 1, "doc_type": "poem", "title": "x", "client_email": "a@b.example"},
+    )
+    assert res.status_code == 422
+
+
+def test_existing_tech_doc_types_keep_the_original_placeholder(client):
+    res = client.post(
+        "/api/v1/tech-docs",
+        json={"workspace_id": 1, "doc_type": "sop", "title": "Onboarding", "client_email": "a@b.example"},
+    )
+    assert "Structured sop draft ready for staff pipeline." in res.json()["draft_content"]
+
+
+def test_service_page_lists_the_new_packages(client):
+    page = client.get("/services/tech-docs").text
+    assert "whitepaper" in page and "runbook" in page and "architecture document" in page
+    assert "Architecture Document" in client.get("/app/tech-docs").text

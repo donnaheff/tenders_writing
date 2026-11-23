@@ -549,3 +549,51 @@ def validate_public_sector_draft(
     clarity_score = max(0.0, round(100.0 - (len(issues) * 18.0), 1))
     status = "validated" if not issues else "draft"
     return clarity_score, issues, status
+
+
+TECH_DOC_OUTLINES: dict[str, list[str]] = {
+    "whitepaper": [
+        "Executive summary",
+        "The problem and who it affects",
+        "Our approach",
+        "Evidence and results",
+        "Recommendations",
+        "About the author",
+    ],
+    "runbook": [
+        "Purpose and scope",
+        "Prerequisites and access",
+        "Procedure (numbered steps with exact commands)",
+        "Verification",
+        "Rollback",
+        "Troubleshooting",
+        "Escalation contacts",
+    ],
+    "architecture_doc": [
+        "Context and goals",
+        "Constraints and assumptions",
+        "Solution overview",
+        "Components and responsibilities",
+        "Data flows",
+        "Security and compliance",
+        "Risks and open questions",
+        "Alternatives considered",
+        "Decision log",
+    ],
+}
+
+
+def tech_doc_starter(doc_type: str, title: str) -> str:
+    """Starter draft for a new technical document project.
+
+    The three long-form types get a section outline so writers start from structure;
+    the original four keep their one-line placeholder.
+    """
+    outline = TECH_DOC_OUTLINES.get(doc_type)
+    if not outline:
+        return (
+            f"# {title}\n\nStructured {doc_type.replace('_', ' ')} "
+            "draft ready for staff pipeline."
+        )
+    sections = "\n\n".join(f"## {name}\n\n_To be written._" for name in outline)
+    return f"# {title}\n\n{sections}\n"

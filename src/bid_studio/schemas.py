@@ -140,7 +140,15 @@ class GrantProposalSectionUpdate(BaseModel):
 
 class TechDocCreate(BaseModel):
     workspace_id: int = 1
-    doc_type: Literal["user_guide", "api_reference", "sop", "release_notes"]
+    doc_type: Literal[
+        "user_guide",
+        "api_reference",
+        "sop",
+        "release_notes",
+        "whitepaper",
+        "runbook",
+        "architecture_doc",
+    ]
     title: str
     client_email: str
     fixed_fee: float = 950.0
