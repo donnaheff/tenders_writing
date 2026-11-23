@@ -104,3 +104,7 @@ def test_tool_executor(client):
     assert r.status_code == 200, r.text
     assert client.post("/api/v1/developers/tools/nope/call", json={}).status_code == 404
     assert client.post("/api/v1/developers/tools/get_workspace_summary/call", json={}).status_code == 422
+
+
+def test_dashboard_links_to_developers(client):
+    assert 'href="/developers"' in client.get("/").text
