@@ -1,0 +1,20 @@
+        <div class="card">
+          <h3>Business Documents (fixed fee, QA gate, email delivery)</h3>
+          <div class="form-grid">
+            <select id="bdType">
+              <option value="business_proposal">Business Proposal</option>
+              <option value="business_plan">Business Plan</option>
+              <option value="executive_summary">Executive Summary</option>
+              <option value="company_profile">Company Profile</option>
+              <option value="concept_note">Project Concept Note</option>
+              <option value="investor_one_pager">Investor One-Pager</option>
+              <option value="statement_of_work">Statement of Work</option>
+              <option value="quotation">Quotation</option>
+            </select>
+            <input id="bdTitle" placeholder="Document title" value="Digital Services Proposal for Riverbend Council" />
+            <input id="bdEmail" placeholder="Client email" value="client@example.com" />
+            <input id="bdFee" type="number" min="0" placeholder="Fixed fee (required, no default)" />
+            <button onclick="createBusinessDoc()">Create Fixed-Fee Business Document</button>
+          </div>
+          <div id="businessDocsList"></div>
+        </div>

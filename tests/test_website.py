@@ -60,3 +60,10 @@ def test_static_assets_and_seo_files(client):
 
 def test_contact_page_does_not_pretend_to_store_messages(client):
     assert "mailto:" in client.get("/contact").text
+
+
+def test_markdown_export_preview_uses_a_real_element_lookup(client):
+    """E() returns a sink object when an element is missing, so it must never be used to
+    decide whether the export preview already exists (that silently hid every export)."""
+    js = client.get("/static/app.js").text
+    assert 'let wrap = document.getElementById(previewId)' in js

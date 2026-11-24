@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 GROUPS = [
     "Primary Product",
     "Writing & Review Services",
+    "Business & Legal Documents",
     "Bid Strategy & Response",
     "Tender Data Products",
     "New Audiences",
@@ -33,6 +34,8 @@ class Service:
     mcp_tools: list[str] = field(default_factory=list)
     needs: list[str] = field(default_factory=list)  # datasets the app page fetches
     audience: str = "Bid teams"
+    notice: str = ""  # shown prominently on the service page and in the app
+    lawyer_required: bool = False
 
 
 SERVICES: list[Service] = [
@@ -65,10 +68,14 @@ SERVICES: list[Service] = [
         slug="tech-docs", app_id="techdocs", title="Technical Documentation & API Docs",
         nav_label="Technical & API Docs", group="Writing & Review Services",
         tagline="Fixed-fee documentation with a QA gate before delivery.",
-        summary="User guides, API references, SOPs and release notes delivered as fixed-fee "
-                "projects through a tracked pipeline.",
+        summary="User guides, API references, SOPs, release notes, whitepapers, runbooks, "
+                "architecture documents, tutorials, knowledge-base articles, migration guides, "
+                "postmortems and datasheets, delivered as fixed-fee projects through a tracked pipeline.",
         features=[
-            "Four packages: user guide, API reference, SOP and release notes",
+            "Twelve packages: user guide, API reference, SOP, release notes, whitepaper, runbook, "
+            "architecture document, tutorial, knowledge-base article, migration guide, "
+            "incident postmortem and datasheet",
+            "All packages after the first four start from a section outline",
             "Fixed fee per project (default GBP 950, adjustable per order)",
             "Pipeline: intake → drafting → quality review → approved → delivered",
             "QA gate: nothing is delivered until a reviewer approves it",
@@ -139,6 +146,58 @@ SERVICES: list[Service] = [
              "POST /api/v1/marketplace/reviews/{id}/score",
              "GET /api/v1/marketplace/reviews/{id}/export"],
         needs=["reviewers", "reviews"],
+    ),
+    Service(
+        slug="business-documents", app_id="businessdocs", title="Business Proposals, Plans & Company Documents",
+        nav_label="Business Documents", group="Business & Legal Documents",
+        tagline="Proposals, plans and summaries that read like they were written by your best writer.",
+        summary="Business proposals, business plans, executive summaries, company profiles, "
+                "concept notes, investor one-pagers, statements of work and quotations as "
+                "fixed-fee projects with a QA gate.",
+        features=[
+            "Eight document types, each starting from a section outline",
+            "Business plans leave the financial plan for the client's own figures",
+            "Fixed fee set per project, with no assumed default price",
+            "Pipeline: intake → drafting → quality review → approved → delivered",
+            "QA gate: nothing is delivered until a reviewer approves it",
+            "Statements of work, quotations and proposals carry a pointer to the legal service "
+            "for binding terms",
+            "Markdown export",
+        ],
+        steps=["Choose the document type", "Agree the fixed fee", "Draft from the outline",
+               "Submit to quality review", "Reviewer approves", "Deliver by email"],
+        api=["GET|POST /api/v1/business-docs", "POST /api/v1/business-docs/{id}/submit-quality",
+             "POST /api/v1/business-docs/{id}/review", "POST /api/v1/business-docs/{id}/deliver",
+             "GET /api/v1/business-docs/{id}/export"],
+        needs=["businessDocs"], audience="Founders, SMEs & consultants",
+        notice="Statements of work and quotations are commercial documents, not contracts. "
+               "Binding terms should be written or reviewed by a lawyer; see Legal Contracts.",
+    ),
+    Service(
+        slug="legal-contracts", app_id="legal", title="Legal Contracts (Lawyer-Only)",
+        nav_label="Legal Contracts", group="Business & Legal Documents",
+        tagline="Written and signed off by a qualified lawyer, never generated.",
+        summary="Contract engagements handled strictly by a lawyer: NDAs, service agreements, "
+                "employment contracts, terms of service and shareholder agreements.",
+        features=[
+            "Bid Studio never drafts contract text; the lawyer writes it",
+            "A lawyer is assigned, with their registration reference recorded",
+            "Only the assigned lawyer can edit the draft or sign it off",
+            "Export and delivery are blocked until a lawyer has signed off",
+            "Any edit after sign-off voids the sign-off",
+            "Not available to AI clients through the MCP server",
+        ],
+        steps=["Open the matter with your instructions and jurisdiction", "A lawyer is assigned",
+               "The lawyer writes the contract", "The lawyer signs it off",
+               "The signed-off contract is delivered"],
+        api=["GET|POST /api/v1/legal-contracts", "POST /api/v1/legal-contracts/{id}/assign-lawyer",
+             "PUT /api/v1/legal-contracts/{id}/draft", "POST /api/v1/legal-contracts/{id}/sign-off",
+             "POST /api/v1/legal-contracts/{id}/deliver", "GET /api/v1/legal-contracts/{id}/export"],
+        needs=["legalMatters"], audience="Anyone who needs a binding agreement",
+        notice="Bid Studio does not draft legal contracts and this is not legal advice. Every "
+               "contract is written or approved by a qualified lawyer and cannot be exported or "
+               "delivered without a recorded lawyer sign-off.",
+        lawyer_required=True,
     ),
     Service(
         slug="debriefs", app_id="debriefs", title="Win/Loss Debrief Service",

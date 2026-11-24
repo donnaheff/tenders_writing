@@ -52,10 +52,14 @@ Settings: `MCP_API_KEY`, `PUBLIC_BASE_URL` (used in docs snippets), `API_BASE_UR
    - Automatic criteria & scoring rubric extraction (`/calls/{id}/extract-criteria`), section drafting against criterion weights, weighted score calculation, and submission to the Quality Review Queue.
 
 ### Writing & Review Services
-1. **Technical Documentation & API Docs (`/api/v1/tech-docs`)** — Fixed-fee packages (`user_guide`, `api_reference`, `sop`, `release_notes`), staff pipeline (`intake` → `drafting` → `quality_review` → `approved` → `delivered`), QA gate, and email delivery logging.
+1. **Technical Documentation & API Docs (`/api/v1/tech-docs`)** — Fixed-fee packages (`user_guide`, `api_reference`, `sop`, `release_notes`, `whitepaper`, `runbook`, `architecture_doc`, `tutorial`, `knowledge_base_article`, `migration_guide`, `postmortem`, `datasheet`; every type after the first four starts from a section outline), staff pipeline (`intake` → `drafting` → `quality_review` → `approved` → `delivered`), QA gate, and email delivery logging.
 2. **Compliance & Policy Writing (`/api/v1/compliance`)** — ISO 9001/27001 manuals, data protection policies, and security questionnaires with automated matching against the **Answer Library**.
 3. **CV, Capability Statement & Case Study Writing (`/api/v1/bidder-assets`)** — Buyer-formatted team CVs, capability statements, and case studies with one-click promotion to the **Evidence Library**.
 4. **Bid Review Marketplace (`/api/v1/marketplace`)** — Independent reviewer directory, criterion-by-criterion pre-submission scoring, and integration with Bid Studio's Quality Queue.
+
+### Business & Legal Documents
+- **Business Documents (`/api/v1/business-docs`)** — Fixed-fee business proposals, business plans, executive summaries, company profiles, project concept notes, investor one-pagers, statements of work and quotations. Same pipeline and QA gate as technical documents, each type starts from a section outline, and there is no default price (the fee is required). Statements of work, quotations and proposals point to Legal Contracts for binding terms.
+- **Legal Contracts — lawyer-only (`/api/v1/legal-contracts`)** — Bid Studio never drafts contract text. A matter records the client's instructions and jurisdiction, a lawyer is assigned (name and registration reference recorded), only that lawyer can write the draft and sign it off, and export and delivery are blocked until sign-off. Any edit after sign-off voids it. These endpoints are deliberately not exposed through the MCP server or the function-calling schemas. Limits: the API records, but cannot verify, a lawyer's identity or registration, so staff must verify credentials before assigning, and real enforcement needs user accounts and roles (for example via the suite login).
 
 ### Bid Strategy & Response
 5. **Win/Loss Debrief Service (`/api/v1/debriefs`)** — Outcome tracking (`won`, `lost`, `withdrawn`), buyer feedback request letters, internal-vs-buyer criterion comparison, and prioritized next-bid fixes.

@@ -549,3 +549,201 @@ def validate_public_sector_draft(
     clarity_score = max(0.0, round(100.0 - (len(issues) * 18.0), 1))
     status = "validated" if not issues else "draft"
     return clarity_score, issues, status
+
+
+TECH_DOC_OUTLINES: dict[str, list[str]] = {
+    "whitepaper": [
+        "Executive summary",
+        "The problem and who it affects",
+        "Our approach",
+        "Evidence and results",
+        "Recommendations",
+        "About the author",
+    ],
+    "runbook": [
+        "Purpose and scope",
+        "Prerequisites and access",
+        "Procedure (numbered steps with exact commands)",
+        "Verification",
+        "Rollback",
+        "Troubleshooting",
+        "Escalation contacts",
+    ],
+    "tutorial": [
+        "What you will build",
+        "Prerequisites",
+        "Step-by-step instructions (with code)",
+        "Check that it works",
+        "Next steps",
+    ],
+    "knowledge_base_article": [
+        "Summary",
+        "When this applies",
+        "Steps",
+        "Common problems",
+        "Related articles",
+    ],
+    "migration_guide": [
+        "Who needs to migrate and why",
+        "What changes (breaking and non-breaking)",
+        "Before you start",
+        "Migration steps",
+        "Verification",
+        "Rollback",
+        "Deprecation timeline",
+    ],
+    "postmortem": [
+        "Summary and impact",
+        "Timeline",
+        "Root cause",
+        "What went well",
+        "What went wrong",
+        "Action items (owner and due date)",
+    ],
+    "datasheet": [
+        "Overview",
+        "Key features",
+        "Technical specifications",
+        "Supported platforms and requirements",
+        "Compliance and certifications",
+        "Ordering and contact",
+    ],
+    "architecture_doc": [
+        "Context and goals",
+        "Constraints and assumptions",
+        "Solution overview",
+        "Components and responsibilities",
+        "Data flows",
+        "Security and compliance",
+        "Risks and open questions",
+        "Alternatives considered",
+        "Decision log",
+    ],
+}
+
+
+LEGAL_REVIEW_NOTE = (
+    "> Binding terms (liability, payment, termination, IP) must be written or reviewed by a "
+    "lawyer. See Legal Contracts."
+)
+
+BUSINESS_DOC_OUTLINES: dict[str, list[str]] = {
+    "business_proposal": [
+        "Executive summary",
+        "Our understanding of your needs",
+        "Proposed solution",
+        "Scope and deliverables",
+        "Timeline",
+        "Team and experience",
+        "Pricing",
+        "Next steps",
+    ],
+    "business_plan": [
+        "Executive summary",
+        "Company description",
+        "Market analysis",
+        "Products and services",
+        "Marketing and sales strategy",
+        "Operations plan",
+        "Management and team",
+        "Financial plan (figures to be supplied by the client)",
+        "Funding request",
+        "Risks and mitigations",
+    ],
+    "executive_summary": ["The opportunity", "Our solution", "Market", "Traction", "Team", "The ask"],
+    "company_profile": [
+        "Who we are",
+        "What we do",
+        "Leadership",
+        "Track record",
+        "Accreditations and credentials",
+        "Contact",
+    ],
+    "concept_note": [
+        "Background and need",
+        "Objectives",
+        "Proposed activities",
+        "Expected outcomes",
+        "Budget summary",
+        "Organisational capacity",
+    ],
+    "investor_one_pager": [
+        "Problem",
+        "Solution",
+        "Market",
+        "Business model",
+        "Traction",
+        "Team",
+        "Funding ask",
+    ],
+    "statement_of_work": [
+        "Purpose",
+        "Scope of work",
+        "Deliverables and acceptance criteria",
+        "Timeline and milestones",
+        "Fees and payment schedule",
+        "Assumptions and dependencies",
+        "Change control",
+    ],
+    "quotation": [
+        "Scope covered by this quotation",
+        "Itemised prices",
+        "Assumptions and exclusions",
+        "Validity period",
+        "Payment terms",
+    ],
+}
+
+BUSINESS_DOC_LABELS: dict[str, str] = {
+    "business_proposal": "Business Proposal",
+    "business_plan": "Business Plan",
+    "executive_summary": "Executive Summary",
+    "company_profile": "Company Profile",
+    "concept_note": "Project Concept Note",
+    "investor_one_pager": "Investor One-Pager",
+    "statement_of_work": "Statement of Work",
+    "quotation": "Quotation",
+}
+
+# Commercial documents that read like contracts carry a pointer to the legal service.
+LEGAL_ADJACENT_BUSINESS_TYPES = {"statement_of_work", "quotation", "business_proposal"}
+
+
+def business_doc_starter(doc_type: str, title: str) -> str:
+    sections = "\n\n".join(
+        f"## {name}\n\n_To be written._" for name in BUSINESS_DOC_OUTLINES[doc_type]
+    )
+    note = f"{LEGAL_REVIEW_NOTE}\n\n" if doc_type in LEGAL_ADJACENT_BUSINESS_TYPES else ""
+    return f"# {title}\n\n{note}{sections}\n"
+
+
+TECH_DOC_LABELS: dict[str, str] = {
+    "user_guide": "User Guide",
+    "api_reference": "API Reference",
+    "sop": "SOP",
+    "release_notes": "Release Notes",
+    "whitepaper": "Whitepaper",
+    "runbook": "Runbook",
+    "architecture_doc": "Architecture Document",
+    "tutorial": "Tutorial / Quickstart",
+    "knowledge_base_article": "Knowledge Base Article",
+    "migration_guide": "Migration Guide",
+    "postmortem": "Incident Postmortem",
+    "datasheet": "Datasheet",
+}
+
+
+def tech_doc_starter(doc_type: str, title: str) -> str:
+    """Starter draft for a new technical document project.
+
+    Every type except the original four gets a section outline so writers start from structure;
+    the original four keep their one-line placeholder.
+    """
+    outline = TECH_DOC_OUTLINES.get(doc_type)
+    if not outline:
+        return (
+            f"# {title}\n\nStructured {doc_type.replace('_', ' ')} "
+            "draft ready for staff pipeline."
+        )
+    sections = "\n\n".join(f"## {name}\n\n_To be written._" for name in outline)
+    return f"# {title}\n\n{sections}\n"

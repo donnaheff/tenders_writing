@@ -36,6 +36,7 @@
     <main>
       <h2 class="page-title">{{ page_title }}</h2>
       {% if intro %}<p class="muted" style="margin-top:-4px">{{ intro }}</p>{% endif %}
+      {% if notice %}<div class="card" role="note" style="border-left:4px solid var(--accent)"><strong>{{ 'Lawyer-only service.' if lawyer_required else 'Note.' }}</strong> {{ notice }}</div>{% endif %}
       {% block content %}{% endblock %}
     </main>
   </div>

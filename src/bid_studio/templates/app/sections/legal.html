@@ -1,0 +1,21 @@
+        <div class="card">
+          <h3>Legal Contract Matters (lawyer-only)</h3>
+          <p class="muted">No contract text is generated here. Open a matter with your instructions; a lawyer is assigned, writes the contract and signs it off. Export and delivery stay locked until then.</p>
+          <div class="form-grid">
+            <select id="lgType">
+              <option value="nda">NDA</option>
+              <option value="service_agreement">Service Agreement</option>
+              <option value="employment_contract">Employment Contract</option>
+              <option value="terms_of_service">Terms of Service</option>
+              <option value="shareholder_agreement">Shareholder Agreement</option>
+              <option value="other">Other</option>
+            </select>
+            <input id="lgTitle" placeholder="Matter title" value="Mutual NDA with Riverbend Council" />
+            <input id="lgEmail" placeholder="Client email" value="client@example.com" />
+            <input id="lgJurisdiction" placeholder="Jurisdiction (e.g. England and Wales)" value="England and Wales" />
+            <textarea id="lgInstructions" rows="3" placeholder="Your instructions for the lawyer"></textarea>
+            <input id="lgFee" type="number" min="0" placeholder="Quoted fee (optional)" />
+            <button onclick="createLegalMatter()">Open Legal Matter</button>
+          </div>
+          <div id="legalList"></div>
+        </div>

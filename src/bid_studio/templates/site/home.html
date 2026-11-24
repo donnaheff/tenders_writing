@@ -17,7 +17,7 @@
 <section class="block">
   <div class="wrap">
     <h2>Everything a bid team writes, in one place</h2>
-    <p class="sub">{{ all_services|length }} services across five areas. Each one has its own page in the app and its own API.</p>
+    <p class="sub">{{ all_services|length }} services across {{ groups|length }} areas. Each one has its own page in the app and its own API.</p>
     <div class="grid">
       {% for s in all_services[:6] %}
       <a class="card" href="/services/{{ s.slug }}"><span class="tag">{{ s.group }}</span>
